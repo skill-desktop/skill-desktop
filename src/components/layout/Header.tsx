@@ -1,4 +1,5 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 import { Search, RefreshCw, LayoutGrid, List, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAppStore, useSettingsStore } from "@/stores";
@@ -6,6 +7,7 @@ import { useRescanLibrary } from "@/hooks";
 import { Button, Input } from "@/components/ui";
 
 export const Header: React.FC = () => {
+  const { t } = useTranslation();
   const { currentView, searchQuery, setSearchQuery } = useAppStore();
   const { viewMode, setViewMode, libraryPath } = useSettingsStore();
   const rescanMutation = useRescanLibrary();
@@ -13,15 +15,15 @@ export const Header: React.FC = () => {
   const getTitle = () => {
     switch (currentView) {
       case "library":
-        return "Library";
+        return t("nav.library");
       case "spaces":
-        return "Spaces";
+        return t("nav.spaces");
       case "hub":
-        return "Skill Hub";
+        return t("nav.hub");
       case "settings":
-        return "Settings";
+        return t("nav.settings");
       default:
-        return "Skill Desktop";
+        return t("app.name");
     }
   };
 
@@ -47,7 +49,7 @@ export const Header: React.FC = () => {
             <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-text-muted" />
             <Input
               type="text"
-              placeholder="Search skills..."
+              placeholder={t("header.searchPlaceholder")}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="h-7 w-64 pl-8 text-xs"
@@ -94,7 +96,7 @@ export const Header: React.FC = () => {
             className="h-7 w-7"
             onClick={handleRescan}
             disabled={rescanMutation.isPending || !libraryPath}
-            title={libraryPath ? "Rescan library" : "Set library path first"}
+            title={t("header.rescanLibrary")}
           >
             {rescanMutation.isPending ? (
               <Loader2 className="h-3.5 w-3.5 animate-spin" />

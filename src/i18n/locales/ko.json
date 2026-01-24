@@ -1,0 +1,191 @@
+{
+  "common": {
+    "confirm": "확인",
+    "cancel": "취소",
+    "save": "저장",
+    "delete": "삭제",
+    "edit": "편집",
+    "close": "닫기",
+    "search": "검색",
+    "loading": "로딩 중...",
+    "error": "오류",
+    "success": "성공",
+    "warning": "경고",
+    "info": "정보",
+    "yes": "예",
+    "no": "아니오",
+    "ok": "확인",
+    "back": "뒤로",
+    "next": "다음",
+    "done": "완료",
+    "refresh": "새로고침",
+    "retry": "재시도",
+    "selectAll": "모두 선택",
+    "deselectAll": "선택 해제",
+    "noData": "데이터 없음",
+    "version": "버전"
+  },
+  "app": {
+    "name": "Skill Desktop",
+    "description": "개발자를 위한 Agent Skill 관리 인프라"
+  },
+  "nav": {
+    "library": "라이브러리",
+    "spaces": "스페이스",
+    "hub": "스킬 허브",
+    "settings": "설정"
+  },
+  "header": {
+    "searchPlaceholder": "스킬 검색...",
+    "rescanLibrary": "라이브러리 다시 스캔"
+  },
+  "library": {
+    "title": "라이브러리",
+    "noLibraryPath": "라이브러리 디렉토리가 설정되지 않았습니다",
+    "noLibraryPathDesc": "스킬을 저장할 디렉토리를 선택해 주세요.",
+    "goToSettings": "설정으로 이동",
+    "failedToLoad": "스킬 로드 실패",
+    "filter": {
+      "all": "전체",
+      "safe": "안전",
+      "quarantine": "격리"
+    },
+    "selection": {
+      "selected": "{{count}}개 선택됨",
+      "quarantine": "격리",
+      "delete": "삭제"
+    },
+    "deleteConfirm": {
+      "title": "{{count}}개 스킬 삭제",
+      "description": "{{count}}개의 스킬을 삭제하시겠습니까? 이 작업은 취소할 수 없습니다."
+    },
+    "quarantineConfirm": {
+      "title": "{{count}}개 스킬 격리",
+      "description": "{{count}}개의 스킬을 격리 영역으로 이동합니다. 격리된 스킬은 불안정하거나 민감할 수 있습니다.",
+      "markAsSafe": "안전으로 표시"
+    }
+  },
+  "skillCard": {
+    "by": "제작자",
+    "noDescription": "설명 없음",
+    "quarantined": "격리됨"
+  },
+  "skillDetail": {
+    "noSkillSelected": "스킬을 선택하여 상세 정보 보기",
+    "version": "버전",
+    "author": "제작자",
+    "tags": "태그",
+    "permissions": "권한",
+    "parameters": "매개변수",
+    "required": "필수",
+    "optional": "선택",
+    "actions": {
+      "showInFolder": "폴더에서 보기",
+      "openFile": "파일 열기",
+      "quarantine": "격리",
+      "unquarantine": "격리 해제",
+      "delete": "삭제"
+    },
+    "deleteConfirm": {
+      "title": "스킬 삭제",
+      "description": "\"{{name}}\"을(를) 삭제하시겠습니까? 이 작업은 취소할 수 없습니다."
+    }
+  },
+  "spaces": {
+    "title": "스페이스",
+    "description": "스킬 워크스페이스 관리",
+    "createNew": "새 스페이스 만들기",
+    "newSpace": "새 스페이스",
+    "editSpace": "스페이스 편집",
+    "deleteSpace": "스페이스 삭제",
+    "spaceName": "스페이스 이름",
+    "activeDirectory": "활성 디렉토리",
+    "spaceDescription": "설명",
+    "skillVisibility": "스킬 표시 설정",
+    "enabledSkills": "{{count}}개 스킬 활성화됨",
+    "syncSpace": "스페이스 동기화",
+    "exportConfig": "설정 내보내기",
+    "deleteConfirm": {
+      "title": "스페이스 삭제",
+      "description": "\"{{name}}\"을(를) 삭제하시겠습니까? 이 작업은 취소할 수 없습니다."
+    }
+  },
+  "hub": {
+    "title": "스킬 허브",
+    "description": "커뮤니티에서 스킬 발견 및 가져오기",
+    "searchPlaceholder": "MCP 서버 검색...",
+    "featured": "추천",
+    "searchResults": "검색 결과",
+    "noResults": "결과 없음",
+    "import": "가져오기",
+    "importing": "가져오는 중...",
+    "imported": "가져옴",
+    "preview": "미리보기",
+    "registry": {
+      "glama": "Glama",
+      "mcpSo": "MCP.so",
+      "mcpServersOrg": "MCPServers.org",
+      "smithery": "Smithery"
+    },
+    "importFromUrl": "URL에서 가져오기",
+    "importFromGithub": "GitHub에서 가져오기",
+    "urlPlaceholder": "스킬 URL 입력...",
+    "githubOwner": "소유자",
+    "githubRepo": "저장소",
+    "githubPath": "경로",
+    "githubBranch": "브랜치"
+  },
+  "settings": {
+    "title": "설정",
+    "appearance": {
+      "title": "외관",
+      "theme": "테마",
+      "themeDesc": "선호하는 색상 구성표 선택",
+      "dark": "다크",
+      "light": "라이트",
+      "system": "시스템 설정",
+      "language": "언어",
+      "languageDesc": "선호하는 언어 선택"
+    },
+    "library": {
+      "title": "라이브러리 설정",
+      "directory": "라이브러리 디렉토리",
+      "directoryDesc": "스킬이 저장되는 위치",
+      "rescan": "다시 스캔",
+      "rescanDesc": "라이브러리 디렉토리의 변경 사항을 수동으로 스캔",
+      "rescanNow": "지금 스캔",
+      "scanning": "스캔 중...",
+      "foundSkills": "{{count}}개 스킬 발견",
+      "autoSync": "파일 변경 자동 동기화",
+      "autoSyncDesc": "파일 변경 시 인덱스 자동 업데이트"
+    },
+    "security": {
+      "title": "보안",
+      "confirmDangerous": "위험한 명령 확인",
+      "confirmDangerousDesc": "셸 명령 실행 전 확인 표시"
+    },
+    "about": {
+      "title": "정보",
+      "checkUpdates": "업데이트 확인",
+      "documentation": "문서",
+      "reportIssue": "문제 보고"
+    }
+  },
+  "languageSelector": {
+    "title": "언어 선택",
+    "description": "애플리케이션의 언어를 선택하세요",
+    "continue": "계속"
+  },
+  "languages": {
+    "en": "English",
+    "zh-CN": "简体中文",
+    "zh-TW": "繁體中文",
+    "ja": "日本語",
+    "ko": "한국어",
+    "de": "Deutsch",
+    "fr": "Français",
+    "es": "Español",
+    "pt": "Português",
+    "ru": "Русский"
+  }
+}

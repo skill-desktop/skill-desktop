@@ -1,0 +1,191 @@
+{
+  "common": {
+    "confirm": "确认",
+    "cancel": "取消",
+    "save": "保存",
+    "delete": "删除",
+    "edit": "编辑",
+    "close": "关闭",
+    "search": "搜索",
+    "loading": "加载中...",
+    "error": "错误",
+    "success": "成功",
+    "warning": "警告",
+    "info": "信息",
+    "yes": "是",
+    "no": "否",
+    "ok": "确定",
+    "back": "返回",
+    "next": "下一步",
+    "done": "完成",
+    "refresh": "刷新",
+    "retry": "重试",
+    "selectAll": "全选",
+    "deselectAll": "取消全选",
+    "noData": "暂无数据",
+    "version": "版本"
+  },
+  "app": {
+    "name": "Skill Desktop",
+    "description": "面向开发者的 Agent Skill 管理基础设施"
+  },
+  "nav": {
+    "library": "技能库",
+    "spaces": "工作空间",
+    "hub": "技能中心",
+    "settings": "设置"
+  },
+  "header": {
+    "searchPlaceholder": "搜索技能...",
+    "rescanLibrary": "重新扫描库"
+  },
+  "library": {
+    "title": "技能库",
+    "noLibraryPath": "未设置技能库目录",
+    "noLibraryPathDesc": "请先选择一个目录来存储您的技能文件。",
+    "goToSettings": "前往设置",
+    "failedToLoad": "加载技能失败",
+    "filter": {
+      "all": "全部",
+      "safe": "安全",
+      "quarantine": "隔离区"
+    },
+    "selection": {
+      "selected": "已选择 {{count}} 项",
+      "quarantine": "隔离",
+      "delete": "删除"
+    },
+    "deleteConfirm": {
+      "title": "删除 {{count}} 个技能",
+      "description": "确定要删除 {{count}} 个技能吗？此操作无法撤销。"
+    },
+    "quarantineConfirm": {
+      "title": "隔离 {{count}} 个技能",
+      "description": "将 {{count}} 个技能移至隔离区。被隔离的技能会被标记为可能不稳定或敏感。",
+      "markAsSafe": "标记为安全"
+    }
+  },
+  "skillCard": {
+    "by": "作者",
+    "noDescription": "暂无描述",
+    "quarantined": "已隔离"
+  },
+  "skillDetail": {
+    "noSkillSelected": "选择一个技能查看详情",
+    "version": "版本",
+    "author": "作者",
+    "tags": "标签",
+    "permissions": "权限",
+    "parameters": "参数",
+    "required": "必填",
+    "optional": "可选",
+    "actions": {
+      "showInFolder": "在文件夹中显示",
+      "openFile": "打开文件",
+      "quarantine": "隔离",
+      "unquarantine": "取消隔离",
+      "delete": "删除"
+    },
+    "deleteConfirm": {
+      "title": "删除技能",
+      "description": "确定要删除「{{name}}」吗？此操作无法撤销。"
+    }
+  },
+  "spaces": {
+    "title": "工作空间",
+    "description": "管理您的技能工作空间",
+    "createNew": "创建新空间",
+    "newSpace": "新建空间",
+    "editSpace": "编辑空间",
+    "deleteSpace": "删除空间",
+    "spaceName": "空间名称",
+    "activeDirectory": "活动目录",
+    "spaceDescription": "描述",
+    "skillVisibility": "技能可见性",
+    "enabledSkills": "已启用 {{count}} 个技能",
+    "syncSpace": "同步空间",
+    "exportConfig": "导出配置",
+    "deleteConfirm": {
+      "title": "删除空间",
+      "description": "确定要删除「{{name}}」吗？此操作无法撤销。"
+    }
+  },
+  "hub": {
+    "title": "技能中心",
+    "description": "发现并导入社区技能",
+    "searchPlaceholder": "搜索 MCP 服务器...",
+    "featured": "精选",
+    "searchResults": "搜索结果",
+    "noResults": "未找到结果",
+    "import": "导入",
+    "importing": "导入中...",
+    "imported": "已导入",
+    "preview": "预览",
+    "registry": {
+      "glama": "Glama",
+      "mcpSo": "MCP.so",
+      "mcpServersOrg": "MCPServers.org",
+      "smithery": "Smithery"
+    },
+    "importFromUrl": "从 URL 导入",
+    "importFromGithub": "从 GitHub 导入",
+    "urlPlaceholder": "输入技能 URL...",
+    "githubOwner": "所有者",
+    "githubRepo": "仓库",
+    "githubPath": "路径",
+    "githubBranch": "分支"
+  },
+  "settings": {
+    "title": "设置",
+    "appearance": {
+      "title": "外观",
+      "theme": "主题",
+      "themeDesc": "选择您喜欢的配色方案",
+      "dark": "深色",
+      "light": "浅色",
+      "system": "跟随系统",
+      "language": "语言",
+      "languageDesc": "选择您喜欢的语言"
+    },
+    "library": {
+      "title": "技能库设置",
+      "directory": "技能库目录",
+      "directoryDesc": "技能文件的存储位置",
+      "rescan": "重新扫描",
+      "rescanDesc": "手动重新扫描技能库目录的变更",
+      "rescanNow": "立即扫描",
+      "scanning": "扫描中...",
+      "foundSkills": "找到 {{count}} 个技能",
+      "autoSync": "自动同步文件变更",
+      "autoSyncDesc": "文件变更时自动更新索引"
+    },
+    "security": {
+      "title": "安全",
+      "confirmDangerous": "确认危险命令",
+      "confirmDangerousDesc": "执行 Shell 命令前显示确认对话框"
+    },
+    "about": {
+      "title": "关于",
+      "checkUpdates": "检查更新",
+      "documentation": "文档",
+      "reportIssue": "报告问题"
+    }
+  },
+  "languageSelector": {
+    "title": "选择语言",
+    "description": "选择应用程序的首选语言",
+    "continue": "继续"
+  },
+  "languages": {
+    "en": "English",
+    "zh-CN": "简体中文",
+    "zh-TW": "繁體中文",
+    "ja": "日本語",
+    "ko": "한국어",
+    "de": "Deutsch",
+    "fr": "Français",
+    "es": "Español",
+    "pt": "Português",
+    "ru": "Русский"
+  }
+}

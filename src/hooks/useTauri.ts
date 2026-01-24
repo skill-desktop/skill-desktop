@@ -683,3 +683,46 @@ export function useImportMcpRegistryServer() {
     },
   });
 }
+
+// ========== App Settings Hooks ==========
+
+export interface AppSettings {
+  language?: string;
+  setupCompleted: boolean;
+  theme?: string;
+}
+
+export function useLoadAppSettings() {
+  return useQuery({
+    queryKey: ["app-settings"],
+    queryFn: async () => {
+      return await invoke<AppSettings>("load_app_settings");
+    },
+  });
+}
+
+export function useSaveAppSettings() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (settings: AppSettings) => {
+      await invoke("save_app_settings", { settings });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["app-settings"] });
+    },
+  });
+}
+
+export function useUpdateAppSetting() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ key, value }: { key: string; value: string }) => {
+      return await invoke<AppSettings>("update_app_setting", { key, value });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["app-settings"] });
+    },
+  });
+}

@@ -1,9 +1,12 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 import { FolderOpen, ExternalLink, RefreshCw, Check, Loader2 } from "lucide-react";
 import { invoke } from "@tauri-apps/api/core";
 import { Button, Input, Switch, ScrollArea } from "@/components/ui";
+import { LanguageDropdown } from "@/components/language";
 import { useSettingsStore } from "@/stores";
-import { useSetLibraryPath, useLibraryPath, useRescanLibrary } from "@/hooks";
+import { useSetLibraryPath, useLibraryPath, useRescanLibrary, useUpdateAppSetting } from "@/hooks";
+import type { SupportedLanguage } from "@/i18n";
 
 // Helper to open folder dialog via Tauri command
 async function openFolderDialog(): Promise<string | null> {
@@ -24,11 +27,14 @@ async function openFolderDialog(): Promise<string | null> {
 }
 
 export const SettingsView: React.FC = () => {
+  const { t } = useTranslation();
   const {
     libraryPath,
     setLibraryPath,
     theme,
     setTheme,
+    language,
+    setLanguage,
     autoSync,
     setAutoSync,
     confirmDangerousCommands,
@@ -39,6 +45,7 @@ export const SettingsView: React.FC = () => {
   const { data: backendLibraryPath } = useLibraryPath();
   const setLibraryPathMutation = useSetLibraryPath();
   const rescanMutation = useRescanLibrary();
+  const updateAppSettingMutation = useUpdateAppSetting();
 
   // Sync local state with backend on mount
   React.useEffect(() => {
@@ -88,14 +95,28 @@ export const SettingsView: React.FC = () => {
     }
   };
 
+  // Handle language change
+  const handleLanguageChange = async (newLanguage: SupportedLanguage) => {
+    setLanguage(newLanguage);
+    // Save to backend
+    try {
+      await updateAppSettingMutation.mutateAsync({
+        key: "language",
+        value: newLanguage,
+      });
+    } catch (error) {
+      console.error("Failed to save language setting:", error);
+    }
+  };
+
   return (
     <ScrollArea className="h-full">
       <div className="max-w-2xl mx-auto p-6 space-y-8">
         {/* Appearance */}
-        <Section title="Appearance">
+        <Section title={t("settings.appearance.title")}>
           <SettingRow
-            label="Theme"
-            description="Choose your preferred color scheme"
+            label={t("settings.appearance.theme")}
+            description={t("settings.appearance.themeDesc")}
           >
             <select
               value={theme}
@@ -104,18 +125,28 @@ export const SettingsView: React.FC = () => {
               }
               className="h-9 rounded-md border border-border-default bg-bg-secondary px-3 text-sm text-text-primary focus:border-accent-blue focus:outline-none"
             >
-              <option value="dark">Dark</option>
-              <option value="light">Light</option>
-              <option value="system">System</option>
+              <option value="dark">{t("settings.appearance.dark")}</option>
+              <option value="light">{t("settings.appearance.light")}</option>
+              <option value="system">{t("settings.appearance.system")}</option>
             </select>
+          </SettingRow>
+
+          <SettingRow
+            label={t("settings.appearance.language")}
+            description={t("settings.appearance.languageDesc")}
+          >
+            <LanguageDropdown
+              value={language}
+              onChange={handleLanguageChange}
+            />
           </SettingRow>
         </Section>
 
         {/* Library Settings */}
-        <Section title="Library Settings">
+        <Section title={t("settings.library.title")}>
           <SettingRow
-            label="Library Directory"
-            description="Location where your skills are stored"
+            label={t("settings.library.directory")}
+            description={t("settings.library.directoryDesc")}
           >
             <div className="flex items-center gap-2">
               <Input
@@ -141,8 +172,8 @@ export const SettingsView: React.FC = () => {
           </SettingRow>
 
           <SettingRow
-            label="Rescan Library"
-            description="Manually rescan the library directory for changes"
+            label={t("settings.library.rescan")}
+            description={t("settings.library.rescanDesc")}
           >
             <Button
               variant="secondary"
@@ -158,26 +189,26 @@ export const SettingsView: React.FC = () => {
                 <RefreshCw className="h-3.5 w-3.5 mr-1.5" />
               )}
               {rescanMutation.isPending
-                ? "Scanning..."
+                ? t("settings.library.scanning")
                 : rescanMutation.isSuccess
-                ? `Found ${rescanMutation.data} skills`
-                : "Rescan Now"}
+                ? t("settings.library.foundSkills", { count: rescanMutation.data })
+                : t("settings.library.rescanNow")}
             </Button>
           </SettingRow>
 
           <SettingRow
-            label="Auto-sync file changes"
-            description="Automatically update index when files change"
+            label={t("settings.library.autoSync")}
+            description={t("settings.library.autoSyncDesc")}
           >
             <Switch checked={autoSync} onCheckedChange={setAutoSync} />
           </SettingRow>
         </Section>
 
         {/* Security */}
-        <Section title="Security">
+        <Section title={t("settings.security.title")}>
           <SettingRow
-            label="Confirm dangerous commands"
-            description="Show confirmation before executing shell commands"
+            label={t("settings.security.confirmDangerous")}
+            description={t("settings.security.confirmDangerousDesc")}
           >
             <Switch
               checked={confirmDangerousCommands}
@@ -187,28 +218,28 @@ export const SettingsView: React.FC = () => {
         </Section>
 
         {/* About */}
-        <Section title="About">
+        <Section title={t("settings.about.title")}>
           <div className="space-y-2 text-sm">
             <p className="text-text-primary">
-              Skill Desktop <span className="text-text-muted">v0.1.0</span>
+              {t("app.name")} <span className="text-text-muted">v0.1.0</span>
             </p>
             <p className="text-text-secondary">
-              Agent Skill management infrastructure for developers
+              {t("app.description")}
             </p>
           </div>
 
           <div className="flex items-center gap-2 mt-4">
             <Button variant="secondary" size="sm">
               <RefreshCw className="h-3.5 w-3.5 mr-1.5" />
-              Check for Updates
+              {t("settings.about.checkUpdates")}
             </Button>
             <Button variant="secondary" size="sm">
               <ExternalLink className="h-3.5 w-3.5 mr-1.5" />
-              Documentation
+              {t("settings.about.documentation")}
             </Button>
             <Button variant="secondary" size="sm">
               <ExternalLink className="h-3.5 w-3.5 mr-1.5" />
-              Report Issue
+              {t("settings.about.reportIssue")}
             </Button>
           </div>
         </Section>

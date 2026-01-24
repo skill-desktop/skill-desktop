@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import type { SupportedLanguage } from "@/i18n";
 
 interface SettingsState {
   // Library 目录
@@ -9,6 +10,14 @@ interface SettingsState {
   // 主题设置
   theme: "dark" | "light" | "system";
   setTheme: (theme: "dark" | "light" | "system") => void;
+
+  // 语言设置
+  language: SupportedLanguage;
+  setLanguage: (language: SupportedLanguage) => void;
+
+  // 是否完成初始设置（首次启动语言选择）
+  setupCompleted: boolean;
+  setSetupCompleted: (completed: boolean) => void;
 
   // 自动监控文件变化
   autoSync: boolean;
@@ -31,6 +40,12 @@ export const useSettingsStore = create<SettingsState>()(
 
       theme: "dark",
       setTheme: (theme) => set({ theme }),
+
+      language: "en",
+      setLanguage: (language) => set({ language }),
+
+      setupCompleted: false,
+      setSetupCompleted: (completed) => set({ setupCompleted: completed }),
 
       autoSync: true,
       setAutoSync: (enabled) => set({ autoSync: enabled }),

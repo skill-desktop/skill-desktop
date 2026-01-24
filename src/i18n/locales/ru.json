@@ -1,0 +1,191 @@
+{
+  "common": {
+    "confirm": "Подтвердить",
+    "cancel": "Отмена",
+    "save": "Сохранить",
+    "delete": "Удалить",
+    "edit": "Редактировать",
+    "close": "Закрыть",
+    "search": "Поиск",
+    "loading": "Загрузка...",
+    "error": "Ошибка",
+    "success": "Успешно",
+    "warning": "Предупреждение",
+    "info": "Информация",
+    "yes": "Да",
+    "no": "Нет",
+    "ok": "ОК",
+    "back": "Назад",
+    "next": "Далее",
+    "done": "Готово",
+    "refresh": "Обновить",
+    "retry": "Повторить",
+    "selectAll": "Выбрать все",
+    "deselectAll": "Снять выделение",
+    "noData": "Нет данных",
+    "version": "Версия"
+  },
+  "app": {
+    "name": "Skill Desktop",
+    "description": "Инфраструктура управления Agent Skills для разработчиков"
+  },
+  "nav": {
+    "library": "Библиотека",
+    "spaces": "Пространства",
+    "hub": "Хаб навыков",
+    "settings": "Настройки"
+  },
+  "header": {
+    "searchPlaceholder": "Поиск навыков...",
+    "rescanLibrary": "Пересканировать библиотеку"
+  },
+  "library": {
+    "title": "Библиотека",
+    "noLibraryPath": "Каталог библиотеки не установлен",
+    "noLibraryPathDesc": "Пожалуйста, выберите каталог, где будут храниться ваши навыки.",
+    "goToSettings": "Перейти к настройкам",
+    "failedToLoad": "Не удалось загрузить навыки",
+    "filter": {
+      "all": "Все",
+      "safe": "Безопасные",
+      "quarantine": "Карантин"
+    },
+    "selection": {
+      "selected": "Выбрано: {{count}}",
+      "quarantine": "Карантин",
+      "delete": "Удалить"
+    },
+    "deleteConfirm": {
+      "title": "Удалить {{count}} навыков",
+      "description": "Вы уверены, что хотите удалить {{count}} навык(ов)? Это действие нельзя отменить."
+    },
+    "quarantineConfirm": {
+      "title": "Поместить {{count}} навыков в карантин",
+      "description": "Переместить {{count}} навык(ов) в зону карантина. Навыки в карантине помечаются как потенциально нестабильные или чувствительные.",
+      "markAsSafe": "Отметить как безопасный"
+    }
+  },
+  "skillCard": {
+    "by": "от",
+    "noDescription": "Описание отсутствует",
+    "quarantined": "В карантине"
+  },
+  "skillDetail": {
+    "noSkillSelected": "Выберите навык для просмотра деталей",
+    "version": "Версия",
+    "author": "Автор",
+    "tags": "Теги",
+    "permissions": "Разрешения",
+    "parameters": "Параметры",
+    "required": "обязательный",
+    "optional": "необязательный",
+    "actions": {
+      "showInFolder": "Показать в папке",
+      "openFile": "Открыть файл",
+      "quarantine": "Карантин",
+      "unquarantine": "Убрать из карантина",
+      "delete": "Удалить"
+    },
+    "deleteConfirm": {
+      "title": "Удалить навык",
+      "description": "Вы уверены, что хотите удалить \"{{name}}\"? Это действие нельзя отменить."
+    }
+  },
+  "spaces": {
+    "title": "Пространства",
+    "description": "Управление рабочими пространствами навыков",
+    "createNew": "Создать новое пространство",
+    "newSpace": "Новое пространство",
+    "editSpace": "Редактировать пространство",
+    "deleteSpace": "Удалить пространство",
+    "spaceName": "Название пространства",
+    "activeDirectory": "Активный каталог",
+    "spaceDescription": "Описание",
+    "skillVisibility": "Видимость навыков",
+    "enabledSkills": "Включено навыков: {{count}}",
+    "syncSpace": "Синхронизировать пространство",
+    "exportConfig": "Экспорт конфигурации",
+    "deleteConfirm": {
+      "title": "Удалить пространство",
+      "description": "Вы уверены, что хотите удалить \"{{name}}\"? Это действие нельзя отменить."
+    }
+  },
+  "hub": {
+    "title": "Хаб навыков",
+    "description": "Откройте для себя и импортируйте навыки из сообщества",
+    "searchPlaceholder": "Поиск MCP серверов...",
+    "featured": "Рекомендуемые",
+    "searchResults": "Результаты поиска",
+    "noResults": "Результаты не найдены",
+    "import": "Импорт",
+    "importing": "Импорт...",
+    "imported": "Импортировано",
+    "preview": "Предпросмотр",
+    "registry": {
+      "glama": "Glama",
+      "mcpSo": "MCP.so",
+      "mcpServersOrg": "MCPServers.org",
+      "smithery": "Smithery"
+    },
+    "importFromUrl": "Импорт из URL",
+    "importFromGithub": "Импорт из GitHub",
+    "urlPlaceholder": "Введите URL навыка...",
+    "githubOwner": "Владелец",
+    "githubRepo": "Репозиторий",
+    "githubPath": "Путь",
+    "githubBranch": "Ветка"
+  },
+  "settings": {
+    "title": "Настройки",
+    "appearance": {
+      "title": "Внешний вид",
+      "theme": "Тема",
+      "themeDesc": "Выберите предпочитаемую цветовую схему",
+      "dark": "Тёмная",
+      "light": "Светлая",
+      "system": "Системная",
+      "language": "Язык",
+      "languageDesc": "Выберите предпочитаемый язык"
+    },
+    "library": {
+      "title": "Настройки библиотеки",
+      "directory": "Каталог библиотеки",
+      "directoryDesc": "Место хранения ваших навыков",
+      "rescan": "Пересканировать",
+      "rescanDesc": "Вручную пересканировать каталог библиотеки на наличие изменений",
+      "rescanNow": "Сканировать сейчас",
+      "scanning": "Сканирование...",
+      "foundSkills": "Найдено навыков: {{count}}",
+      "autoSync": "Автосинхронизация файлов",
+      "autoSyncDesc": "Автоматически обновлять индекс при изменении файлов"
+    },
+    "security": {
+      "title": "Безопасность",
+      "confirmDangerous": "Подтверждать опасные команды",
+      "confirmDangerousDesc": "Показывать подтверждение перед выполнением shell-команд"
+    },
+    "about": {
+      "title": "О программе",
+      "checkUpdates": "Проверить обновления",
+      "documentation": "Документация",
+      "reportIssue": "Сообщить о проблеме"
+    }
+  },
+  "languageSelector": {
+    "title": "Выберите язык",
+    "description": "Выберите предпочитаемый язык приложения",
+    "continue": "Продолжить"
+  },
+  "languages": {
+    "en": "English",
+    "zh-CN": "简体中文",
+    "zh-TW": "繁體中文",
+    "ja": "日本語",
+    "ko": "한국어",
+    "de": "Deutsch",
+    "fr": "Français",
+    "es": "Español",
+    "pt": "Português",
+    "ru": "Русский"
+  }
+}

@@ -1,0 +1,191 @@
+{
+  "common": {
+    "confirm": "確認",
+    "cancel": "取消",
+    "save": "儲存",
+    "delete": "刪除",
+    "edit": "編輯",
+    "close": "關閉",
+    "search": "搜尋",
+    "loading": "載入中...",
+    "error": "錯誤",
+    "success": "成功",
+    "warning": "警告",
+    "info": "資訊",
+    "yes": "是",
+    "no": "否",
+    "ok": "確定",
+    "back": "返回",
+    "next": "下一步",
+    "done": "完成",
+    "refresh": "重新整理",
+    "retry": "重試",
+    "selectAll": "全選",
+    "deselectAll": "取消全選",
+    "noData": "暫無資料",
+    "version": "版本"
+  },
+  "app": {
+    "name": "Skill Desktop",
+    "description": "面向開發者的 Agent Skill 管理基礎設施"
+  },
+  "nav": {
+    "library": "技能庫",
+    "spaces": "工作空間",
+    "hub": "技能中心",
+    "settings": "設定"
+  },
+  "header": {
+    "searchPlaceholder": "搜尋技能...",
+    "rescanLibrary": "重新掃描庫"
+  },
+  "library": {
+    "title": "技能庫",
+    "noLibraryPath": "未設定技能庫目錄",
+    "noLibraryPathDesc": "請先選擇一個目錄來儲存您的技能檔案。",
+    "goToSettings": "前往設定",
+    "failedToLoad": "載入技能失敗",
+    "filter": {
+      "all": "全部",
+      "safe": "安全",
+      "quarantine": "隔離區"
+    },
+    "selection": {
+      "selected": "已選擇 {{count}} 項",
+      "quarantine": "隔離",
+      "delete": "刪除"
+    },
+    "deleteConfirm": {
+      "title": "刪除 {{count}} 個技能",
+      "description": "確定要刪除 {{count}} 個技能嗎？此操作無法復原。"
+    },
+    "quarantineConfirm": {
+      "title": "隔離 {{count}} 個技能",
+      "description": "將 {{count}} 個技能移至隔離區。被隔離的技能會被標記為可能不穩定或敏感。",
+      "markAsSafe": "標記為安全"
+    }
+  },
+  "skillCard": {
+    "by": "作者",
+    "noDescription": "暫無描述",
+    "quarantined": "已隔離"
+  },
+  "skillDetail": {
+    "noSkillSelected": "選擇一個技能查看詳情",
+    "version": "版本",
+    "author": "作者",
+    "tags": "標籤",
+    "permissions": "權限",
+    "parameters": "參數",
+    "required": "必填",
+    "optional": "選填",
+    "actions": {
+      "showInFolder": "在資料夾中顯示",
+      "openFile": "開啟檔案",
+      "quarantine": "隔離",
+      "unquarantine": "取消隔離",
+      "delete": "刪除"
+    },
+    "deleteConfirm": {
+      "title": "刪除技能",
+      "description": "確定要刪除「{{name}}」嗎？此操作無法復原。"
+    }
+  },
+  "spaces": {
+    "title": "工作空間",
+    "description": "管理您的技能工作空間",
+    "createNew": "建立新空間",
+    "newSpace": "新建空間",
+    "editSpace": "編輯空間",
+    "deleteSpace": "刪除空間",
+    "spaceName": "空間名稱",
+    "activeDirectory": "活動目錄",
+    "spaceDescription": "描述",
+    "skillVisibility": "技能可見性",
+    "enabledSkills": "已啟用 {{count}} 個技能",
+    "syncSpace": "同步空間",
+    "exportConfig": "匯出設定",
+    "deleteConfirm": {
+      "title": "刪除空間",
+      "description": "確定要刪除「{{name}}」嗎？此操作無法復原。"
+    }
+  },
+  "hub": {
+    "title": "技能中心",
+    "description": "發現並匯入社群技能",
+    "searchPlaceholder": "搜尋 MCP 伺服器...",
+    "featured": "精選",
+    "searchResults": "搜尋結果",
+    "noResults": "未找到結果",
+    "import": "匯入",
+    "importing": "匯入中...",
+    "imported": "已匯入",
+    "preview": "預覽",
+    "registry": {
+      "glama": "Glama",
+      "mcpSo": "MCP.so",
+      "mcpServersOrg": "MCPServers.org",
+      "smithery": "Smithery"
+    },
+    "importFromUrl": "從 URL 匯入",
+    "importFromGithub": "從 GitHub 匯入",
+    "urlPlaceholder": "輸入技能 URL...",
+    "githubOwner": "擁有者",
+    "githubRepo": "儲存庫",
+    "githubPath": "路徑",
+    "githubBranch": "分支"
+  },
+  "settings": {
+    "title": "設定",
+    "appearance": {
+      "title": "外觀",
+      "theme": "主題",
+      "themeDesc": "選擇您喜歡的配色方案",
+      "dark": "深色",
+      "light": "淺色",
+      "system": "跟隨系統",
+      "language": "語言",
+      "languageDesc": "選擇您喜歡的語言"
+    },
+    "library": {
+      "title": "技能庫設定",
+      "directory": "技能庫目錄",
+      "directoryDesc": "技能檔案的儲存位置",
+      "rescan": "重新掃描",
+      "rescanDesc": "手動重新掃描技能庫目錄的變更",
+      "rescanNow": "立即掃描",
+      "scanning": "掃描中...",
+      "foundSkills": "找到 {{count}} 個技能",
+      "autoSync": "自動同步檔案變更",
+      "autoSyncDesc": "檔案變更時自動更新索引"
+    },
+    "security": {
+      "title": "安全",
+      "confirmDangerous": "確認危險命令",
+      "confirmDangerousDesc": "執行 Shell 命令前顯示確認對話框"
+    },
+    "about": {
+      "title": "關於",
+      "checkUpdates": "檢查更新",
+      "documentation": "文件",
+      "reportIssue": "回報問題"
+    }
+  },
+  "languageSelector": {
+    "title": "選擇語言",
+    "description": "選擇應用程式的首選語言",
+    "continue": "繼續"
+  },
+  "languages": {
+    "en": "English",
+    "zh-CN": "简体中文",
+    "zh-TW": "繁體中文",
+    "ja": "日本語",
+    "ko": "한국어",
+    "de": "Deutsch",
+    "fr": "Français",
+    "es": "Español",
+    "pt": "Português",
+    "ru": "Русский"
+  }
+}

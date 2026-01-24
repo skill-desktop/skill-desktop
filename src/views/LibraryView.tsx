@@ -1,4 +1,5 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 import { Trash2, X, Loader2, Shield, ShieldAlert, Filter, Folder } from "lucide-react";
 import { useAppStore, useSettingsStore } from "@/stores";
 import { useSkills, useSearchSkills, useDeleteSkillsBatch, useQuarantinedSkills, useSetSkillQuarantine } from "@/hooks";
@@ -9,6 +10,7 @@ import type { Skill } from "@/types";
 type FilterMode = "all" | "quarantined" | "safe";
 
 export const LibraryView: React.FC = () => {
+  const { t } = useTranslation();
   const { searchQuery, selectedSkillHash, setSelectedSkillHash, setCurrentView } = useAppStore();
   const { libraryPath } = useSettingsStore();
   
@@ -124,12 +126,12 @@ export const LibraryView: React.FC = () => {
         <div className="flex h-20 w-20 items-center justify-center rounded-full bg-bg-tertiary mb-6">
           <Folder className="h-10 w-10 text-text-muted" />
         </div>
-        <h3 className="text-lg font-medium text-text-primary mb-2">No library directory set</h3>
+        <h3 className="text-lg font-medium text-text-primary mb-2">{t("library.noLibraryPath")}</h3>
         <p className="text-sm text-text-muted max-w-sm mb-6">
-          To get started, please select a directory where your skills will be stored.
+          {t("library.noLibraryPathDesc")}
         </p>
         <Button onClick={() => setCurrentView("settings")}>
-          Go to Settings
+          {t("library.goToSettings")}
         </Button>
       </div>
     );
@@ -155,7 +157,7 @@ export const LibraryView: React.FC = () => {
     return (
       <div className="flex h-full flex-col items-center justify-center text-text-muted">
         <div className="text-4xl mb-4">⚠️</div>
-        <p className="text-sm">Failed to load skills</p>
+        <p className="text-sm">{t("library.failedToLoad")}</p>
         <p className="text-xs mt-1">{String(error)}</p>
       </div>
     );
@@ -175,7 +177,7 @@ export const LibraryView: React.FC = () => {
                   size="sm"
                   onClick={() => setFilterMode("all")}
                 >
-                  All ({allSkills.length})
+                  {t("library.filter.all")} ({allSkills.length})
                 </Button>
                 <Button
                   variant={filterMode === "safe" ? "secondary" : "ghost"}
@@ -183,7 +185,7 @@ export const LibraryView: React.FC = () => {
                   onClick={() => setFilterMode("safe")}
                 >
                   <Shield className="h-3.5 w-3.5 mr-1" />
-                  Safe ({allSkills.length - quarantinedCount})
+                  {t("library.filter.safe")} ({allSkills.length - quarantinedCount})
                 </Button>
                 <Button
                   variant={filterMode === "quarantined" ? "secondary" : "ghost"}
@@ -191,7 +193,7 @@ export const LibraryView: React.FC = () => {
                   onClick={() => setFilterMode("quarantined")}
                 >
                   <ShieldAlert className="h-3.5 w-3.5 mr-1" />
-                  Quarantine ({quarantinedCount})
+                  {t("library.filter.quarantine")} ({quarantinedCount})
                 </Button>
               </div>
             </div>
@@ -203,13 +205,13 @@ export const LibraryView: React.FC = () => {
           <div className="flex items-center justify-between border-b border-border-default bg-bg-tertiary px-4 py-2">
             <div className="flex items-center gap-4">
               <span className="text-sm text-text-primary">
-                {selectedHashes.size} selected
+                {t("library.selection.selected", { count: selectedHashes.size })}
               </span>
               <Button variant="ghost" size="sm" onClick={selectAll}>
-                Select All
+                {t("common.selectAll")}
               </Button>
               <Button variant="ghost" size="sm" onClick={deselectAll}>
-                Deselect All
+                {t("common.deselectAll")}
               </Button>
             </div>
             <div className="flex items-center gap-2">
@@ -220,7 +222,7 @@ export const LibraryView: React.FC = () => {
                 disabled={selectedHashes.size === 0}
               >
                 <ShieldAlert className="h-3.5 w-3.5 mr-1.5" />
-                Quarantine
+                {t("library.selection.quarantine")}
               </Button>
               <Button
                 variant="destructive"
@@ -229,11 +231,11 @@ export const LibraryView: React.FC = () => {
                 disabled={selectedHashes.size === 0}
               >
                 <Trash2 className="h-3.5 w-3.5 mr-1.5" />
-                Delete ({selectedHashes.size})
+                {t("library.selection.delete")} ({selectedHashes.size})
               </Button>
               <Button variant="ghost" size="sm" onClick={cancelSelectionMode}>
                 <X className="h-3.5 w-3.5 mr-1.5" />
-                Cancel
+                {t("common.cancel")}
               </Button>
             </div>
           </div>
@@ -261,10 +263,9 @@ export const LibraryView: React.FC = () => {
       <Dialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Delete {selectedHashes.size} Skills</DialogTitle>
+            <DialogTitle>{t("library.deleteConfirm.title", { count: selectedHashes.size })}</DialogTitle>
             <DialogDescription>
-              Are you sure you want to delete {selectedHashes.size} skill{selectedHashes.size > 1 ? 's' : ''}? 
-              This action cannot be undone.
+              {t("library.deleteConfirm.description", { count: selectedHashes.size })}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
@@ -273,7 +274,7 @@ export const LibraryView: React.FC = () => {
               size="sm"
               onClick={() => setShowDeleteConfirm(false)}
             >
-              Cancel
+              {t("common.cancel")}
             </Button>
             <Button
               variant="destructive"
@@ -286,7 +287,7 @@ export const LibraryView: React.FC = () => {
               ) : (
                 <Trash2 className="h-3.5 w-3.5 mr-1.5" />
               )}
-              Delete
+              {t("common.delete")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -296,10 +297,9 @@ export const LibraryView: React.FC = () => {
       <Dialog open={showQuarantineConfirm} onOpenChange={setShowQuarantineConfirm}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Quarantine {selectedHashes.size} Skills</DialogTitle>
+            <DialogTitle>{t("library.quarantineConfirm.title", { count: selectedHashes.size })}</DialogTitle>
             <DialogDescription>
-              Move {selectedHashes.size} skill{selectedHashes.size > 1 ? 's' : ''} to the quarantine area. 
-              Quarantined skills are marked as potentially unstable or sensitive.
+              {t("library.quarantineConfirm.description", { count: selectedHashes.size })}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
@@ -310,7 +310,7 @@ export const LibraryView: React.FC = () => {
               disabled={setQuarantineMutation.isPending}
             >
               <Shield className="h-3.5 w-3.5 mr-1.5" />
-              Mark as Safe
+              {t("library.quarantineConfirm.markAsSafe")}
             </Button>
             <Button
               size="sm"
@@ -322,7 +322,7 @@ export const LibraryView: React.FC = () => {
               ) : (
                 <ShieldAlert className="h-3.5 w-3.5 mr-1.5" />
               )}
-              Quarantine
+              {t("library.selection.quarantine")}
             </Button>
           </DialogFooter>
         </DialogContent>

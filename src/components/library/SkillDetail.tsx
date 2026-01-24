@@ -1,4 +1,5 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 import {
   X,
   ExternalLink,
@@ -28,6 +29,7 @@ interface SkillDetailProps {
 }
 
 export const SkillDetail: React.FC<SkillDetailProps> = ({ skill }) => {
+  const { t } = useTranslation();
   const { setSelectedSkillHash, detailPanelOpen, setDetailPanelOpen } =
     useAppStore();
   const [showDeleteConfirm, setShowDeleteConfirm] = React.useState(false);
@@ -336,7 +338,7 @@ export const SkillDetail: React.FC<SkillDetailProps> = ({ skill }) => {
         {isQuarantined && (
           <div className="flex items-center gap-2 border-t border-accent-yellow/30 bg-accent-yellow/10 px-4 py-2">
             <ShieldAlert className="h-4 w-4 text-accent-yellow" />
-            <span className="text-xs text-accent-yellow">This skill is quarantined</span>
+            <span className="text-xs text-accent-yellow">{t("skillCard.quarantined")}</span>
           </div>
         )}
 
@@ -376,7 +378,7 @@ export const SkillDetail: React.FC<SkillDetailProps> = ({ skill }) => {
             className={cn("h-8 w-8", isQuarantined ? "text-accent-yellow" : "text-text-muted")}
             onClick={handleToggleQuarantine}
             disabled={setQuarantineMutation.isPending}
-            title={isQuarantined ? "Remove from quarantine" : "Add to quarantine"}
+            title={isQuarantined ? t("skillDetail.actions.unquarantine") : t("skillDetail.actions.quarantine")}
           >
             {setQuarantineMutation.isPending ? (
               <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -401,9 +403,9 @@ export const SkillDetail: React.FC<SkillDetailProps> = ({ skill }) => {
       <Dialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Delete Skill</DialogTitle>
+            <DialogTitle>{t("skillDetail.deleteConfirm.title")}</DialogTitle>
             <DialogDescription>
-              Are you sure you want to delete "{skill.name}"? This action cannot be undone.
+              {t("skillDetail.deleteConfirm.description", { name: skill.name })}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
@@ -412,7 +414,7 @@ export const SkillDetail: React.FC<SkillDetailProps> = ({ skill }) => {
               size="sm"
               onClick={() => setShowDeleteConfirm(false)}
             >
-              Cancel
+              {t("common.cancel")}
             </Button>
             <Button
               variant="destructive"
@@ -425,7 +427,7 @@ export const SkillDetail: React.FC<SkillDetailProps> = ({ skill }) => {
               ) : (
                 <Trash2 className="h-3.5 w-3.5 mr-1.5" />
               )}
-              Delete
+              {t("common.delete")}
             </Button>
           </DialogFooter>
         </DialogContent>

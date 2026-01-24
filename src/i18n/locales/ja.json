@@ -1,0 +1,191 @@
+{
+  "common": {
+    "confirm": "確認",
+    "cancel": "キャンセル",
+    "save": "保存",
+    "delete": "削除",
+    "edit": "編集",
+    "close": "閉じる",
+    "search": "検索",
+    "loading": "読み込み中...",
+    "error": "エラー",
+    "success": "成功",
+    "warning": "警告",
+    "info": "情報",
+    "yes": "はい",
+    "no": "いいえ",
+    "ok": "OK",
+    "back": "戻る",
+    "next": "次へ",
+    "done": "完了",
+    "refresh": "更新",
+    "retry": "再試行",
+    "selectAll": "すべて選択",
+    "deselectAll": "選択解除",
+    "noData": "データがありません",
+    "version": "バージョン"
+  },
+  "app": {
+    "name": "Skill Desktop",
+    "description": "開発者向けの Agent Skill 管理インフラストラクチャ"
+  },
+  "nav": {
+    "library": "ライブラリ",
+    "spaces": "スペース",
+    "hub": "スキルハブ",
+    "settings": "設定"
+  },
+  "header": {
+    "searchPlaceholder": "スキルを検索...",
+    "rescanLibrary": "ライブラリを再スキャン"
+  },
+  "library": {
+    "title": "ライブラリ",
+    "noLibraryPath": "ライブラリディレクトリが設定されていません",
+    "noLibraryPathDesc": "スキルを保存するディレクトリを選択してください。",
+    "goToSettings": "設定へ移動",
+    "failedToLoad": "スキルの読み込みに失敗しました",
+    "filter": {
+      "all": "すべて",
+      "safe": "安全",
+      "quarantine": "隔離"
+    },
+    "selection": {
+      "selected": "{{count}} 件選択中",
+      "quarantine": "隔離",
+      "delete": "削除"
+    },
+    "deleteConfirm": {
+      "title": "{{count}} 件のスキルを削除",
+      "description": "{{count}} 件のスキルを削除してもよろしいですか？この操作は取り消せません。"
+    },
+    "quarantineConfirm": {
+      "title": "{{count}} 件のスキルを隔離",
+      "description": "{{count}} 件のスキルを隔離エリアに移動します。隔離されたスキルは不安定または機密性が高い可能性があります。",
+      "markAsSafe": "安全としてマーク"
+    }
+  },
+  "skillCard": {
+    "by": "作成者",
+    "noDescription": "説明がありません",
+    "quarantined": "隔離中"
+  },
+  "skillDetail": {
+    "noSkillSelected": "スキルを選択して詳細を表示",
+    "version": "バージョン",
+    "author": "作成者",
+    "tags": "タグ",
+    "permissions": "権限",
+    "parameters": "パラメータ",
+    "required": "必須",
+    "optional": "任意",
+    "actions": {
+      "showInFolder": "フォルダで表示",
+      "openFile": "ファイルを開く",
+      "quarantine": "隔離",
+      "unquarantine": "隔離を解除",
+      "delete": "削除"
+    },
+    "deleteConfirm": {
+      "title": "スキルを削除",
+      "description": "「{{name}}」を削除してもよろしいですか？この操作は取り消せません。"
+    }
+  },
+  "spaces": {
+    "title": "スペース",
+    "description": "スキルワークスペースを管理",
+    "createNew": "新しいスペースを作成",
+    "newSpace": "新規スペース",
+    "editSpace": "スペースを編集",
+    "deleteSpace": "スペースを削除",
+    "spaceName": "スペース名",
+    "activeDirectory": "アクティブディレクトリ",
+    "spaceDescription": "説明",
+    "skillVisibility": "スキルの表示設定",
+    "enabledSkills": "{{count}} 件のスキルが有効",
+    "syncSpace": "スペースを同期",
+    "exportConfig": "設定をエクスポート",
+    "deleteConfirm": {
+      "title": "スペースを削除",
+      "description": "「{{name}}」を削除してもよろしいですか？この操作は取り消せません。"
+    }
+  },
+  "hub": {
+    "title": "スキルハブ",
+    "description": "コミュニティからスキルを発見してインポート",
+    "searchPlaceholder": "MCP サーバーを検索...",
+    "featured": "おすすめ",
+    "searchResults": "検索結果",
+    "noResults": "結果が見つかりません",
+    "import": "インポート",
+    "importing": "インポート中...",
+    "imported": "インポート済み",
+    "preview": "プレビュー",
+    "registry": {
+      "glama": "Glama",
+      "mcpSo": "MCP.so",
+      "mcpServersOrg": "MCPServers.org",
+      "smithery": "Smithery"
+    },
+    "importFromUrl": "URL からインポート",
+    "importFromGithub": "GitHub からインポート",
+    "urlPlaceholder": "スキル URL を入力...",
+    "githubOwner": "オーナー",
+    "githubRepo": "リポジトリ",
+    "githubPath": "パス",
+    "githubBranch": "ブランチ"
+  },
+  "settings": {
+    "title": "設定",
+    "appearance": {
+      "title": "外観",
+      "theme": "テーマ",
+      "themeDesc": "お好みの配色を選択",
+      "dark": "ダーク",
+      "light": "ライト",
+      "system": "システム設定に従う",
+      "language": "言語",
+      "languageDesc": "お好みの言語を選択"
+    },
+    "library": {
+      "title": "ライブラリ設定",
+      "directory": "ライブラリディレクトリ",
+      "directoryDesc": "スキルが保存される場所",
+      "rescan": "再スキャン",
+      "rescanDesc": "ライブラリディレクトリの変更を手動でスキャン",
+      "rescanNow": "今すぐスキャン",
+      "scanning": "スキャン中...",
+      "foundSkills": "{{count}} 件のスキルが見つかりました",
+      "autoSync": "ファイル変更を自動同期",
+      "autoSyncDesc": "ファイル変更時にインデックスを自動更新"
+    },
+    "security": {
+      "title": "セキュリティ",
+      "confirmDangerous": "危険なコマンドを確認",
+      "confirmDangerousDesc": "シェルコマンド実行前に確認を表示"
+    },
+    "about": {
+      "title": "このアプリについて",
+      "checkUpdates": "アップデートを確認",
+      "documentation": "ドキュメント",
+      "reportIssue": "問題を報告"
+    }
+  },
+  "languageSelector": {
+    "title": "言語を選択",
+    "description": "アプリケーションの言語を選択してください",
+    "continue": "続ける"
+  },
+  "languages": {
+    "en": "English",
+    "zh-CN": "简体中文",
+    "zh-TW": "繁體中文",
+    "ja": "日本語",
+    "ko": "한국어",
+    "de": "Deutsch",
+    "fr": "Français",
+    "es": "Español",
+    "pt": "Português",
+    "ru": "Русский"
+  }
+}

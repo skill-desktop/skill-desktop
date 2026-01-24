@@ -1,4 +1,5 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 import {
   Library,
   FolderTree,
@@ -16,19 +17,8 @@ import { Button } from "@/components/ui";
 
 type View = "library" | "spaces" | "hub" | "settings";
 
-interface NavItem {
-  id: View;
-  label: string;
-  icon: React.ReactNode;
-}
-
-const navItems: NavItem[] = [
-  { id: "library", label: "Library", icon: <Library className="h-4 w-4" /> },
-  { id: "spaces", label: "Spaces", icon: <FolderTree className="h-4 w-4" /> },
-  { id: "hub", label: "Skill Hub", icon: <Globe className="h-4 w-4" /> },
-];
-
 export const Sidebar: React.FC = () => {
+  const { t } = useTranslation();
   const {
     currentView,
     setCurrentView,
@@ -39,6 +29,12 @@ export const Sidebar: React.FC = () => {
   } = useAppStore();
 
   const { data: spaces = [] } = useSpaces();
+
+  const navItems = [
+    { id: "library" as View, label: t("nav.library"), icon: <Library className="h-4 w-4" /> },
+    { id: "spaces" as View, label: t("nav.spaces"), icon: <FolderTree className="h-4 w-4" /> },
+    { id: "hub" as View, label: t("nav.hub"), icon: <Globe className="h-4 w-4" /> },
+  ];
 
   return (
     <aside
@@ -51,7 +47,7 @@ export const Sidebar: React.FC = () => {
       <div className="flex h-10 items-center justify-between border-b border-border-default px-3">
         {!sidebarCollapsed && (
           <span className="text-sm font-semibold text-text-primary">
-            Skill Desktop
+            {t("app.name")}
           </span>
         )}
         <Button
@@ -114,7 +110,7 @@ export const Sidebar: React.FC = () => {
                     className="flex w-full items-center gap-2 px-3 py-1.5 text-xs text-text-muted hover:bg-bg-tertiary hover:text-text-primary"
                   >
                     <Plus className="h-3 w-3" />
-                    <span>New Space</span>
+                    <span>{t("spaces.newSpace")}</span>
                   </button>
                 </div>
               )}
@@ -134,7 +130,7 @@ export const Sidebar: React.FC = () => {
           )}
         >
           <Settings className="h-4 w-4" />
-          {!sidebarCollapsed && <span>Settings</span>}
+          {!sidebarCollapsed && <span>{t("nav.settings")}</span>}
         </button>
       </div>
     </aside>

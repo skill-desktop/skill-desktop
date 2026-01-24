@@ -1,0 +1,191 @@
+{
+  "common": {
+    "confirm": "Confirm",
+    "cancel": "Cancel",
+    "save": "Save",
+    "delete": "Delete",
+    "edit": "Edit",
+    "close": "Close",
+    "search": "Search",
+    "loading": "Loading...",
+    "error": "Error",
+    "success": "Success",
+    "warning": "Warning",
+    "info": "Info",
+    "yes": "Yes",
+    "no": "No",
+    "ok": "OK",
+    "back": "Back",
+    "next": "Next",
+    "done": "Done",
+    "refresh": "Refresh",
+    "retry": "Retry",
+    "selectAll": "Select All",
+    "deselectAll": "Deselect All",
+    "noData": "No data",
+    "version": "Version"
+  },
+  "app": {
+    "name": "Skill Desktop",
+    "description": "Agent Skill management infrastructure for developers"
+  },
+  "nav": {
+    "library": "Library",
+    "spaces": "Spaces",
+    "hub": "Skill Hub",
+    "settings": "Settings"
+  },
+  "header": {
+    "searchPlaceholder": "Search skills...",
+    "rescanLibrary": "Rescan library"
+  },
+  "library": {
+    "title": "Library",
+    "noLibraryPath": "No library directory set",
+    "noLibraryPathDesc": "To get started, please select a directory where your skills will be stored.",
+    "goToSettings": "Go to Settings",
+    "failedToLoad": "Failed to load skills",
+    "filter": {
+      "all": "All",
+      "safe": "Safe",
+      "quarantine": "Quarantine"
+    },
+    "selection": {
+      "selected": "{{count}} selected",
+      "quarantine": "Quarantine",
+      "delete": "Delete"
+    },
+    "deleteConfirm": {
+      "title": "Delete {{count}} Skills",
+      "description": "Are you sure you want to delete {{count}} skill(s)? This action cannot be undone."
+    },
+    "quarantineConfirm": {
+      "title": "Quarantine {{count}} Skills",
+      "description": "Move {{count}} skill(s) to the quarantine area. Quarantined skills are marked as potentially unstable or sensitive.",
+      "markAsSafe": "Mark as Safe"
+    }
+  },
+  "skillCard": {
+    "by": "by",
+    "noDescription": "No description available",
+    "quarantined": "Quarantined"
+  },
+  "skillDetail": {
+    "noSkillSelected": "Select a skill to view details",
+    "version": "Version",
+    "author": "Author",
+    "tags": "Tags",
+    "permissions": "Permissions",
+    "parameters": "Parameters",
+    "required": "required",
+    "optional": "optional",
+    "actions": {
+      "showInFolder": "Show in Folder",
+      "openFile": "Open File",
+      "quarantine": "Quarantine",
+      "unquarantine": "Remove from Quarantine",
+      "delete": "Delete"
+    },
+    "deleteConfirm": {
+      "title": "Delete Skill",
+      "description": "Are you sure you want to delete \"{{name}}\"? This action cannot be undone."
+    }
+  },
+  "spaces": {
+    "title": "Spaces",
+    "description": "Manage your skill workspaces",
+    "createNew": "Create New Space",
+    "newSpace": "New Space",
+    "editSpace": "Edit Space",
+    "deleteSpace": "Delete Space",
+    "spaceName": "Space Name",
+    "activeDirectory": "Active Directory",
+    "spaceDescription": "Description",
+    "skillVisibility": "Skill Visibility",
+    "enabledSkills": "{{count}} skills enabled",
+    "syncSpace": "Sync Space",
+    "exportConfig": "Export Config",
+    "deleteConfirm": {
+      "title": "Delete Space",
+      "description": "Are you sure you want to delete \"{{name}}\"? This action cannot be undone."
+    }
+  },
+  "hub": {
+    "title": "Skill Hub",
+    "description": "Discover and import skills from the community",
+    "searchPlaceholder": "Search MCP servers...",
+    "featured": "Featured",
+    "searchResults": "Search Results",
+    "noResults": "No results found",
+    "import": "Import",
+    "importing": "Importing...",
+    "imported": "Imported",
+    "preview": "Preview",
+    "registry": {
+      "glama": "Glama",
+      "mcpSo": "MCP.so",
+      "mcpServersOrg": "MCPServers.org",
+      "smithery": "Smithery"
+    },
+    "importFromUrl": "Import from URL",
+    "importFromGithub": "Import from GitHub",
+    "urlPlaceholder": "Enter skill URL...",
+    "githubOwner": "Owner",
+    "githubRepo": "Repository",
+    "githubPath": "Path",
+    "githubBranch": "Branch"
+  },
+  "settings": {
+    "title": "Settings",
+    "appearance": {
+      "title": "Appearance",
+      "theme": "Theme",
+      "themeDesc": "Choose your preferred color scheme",
+      "dark": "Dark",
+      "light": "Light",
+      "system": "System",
+      "language": "Language",
+      "languageDesc": "Choose your preferred language"
+    },
+    "library": {
+      "title": "Library Settings",
+      "directory": "Library Directory",
+      "directoryDesc": "Location where your skills are stored",
+      "rescan": "Rescan Library",
+      "rescanDesc": "Manually rescan the library directory for changes",
+      "rescanNow": "Rescan Now",
+      "scanning": "Scanning...",
+      "foundSkills": "Found {{count}} skills",
+      "autoSync": "Auto-sync file changes",
+      "autoSyncDesc": "Automatically update index when files change"
+    },
+    "security": {
+      "title": "Security",
+      "confirmDangerous": "Confirm dangerous commands",
+      "confirmDangerousDesc": "Show confirmation before executing shell commands"
+    },
+    "about": {
+      "title": "About",
+      "checkUpdates": "Check for Updates",
+      "documentation": "Documentation",
+      "reportIssue": "Report Issue"
+    }
+  },
+  "languageSelector": {
+    "title": "Select Language",
+    "description": "Choose your preferred language for the application",
+    "continue": "Continue"
+  },
+  "languages": {
+    "en": "English",
+    "zh-CN": "简体中文",
+    "zh-TW": "繁體中文",
+    "ja": "日本語",
+    "ko": "한국어",
+    "de": "Deutsch",
+    "fr": "Français",
+    "es": "Español",
+    "pt": "Português",
+    "ru": "Русский"
+  }
+}

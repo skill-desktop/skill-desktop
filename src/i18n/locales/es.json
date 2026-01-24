@@ -1,0 +1,191 @@
+{
+  "common": {
+    "confirm": "Confirmar",
+    "cancel": "Cancelar",
+    "save": "Guardar",
+    "delete": "Eliminar",
+    "edit": "Editar",
+    "close": "Cerrar",
+    "search": "Buscar",
+    "loading": "Cargando...",
+    "error": "Error",
+    "success": "Éxito",
+    "warning": "Advertencia",
+    "info": "Información",
+    "yes": "Sí",
+    "no": "No",
+    "ok": "Aceptar",
+    "back": "Atrás",
+    "next": "Siguiente",
+    "done": "Hecho",
+    "refresh": "Actualizar",
+    "retry": "Reintentar",
+    "selectAll": "Seleccionar todo",
+    "deselectAll": "Deseleccionar todo",
+    "noData": "Sin datos",
+    "version": "Versión"
+  },
+  "app": {
+    "name": "Skill Desktop",
+    "description": "Infraestructura de gestión de Agent Skills para desarrolladores"
+  },
+  "nav": {
+    "library": "Biblioteca",
+    "spaces": "Espacios",
+    "hub": "Hub de Skills",
+    "settings": "Configuración"
+  },
+  "header": {
+    "searchPlaceholder": "Buscar skills...",
+    "rescanLibrary": "Reescanear biblioteca"
+  },
+  "library": {
+    "title": "Biblioteca",
+    "noLibraryPath": "No se ha establecido el directorio de biblioteca",
+    "noLibraryPathDesc": "Por favor, seleccione un directorio donde se almacenarán sus skills.",
+    "goToSettings": "Ir a Configuración",
+    "failedToLoad": "Error al cargar los skills",
+    "filter": {
+      "all": "Todos",
+      "safe": "Seguros",
+      "quarantine": "Cuarentena"
+    },
+    "selection": {
+      "selected": "{{count}} seleccionado(s)",
+      "quarantine": "Cuarentena",
+      "delete": "Eliminar"
+    },
+    "deleteConfirm": {
+      "title": "Eliminar {{count}} skills",
+      "description": "¿Está seguro de que desea eliminar {{count}} skill(s)? Esta acción no se puede deshacer."
+    },
+    "quarantineConfirm": {
+      "title": "Poner {{count}} skills en cuarentena",
+      "description": "Mover {{count}} skill(s) al área de cuarentena. Los skills en cuarentena se marcan como potencialmente inestables o sensibles.",
+      "markAsSafe": "Marcar como seguro"
+    }
+  },
+  "skillCard": {
+    "by": "por",
+    "noDescription": "Sin descripción disponible",
+    "quarantined": "En cuarentena"
+  },
+  "skillDetail": {
+    "noSkillSelected": "Seleccione un skill para ver los detalles",
+    "version": "Versión",
+    "author": "Autor",
+    "tags": "Etiquetas",
+    "permissions": "Permisos",
+    "parameters": "Parámetros",
+    "required": "requerido",
+    "optional": "opcional",
+    "actions": {
+      "showInFolder": "Mostrar en carpeta",
+      "openFile": "Abrir archivo",
+      "quarantine": "Cuarentena",
+      "unquarantine": "Quitar de cuarentena",
+      "delete": "Eliminar"
+    },
+    "deleteConfirm": {
+      "title": "Eliminar skill",
+      "description": "¿Está seguro de que desea eliminar \"{{name}}\"? Esta acción no se puede deshacer."
+    }
+  },
+  "spaces": {
+    "title": "Espacios",
+    "description": "Gestione sus espacios de trabajo de skills",
+    "createNew": "Crear nuevo espacio",
+    "newSpace": "Nuevo espacio",
+    "editSpace": "Editar espacio",
+    "deleteSpace": "Eliminar espacio",
+    "spaceName": "Nombre del espacio",
+    "activeDirectory": "Directorio activo",
+    "spaceDescription": "Descripción",
+    "skillVisibility": "Visibilidad de skills",
+    "enabledSkills": "{{count}} skills habilitados",
+    "syncSpace": "Sincronizar espacio",
+    "exportConfig": "Exportar configuración",
+    "deleteConfirm": {
+      "title": "Eliminar espacio",
+      "description": "¿Está seguro de que desea eliminar \"{{name}}\"? Esta acción no se puede deshacer."
+    }
+  },
+  "hub": {
+    "title": "Hub de Skills",
+    "description": "Descubra e importe skills de la comunidad",
+    "searchPlaceholder": "Buscar servidores MCP...",
+    "featured": "Destacados",
+    "searchResults": "Resultados de búsqueda",
+    "noResults": "No se encontraron resultados",
+    "import": "Importar",
+    "importing": "Importando...",
+    "imported": "Importado",
+    "preview": "Vista previa",
+    "registry": {
+      "glama": "Glama",
+      "mcpSo": "MCP.so",
+      "mcpServersOrg": "MCPServers.org",
+      "smithery": "Smithery"
+    },
+    "importFromUrl": "Importar desde URL",
+    "importFromGithub": "Importar desde GitHub",
+    "urlPlaceholder": "Ingrese la URL del skill...",
+    "githubOwner": "Propietario",
+    "githubRepo": "Repositorio",
+    "githubPath": "Ruta",
+    "githubBranch": "Rama"
+  },
+  "settings": {
+    "title": "Configuración",
+    "appearance": {
+      "title": "Apariencia",
+      "theme": "Tema",
+      "themeDesc": "Elija su esquema de colores preferido",
+      "dark": "Oscuro",
+      "light": "Claro",
+      "system": "Sistema",
+      "language": "Idioma",
+      "languageDesc": "Elija su idioma preferido"
+    },
+    "library": {
+      "title": "Configuración de biblioteca",
+      "directory": "Directorio de biblioteca",
+      "directoryDesc": "Ubicación donde se almacenan sus skills",
+      "rescan": "Reescanear",
+      "rescanDesc": "Escanear manualmente el directorio de biblioteca para detectar cambios",
+      "rescanNow": "Escanear ahora",
+      "scanning": "Escaneando...",
+      "foundSkills": "{{count}} skills encontrados",
+      "autoSync": "Sincronización automática de archivos",
+      "autoSyncDesc": "Actualizar automáticamente el índice cuando cambien los archivos"
+    },
+    "security": {
+      "title": "Seguridad",
+      "confirmDangerous": "Confirmar comandos peligrosos",
+      "confirmDangerousDesc": "Mostrar confirmación antes de ejecutar comandos de shell"
+    },
+    "about": {
+      "title": "Acerca de",
+      "checkUpdates": "Buscar actualizaciones",
+      "documentation": "Documentación",
+      "reportIssue": "Reportar problema"
+    }
+  },
+  "languageSelector": {
+    "title": "Seleccionar idioma",
+    "description": "Elija su idioma preferido para la aplicación",
+    "continue": "Continuar"
+  },
+  "languages": {
+    "en": "English",
+    "zh-CN": "简体中文",
+    "zh-TW": "繁體中文",
+    "ja": "日本語",
+    "ko": "한국어",
+    "de": "Deutsch",
+    "fr": "Français",
+    "es": "Español",
+    "pt": "Português",
+    "ru": "Русский"
+  }
+}

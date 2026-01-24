@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 use std::process::Command;
-use tauri::{AppHandle, State};
+use tauri::{AppHandle, Manager, State};
 use walkdir::WalkDir;
 
 use crate::scanner::{calculate_file_hash, create_skill_from_file, is_skill_file, parse_skill_file};
@@ -2407,4 +2407,88 @@ This MCP server was imported from the {} registry. Please refer to the repositor
         homepage_section,
         entry.registry
     )
+}
+
+// ========== App Settings Commands ==========
+
+/// App settings structure stored as JSON
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct AppSettings {
+    /// User's preferred language
+    pub language: Option<String>,
+    /// Whether the user has completed initial setup
+    pub setup_completed: bool,
+    /// Theme preference
+    pub theme: Option<String>,
+}
+
+/// Get the app settings file path
+fn get_settings_file_path(app_handle: &AppHandle) -> Result<PathBuf, String> {
+    let app_data_dir = app_handle
+        .path()
+        .app_data_dir()
+        .map_err(|e| format!("Failed to get app data dir: {}", e))?;
+    
+    // Ensure directory exists
+    std::fs::create_dir_all(&app_data_dir)
+        .map_err(|e| format!("Failed to create app data dir: {}", e))?;
+    
+    Ok(app_data_dir.join("settings.json"))
+}
+
+/// Load app settings from JSON file
+#[tauri::command]
+pub async fn load_app_settings(app_handle: AppHandle) -> Result<AppSettings, String> {
+    let settings_path = get_settings_file_path(&app_handle)?;
+    
+    if !settings_path.exists() {
+        return Ok(AppSettings::default());
+    }
+    
+    let content = std::fs::read_to_string(&settings_path)
+        .map_err(|e| format!("Failed to read settings file: {}", e))?;
+    
+    let settings: AppSettings = serde_json::from_str(&content)
+        .map_err(|e| format!("Failed to parse settings: {}", e))?;
+    
+    Ok(settings)
+}
+
+/// Save app settings to JSON file
+#[tauri::command]
+pub async fn save_app_settings(
+    app_handle: AppHandle,
+    settings: AppSettings,
+) -> Result<(), String> {
+    let settings_path = get_settings_file_path(&app_handle)?;
+    
+    let content = serde_json::to_string_pretty(&settings)
+        .map_err(|e| format!("Failed to serialize settings: {}", e))?;
+    
+    std::fs::write(&settings_path, content)
+        .map_err(|e| format!("Failed to write settings file: {}", e))?;
+    
+    Ok(())
+}
+
+/// Update a single setting in the app settings
+#[tauri::command]
+pub async fn update_app_setting(
+    app_handle: AppHandle,
+    key: String,
+    value: String,
+) -> Result<AppSettings, String> {
+    let mut settings = load_app_settings(app_handle.clone()).await?;
+    
+    match key.as_str() {
+        "language" => settings.language = Some(value),
+        "theme" => settings.theme = Some(value),
+        "setupCompleted" => settings.setup_completed = value == "true",
+        _ => return Err(format!("Unknown setting key: {}", key)),
+    }
+    
+    save_app_settings(app_handle, settings.clone()).await?;
+    
+    Ok(settings)
 }

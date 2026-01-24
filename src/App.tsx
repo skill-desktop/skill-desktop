@@ -1,14 +1,20 @@
 import React from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
 import { MainLayout } from "@/components/layout";
-import { useAppStore } from "@/stores";
-import { useFileWatcher } from "@/hooks";
+import { LanguageSelector } from "@/components/language";
+import { useAppStore, useSettingsStore } from "@/stores";
+import { useFileWatcher, useLoadAppSettings, useSaveAppSettings } from "@/hooks";
 import {
   LibraryView,
   SpacesView,
   HubView,
   SettingsView,
 } from "@/views";
+import { changeLanguage, detectBrowserLanguage, type SupportedLanguage } from "@/i18n";
+
+// Import i18n configuration
+import "@/i18n";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -20,10 +26,67 @@ const queryClient = new QueryClient({
 });
 
 function AppContent() {
+  const { t } = useTranslation();
   const { currentView, setCurrentView, setSearchQuery } = useAppStore();
+  const { setLanguage, setSetupCompleted } = useSettingsStore();
+  
+  // Load app settings from Tauri backend
+  const { data: appSettings, isLoading: isLoadingSettings } = useLoadAppSettings();
+  const saveAppSettingsMutation = useSaveAppSettings();
+  
+  // State for language selector dialog
+  const [showLanguageSelector, setShowLanguageSelector] = React.useState(false);
+  const [isInitialized, setIsInitialized] = React.useState(false);
 
   // Enable file watcher for auto-refresh
   useFileWatcher();
+
+  // Initialize language and check if first launch
+  React.useEffect(() => {
+    if (isLoadingSettings || isInitialized) return;
+    
+    const initializeApp = async () => {
+      if (appSettings) {
+        // App settings loaded from backend
+        if (appSettings.setupCompleted) {
+          // User has completed setup, use saved language
+          if (appSettings.language) {
+            await changeLanguage(appSettings.language as SupportedLanguage);
+            setLanguage(appSettings.language as SupportedLanguage);
+          }
+          setSetupCompleted(true);
+        } else {
+          // First launch - detect browser language and show selector
+          const detectedLang = detectBrowserLanguage();
+          await changeLanguage(detectedLang);
+          setLanguage(detectedLang);
+          setShowLanguageSelector(true);
+        }
+      } else {
+        // No settings file exists - first launch
+        const detectedLang = detectBrowserLanguage();
+        await changeLanguage(detectedLang);
+        setLanguage(detectedLang);
+        setShowLanguageSelector(true);
+      }
+      setIsInitialized(true);
+    };
+    
+    initializeApp();
+  }, [appSettings, isLoadingSettings, isInitialized, setLanguage, setSetupCompleted]);
+
+  // Handle language selection completion
+  const handleLanguageSelected = async (selectedLanguage: SupportedLanguage) => {
+    setLanguage(selectedLanguage);
+    setSetupCompleted(true);
+    
+    // Save to backend
+    await saveAppSettingsMutation.mutateAsync({
+      language: selectedLanguage,
+      setupCompleted: true,
+      theme: undefined,
+    });
+  };
 
   // Global keyboard shortcuts
   React.useEffect(() => {
@@ -32,7 +95,7 @@ function AppContent() {
       if ((e.metaKey || e.ctrlKey) && e.key === "k") {
         e.preventDefault();
         // Focus the search input in the header
-        const searchInput = document.querySelector('input[placeholder="Search skills..."]') as HTMLInputElement;
+        const searchInput = document.querySelector('input[type="text"]') as HTMLInputElement;
         if (searchInput) {
           searchInput.focus();
           searchInput.select();
@@ -94,7 +157,28 @@ function AppContent() {
     }
   };
 
-  return <MainLayout>{renderView()}</MainLayout>;
+  // Show loading state while initializing
+  if (!isInitialized && isLoadingSettings) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-bg-primary">
+        <div className="text-text-muted">{t("common.loading")}</div>
+      </div>
+    );
+  }
+
+  return (
+    <>
+      <MainLayout>{renderView()}</MainLayout>
+      
+      {/* First launch language selector */}
+      <LanguageSelector
+        open={showLanguageSelector}
+        onOpenChange={setShowLanguageSelector}
+        onLanguageSelected={handleLanguageSelected}
+        showContinueButton={true}
+      />
+    </>
+  );
 }
 
 function App() {
