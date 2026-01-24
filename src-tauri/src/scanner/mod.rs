@@ -31,6 +31,11 @@ pub fn parse_front_matter(content: &str) -> Option<SkillMetadata> {
         return None;
     }
 
+    // Need at least 3 lines: opening ---, some content, closing ---
+    if lines.len() < 3 {
+        return None;
+    }
+
     // Find closing delimiter (searching from line 1 onwards)
     // position() returns index relative to the iterator after skip(1)
     // So if "---" is at lines[2], position returns 1
@@ -38,6 +43,11 @@ pub fn parse_front_matter(content: &str) -> Option<SkillMetadata> {
     let end_idx = lines.iter().skip(1).position(|&line| line == "---")?;
     
     // end_idx is relative to skip(1), so actual index is end_idx + 1
+    // If end_idx is 0, it means the closing --- is at lines[1], which means no content
+    if end_idx == 0 {
+        return None;
+    }
+    
     // We want lines from index 1 to end_idx (exclusive of the closing ---)
     // lines[1..end_idx+1] gives us lines from 1 to end_idx (inclusive)
     let yaml_content = lines[1..end_idx + 1].join("\n");

@@ -32,7 +32,8 @@ export const useAppStore = create<AppState>((set) => ({
   currentView: "library",
   setCurrentView: (view) => set({ currentView: view }),
 
-  currentSpaceId: null,
+  // Default to "default" space to avoid null issues
+  currentSpaceId: "default",
   setCurrentSpaceId: (id) => set({ currentSpaceId: id }),
 
   selectedSkillHash: null,

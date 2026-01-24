@@ -45,13 +45,19 @@ pub async fn get_all_skills(library_state: State<'_, LibraryState>) -> Result<Ve
         // Calculate hash
         let hash = match calculate_file_hash(path) {
             Ok(h) => h,
-            Err(_) => continue,
+            Err(e) => {
+                tracing::warn!("Failed to calculate hash for {:?}: {}", path, e);
+                continue;
+            }
         };
 
         // Parse metadata
         let metadata = match parse_skill_file(path) {
             Ok(m) => m,
-            Err(_) => continue,
+            Err(e) => {
+                tracing::warn!("Failed to parse skill file {:?}: {}", path, e);
+                continue;
+            }
         };
 
         let skill = create_skill_from_file(path, hash, metadata, None);
@@ -349,24 +355,26 @@ pub async fn delete_space(
     spaces_state: State<'_, SpacesState>,
     db_state: State<'_, DatabaseState>,
 ) -> Result<(), String> {
-    let mut guard = spaces_state.spaces.lock().map_err(|e| e.to_string())?;
-    
-    // Check if it's the default space
-    if let Some(space) = guard.iter().find(|s| s.id == id) {
-        if space.is_default {
-            return Err("Cannot delete the default space".to_string());
+    // First, check if space exists and is not default (without modifying state)
+    {
+        let guard = spaces_state.spaces.lock().map_err(|e| e.to_string())?;
+        
+        let space = guard.iter().find(|s| s.id == id);
+        match space {
+            None => return Err("Space not found".to_string()),
+            Some(s) if s.is_default => return Err("Cannot delete the default space".to_string()),
+            _ => {}
         }
     }
 
-    let initial_len = guard.len();
-    guard.retain(|s| s.id != id);
-
-    if guard.len() == initial_len {
-        return Err("Space not found".to_string());
-    }
-
-    // Persist to database
+    // Persist to database first (if this fails, memory state is unchanged)
     db_state.0.delete_space(&id)?;
+
+    // Then update in-memory state
+    {
+        let mut guard = spaces_state.spaces.lock().map_err(|e| e.to_string())?;
+        guard.retain(|s| s.id != id);
+    }
 
     Ok(())
 }
@@ -881,12 +889,18 @@ fn get_all_skills_internal(library_path: &PathBuf) -> Result<Vec<Skill>, String>
 
         let hash = match calculate_file_hash(path) {
             Ok(h) => h,
-            Err(_) => continue,
+            Err(e) => {
+                tracing::warn!("Failed to calculate hash for {:?}: {}", path, e);
+                continue;
+            }
         };
 
         let metadata = match parse_skill_file(path) {
             Ok(m) => m,
-            Err(_) => continue,
+            Err(e) => {
+                tracing::warn!("Failed to parse skill file {:?}: {}", path, e);
+                continue;
+            }
         };
 
         let skill = create_skill_from_file(path, hash, metadata, None);
