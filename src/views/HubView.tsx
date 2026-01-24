@@ -259,7 +259,6 @@ export const HubView: React.FC = () => {
     if (selectedRegistryEntries.size === 0) return;
 
     let successCount = 0;
-    let errorCount = 0;
 
     for (const entryId of selectedRegistryEntries) {
       const entry = registryServers.find((e) => e.id === entryId);
@@ -270,7 +269,6 @@ export const HubView: React.FC = () => {
         successCount++;
       } catch (error) {
         console.error(`Failed to import ${entry.name}:`, error);
-        errorCount++;
       }
     }
 

@@ -663,7 +663,7 @@ export function useMcpServerDetails(serverId: string | null, registry: McpRegist
     queryFn: async () => {
       if (!serverId || !registry) return null;
       return await invoke<McpRegistryEntry>("get_mcp_server_details", {
-        serverId,
+        server_id: serverId,
         registry,
       });
     },
