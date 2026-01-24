@@ -23,7 +23,21 @@
     "selectAll": "Выбрать все",
     "deselectAll": "Снять выделение",
     "noData": "Нет данных",
-    "version": "Версия"
+    "version": "Версия",
+    "connect": "Подключить",
+    "preview": "Предпросмотр",
+    "import": "Импорт",
+    "copy": "Копировать",
+    "saveToFile": "Сохранить в файл",
+    "copyToClipboard": "Копировать в буфер обмена",
+    "skills": "навыков",
+    "total": "всего",
+    "selected": "выбрано",
+    "notSet": "Не задано",
+    "default": "По умолчанию",
+    "clone": "Клонировать",
+    "create": "Создать",
+    "saveChanges": "Сохранить изменения"
   },
   "app": {
     "name": "Skill Desktop",
@@ -41,9 +55,9 @@
   },
   "library": {
     "title": "Библиотека",
-    "noLibraryPath": "Каталог библиотеки не установлен",
-    "noLibraryPathDesc": "Пожалуйста, выберите каталог, где будут храниться ваши навыки.",
-    "goToSettings": "Перейти к настройкам",
+    "noLibraryPath": "Каталог библиотеки не задан",
+    "noLibraryPathDesc": "Пожалуйста, выберите каталог для хранения ваших навыков.",
+    "goToSettings": "Перейти в настройки",
     "failedToLoad": "Не удалось загрузить навыки",
     "filter": {
       "all": "Все",
@@ -62,7 +76,7 @@
     "quarantineConfirm": {
       "title": "Поместить {{count}} навыков в карантин",
       "description": "Переместить {{count}} навык(ов) в зону карантина. Навыки в карантине помечаются как потенциально нестабильные или чувствительные.",
-      "markAsSafe": "Отметить как безопасный"
+      "markAsSafe": "Пометить как безопасный"
     }
   },
   "skillCard": {
@@ -92,48 +106,123 @@
     }
   },
   "spaces": {
-    "title": "Пространства",
-    "description": "Управление рабочими пространствами навыков",
-    "createNew": "Создать новое пространство",
-    "newSpace": "Новое пространство",
+    "title": "Рабочие пространства",
+    "noDescription": "Без описания",
+    "createSpace": "Создать новое пространство",
     "editSpace": "Редактировать пространство",
+    "cloneSpace": "Клонировать пространство",
     "deleteSpace": "Удалить пространство",
-    "spaceName": "Название пространства",
-    "activeDirectory": "Активный каталог",
-    "spaceDescription": "Описание",
-    "skillVisibility": "Видимость навыков",
-    "enabledSkills": "Включено навыков: {{count}}",
-    "syncSpace": "Синхронизировать пространство",
-    "exportConfig": "Экспорт конфигурации",
+    "selectSpace": "Выберите пространство для просмотра деталей",
+    "form": {
+      "spaceName": "Название пространства",
+      "spaceNamePlaceholder": "Моё рабочее пространство",
+      "spaceNameRequired": "Название пространства *",
+      "activeDirectory": "Активный каталог",
+      "activeDirectoryRequired": "Активный каталог *",
+      "activeDirectoryPlaceholder": "/путь/к/активному/каталогу",
+      "description": "Описание",
+      "descriptionOptional": "Описание (необязательно)",
+      "descriptionPlaceholder": "Краткое описание этого рабочего пространства"
+    },
+    "info": {
+      "activeSkills": "Активные навыки",
+      "activeDirectory": "Активный каталог"
+    },
+    "actions": {
+      "manageSkills": "Управление навыками",
+      "exportClaudeConfig": "Экспорт конфига Claude",
+      "exportGenericJson": "Экспорт общего JSON",
+      "exportMcpConfig": "Экспорт конфига MCP",
+      "syncSymlinks": "Синхронизировать символические ссылки",
+      "syncing": "Синхронизация...",
+      "syncedSkills": "Синхронизировано {{count}} навыков"
+    },
+    "manageSkillsDialog": {
+      "title": "Управление навыками для \"{{name}}\"",
+      "selectedCount": "{{count}} из {{total}} выбрано"
+    },
+    "cloneDialog": {
+      "title": "Клонировать пространство",
+      "description": "Создать копию \"{{name}}\" с теми же настройками видимости навыков.",
+      "newSpaceName": "Новое название пространства",
+      "newSpaceNamePlaceholder": "Моё рабочее пространство (Копия)"
+    },
     "deleteConfirm": {
       "title": "Удалить пространство",
       "description": "Вы уверены, что хотите удалить \"{{name}}\"? Это действие нельзя отменить."
+    },
+    "exportDialog": {
+      "claudeTitle": "Конфигурация Claude Desktop",
+      "mcpTitle": "Конфигурация сервера MCP",
+      "genericTitle": "Общая конфигурация"
     }
   },
   "hub": {
-    "title": "Хаб навыков",
-    "description": "Откройте для себя и импортируйте навыки из сообщества",
-    "searchPlaceholder": "Поиск MCP серверов...",
-    "featured": "Рекомендуемые",
-    "searchResults": "Результаты поиска",
-    "noResults": "Результаты не найдены",
-    "import": "Импорт",
-    "importing": "Импорт...",
-    "imported": "Импортировано",
-    "preview": "Предпросмотр",
-    "registry": {
-      "glama": "Glama",
-      "mcpSo": "MCP.so",
-      "mcpServersOrg": "MCPServers.org",
-      "smithery": "Smithery"
+    "title": "Импорт навыка",
+    "source": {
+      "url": "URL",
+      "urlDesc": "Прямая ссылка",
+      "github": "GitHub",
+      "githubDesc": "Репозиторий",
+      "mcp": "MCP",
+      "mcpDesc": "Сервер",
+      "registry": "Реестр",
+      "registryDesc": "Обзор"
     },
-    "importFromUrl": "Импорт из URL",
-    "importFromGithub": "Импорт из GitHub",
-    "urlPlaceholder": "Введите URL навыка...",
-    "githubOwner": "Владелец",
-    "githubRepo": "Репозиторий",
-    "githubPath": "Путь",
-    "githubBranch": "Ветка"
+    "url": {
+      "label": "URL-адрес",
+      "placeholder": "https://example.com/skill.md",
+      "previewContent": "Предпросмотр содержимого"
+    },
+    "github": {
+      "repoUrl": "URL репозитория",
+      "repoUrlPlaceholder": "https://github.com/owner/repo",
+      "connectToRepo": "Подключиться к репозиторию",
+      "importSelected": "Импортировать выбранные",
+      "importAll": "Импортировать все",
+      "importedSkills": "Импортировано {{count}} навыков",
+      "skippedSkills": "пропущено {{count}}"
+    },
+    "mcp": {
+      "serverUrl": "URL сервера MCP",
+      "serverUrlPlaceholder": "http://localhost:3000",
+      "connectToServer": "Подключиться к серверу",
+      "toolsAvailable": "Доступно {{count}} инструментов",
+      "noToolsFound": "На этом сервере инструменты не найдены"
+    },
+    "registry": {
+      "source": "Источник реестра",
+      "allRegistries": "Все реестры",
+      "searchServers": "Поиск серверов MCP",
+      "searchPlaceholder": "Поиск серверов...",
+      "featuredServers": "Рекомендуемые серверы",
+      "searchResults": "Результаты поиска",
+      "serversCount": "{{count}} серверов",
+      "noServersFound": "Серверы не найдены"
+    },
+    "warnings": {
+      "setLibraryPath": "Пожалуйста, сначала укажите путь к библиотеке в настройках",
+      "verifySource": "Пожалуйста, проверьте надёжность источника перед импортом"
+    },
+    "preview": {
+      "title": "Предпросмотр",
+      "by": "от",
+      "unknownAuthor": "Неизвестный автор",
+      "description": "Описание",
+      "noDescription": "Без описания",
+      "tags": "Теги",
+      "permissionsRequired": "Требуемые разрешения",
+      "lowRisk": "Низкий риск",
+      "mediumRisk": "Средний риск",
+      "highRisk": "Высокий риск",
+      "parameters": "Параметры",
+      "sourcePreview": "Предпросмотр исходного кода",
+      "truncated": "... (обрезано)",
+      "importToLibrary": "Импортировать в библиотеку",
+      "importedSuccessfully": "Успешно импортировано!",
+      "enterUrlToPreview": "Введите URL для предпросмотра навыка",
+      "supportedFormats": "Поддерживаемые форматы: .md, .json"
+    }
   },
   "settings": {
     "title": "Настройки",
@@ -152,10 +241,10 @@
       "directory": "Каталог библиотеки",
       "directoryDesc": "Место хранения ваших навыков",
       "rescan": "Пересканировать",
-      "rescanDesc": "Вручную пересканировать каталог библиотеки на наличие изменений",
+      "rescanDesc": "Вручную пересканировать каталог библиотеки",
       "rescanNow": "Сканировать сейчас",
       "scanning": "Сканирование...",
-      "foundSkills": "Найдено навыков: {{count}}",
+      "foundSkills": "Найдено {{count}} навыков",
       "autoSync": "Автосинхронизация файлов",
       "autoSyncDesc": "Автоматически обновлять индекс при изменении файлов"
     },

@@ -1,4 +1,5 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 import { Link, Github, Server, Download, AlertTriangle, Loader2, Check, X, Folder, FileText, ChevronRight, ArrowLeft, Globe, Search } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button, Input, ScrollArea, Badge, Markdown } from "@/components/ui";
@@ -56,6 +57,7 @@ interface McpTool {
 }
 
 export const HubView: React.FC = () => {
+  const { t } = useTranslation();
   const [importSource, setImportSource] = React.useState<ImportSource>("url");
   const [url, setUrl] = React.useState("");
   const [preview, setPreview] = React.useState<PreviewData | null>(null);
@@ -421,36 +423,36 @@ export const HubView: React.FC = () => {
       {/* Import panel */}
       <div className="w-96 border-r border-border-default bg-bg-secondary p-4">
         <h2 className="text-sm font-medium text-text-primary mb-4">
-          Import Skill
+          {t("hub.title")}
         </h2>
 
         {/* Source selection */}
         <div className="grid grid-cols-4 gap-2 mb-4">
           <SourceButton
             icon={<Link className="h-5 w-5" />}
-            label="URL"
-            description="Direct link"
+            label={t("hub.source.url")}
+            description={t("hub.source.urlDesc")}
             selected={importSource === "url"}
             onClick={() => setImportSource("url")}
           />
           <SourceButton
             icon={<Github className="h-5 w-5" />}
-            label="GitHub"
-            description="Repository"
+            label={t("hub.source.github")}
+            description={t("hub.source.githubDesc")}
             selected={importSource === "github"}
             onClick={() => setImportSource("github")}
           />
           <SourceButton
             icon={<Server className="h-5 w-5" />}
-            label="MCP"
-            description="Server"
+            label={t("hub.source.mcp")}
+            description={t("hub.source.mcpDesc")}
             selected={importSource === "mcp"}
             onClick={() => setImportSource("mcp")}
           />
           <SourceButton
             icon={<Globe className="h-5 w-5" />}
-            label="Registry"
-            description="Browse"
+            label={t("hub.source.registry")}
+            description={t("hub.source.registryDesc")}
             selected={importSource === "registry"}
             onClick={() => setImportSource("registry")}
           />
@@ -461,10 +463,10 @@ export const HubView: React.FC = () => {
           <div className="space-y-3">
             <div>
               <label className="text-xs text-text-muted mb-1.5 block">
-                URL Address
+                {t("hub.url.label")}
               </label>
               <Input
-                placeholder="https://example.com/skill.md"
+                placeholder={t("hub.url.placeholder")}
                 value={url}
                 onChange={(e) => setUrl(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && handlePreview()}
@@ -474,13 +476,13 @@ export const HubView: React.FC = () => {
             {!libraryPath && (
               <div className="flex items-start gap-2 text-xs text-accent-yellow">
                 <AlertTriangle className="h-3.5 w-3.5 shrink-0 mt-0.5" />
-                <span>Please set a library path in Settings first</span>
+                <span>{t("hub.warnings.setLibraryPath")}</span>
               </div>
             )}
 
             <div className="flex items-start gap-2 text-xs text-text-muted">
               <AlertTriangle className="h-3.5 w-3.5 shrink-0 mt-0.5" />
-              <span>Please verify the source is trustworthy before importing</span>
+              <span>{t("hub.warnings.verifySource")}</span>
             </div>
 
             <Button
@@ -493,7 +495,7 @@ export const HubView: React.FC = () => {
               ) : (
                 <Download className="h-4 w-4 mr-2" />
               )}
-              Preview Content
+              {t("hub.url.previewContent")}
             </Button>
 
             {previewMutation.isError && (
@@ -508,10 +510,10 @@ export const HubView: React.FC = () => {
           <div className="space-y-3">
             <div>
               <label className="text-xs text-text-muted mb-1.5 block">
-                Repository URL
+                {t("hub.github.repoUrl")}
               </label>
               <Input
-                placeholder="https://github.com/owner/repo"
+                placeholder={t("hub.github.repoUrlPlaceholder")}
                 value={githubUrl}
                 onChange={(e) => setGithubUrl(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && handleGithubConnect()}
@@ -521,7 +523,7 @@ export const HubView: React.FC = () => {
             {!libraryPath && (
               <div className="flex items-start gap-2 text-xs text-accent-yellow">
                 <AlertTriangle className="h-3.5 w-3.5 shrink-0 mt-0.5" />
-                <span>Please set a library path in Settings first</span>
+                <span>{t("hub.warnings.setLibraryPath")}</span>
               </div>
             )}
 
@@ -531,7 +533,7 @@ export const HubView: React.FC = () => {
               onClick={handleGithubConnect}
             >
               <Github className="h-4 w-4 mr-2" />
-              Connect to Repository
+              {t("hub.github.connectToRepo")}
             </Button>
 
             {/* File browser */}
@@ -630,7 +632,7 @@ export const HubView: React.FC = () => {
                     ) : (
                       <Download className="h-3.5 w-3.5 mr-1.5" />
                     )}
-                    Import Selected ({selectedFiles.size})
+                    {t("hub.github.importSelected")} ({selectedFiles.size})
                   </Button>
                   <Button
                     variant="secondary"
@@ -643,14 +645,14 @@ export const HubView: React.FC = () => {
                     ) : (
                       <Folder className="h-3.5 w-3.5 mr-1.5" />
                     )}
-                    Import All
+                    {t("hub.github.importAll")}
                   </Button>
                 </div>
 
                 {importDirectoryMutation.isSuccess && importDirectoryMutation.data && (
                   <div className="text-xs text-accent-green mt-2">
-                    Imported {importDirectoryMutation.data.imported} skills
-                    {importDirectoryMutation.data.skipped > 0 && `, skipped ${importDirectoryMutation.data.skipped}`}
+                    {t("hub.github.importedSkills", { count: importDirectoryMutation.data.imported })}
+                    {importDirectoryMutation.data.skipped > 0 && `, ${t("hub.github.skippedSkills", { count: importDirectoryMutation.data.skipped })}`}
                   </div>
                 )}
               </div>
@@ -662,10 +664,10 @@ export const HubView: React.FC = () => {
           <div className="space-y-3">
             <div>
               <label className="text-xs text-text-muted mb-1.5 block">
-                MCP Server URL
+                {t("hub.mcp.serverUrl")}
               </label>
               <Input
-                placeholder="http://localhost:3000"
+                placeholder={t("hub.mcp.serverUrlPlaceholder")}
                 value={mcpUrl}
                 onChange={(e) => setMcpUrl(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && handleConnectMcp()}
@@ -675,7 +677,7 @@ export const HubView: React.FC = () => {
             {!libraryPath && (
               <div className="flex items-start gap-2 text-xs text-accent-yellow">
                 <AlertTriangle className="h-3.5 w-3.5 shrink-0 mt-0.5" />
-                <span>Please set a library path in Settings first</span>
+                <span>{t("hub.warnings.setLibraryPath")}</span>
               </div>
             )}
 
@@ -689,7 +691,7 @@ export const HubView: React.FC = () => {
               ) : (
                 <Server className="h-4 w-4 mr-2" />
               )}
-              Connect to Server
+              {t("hub.mcp.connectToServer")}
             </Button>
 
             {connectMcpMutation.isError && (
@@ -703,7 +705,7 @@ export const HubView: React.FC = () => {
               <div className="mt-4">
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-xs text-text-muted">
-                    {mcpTools.length} tools available
+                    {t("hub.mcp.toolsAvailable", { count: mcpTools.length })}
                   </span>
                   {mcpTools.length > 0 && (
                     <Check className="h-4 w-4 text-accent-green" />
@@ -756,12 +758,12 @@ export const HubView: React.FC = () => {
                       ) : (
                         <Download className="h-3.5 w-3.5 mr-1.5" />
                       )}
-                      Import Selected ({selectedMcpTools.size})
+                      {t("hub.github.importSelected")} ({selectedMcpTools.size})
                     </Button>
                   </>
                 ) : (
                   <div className="text-xs text-text-muted text-center py-4">
-                    No tools found on this server
+                    {t("hub.mcp.noToolsFound")}
                   </div>
                 )}
               </div>
@@ -774,14 +776,14 @@ export const HubView: React.FC = () => {
             {/* Registry filter */}
             <div>
               <label className="text-xs text-text-muted mb-1.5 block">
-                Registry Source
+                {t("hub.registry.source")}
               </label>
               <select
                 className="w-full h-9 rounded-md border border-border-default bg-bg-primary px-3 text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-accent-blue"
                 value={selectedRegistry || ""}
                 onChange={(e) => setSelectedRegistry(e.target.value as McpRegistry || undefined)}
               >
-                <option value="">All Registries</option>
+                <option value="">{t("hub.registry.allRegistries")}</option>
                 <option value="glama">Glama.ai</option>
                 <option value="mcpso">MCP.so</option>
                 <option value="mcpserversorg">MCPServers.org</option>
@@ -792,12 +794,12 @@ export const HubView: React.FC = () => {
             {/* Search input */}
             <div>
               <label className="text-xs text-text-muted mb-1.5 block">
-                Search MCP Servers
+                {t("hub.registry.searchServers")}
               </label>
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-text-muted" />
                 <Input
-                  placeholder="Search servers..."
+                  placeholder={t("hub.registry.searchPlaceholder")}
                   value={registrySearch}
                   onChange={(e) => setRegistrySearch(e.target.value)}
                   className="pl-9"
@@ -808,7 +810,7 @@ export const HubView: React.FC = () => {
             {!libraryPath && (
               <div className="flex items-start gap-2 text-xs text-accent-yellow">
                 <AlertTriangle className="h-3.5 w-3.5 shrink-0 mt-0.5" />
-                <span>Please set a library path in Settings first</span>
+                <span>{t("hub.warnings.setLibraryPath")}</span>
               </div>
             )}
 
@@ -816,10 +818,10 @@ export const HubView: React.FC = () => {
             <div>
               <div className="flex items-center justify-between mb-2">
                 <span className="text-xs text-text-muted">
-                  {registrySearch ? "Search Results" : "Featured Servers"}
+                  {registrySearch ? t("hub.registry.searchResults") : t("hub.registry.featuredServers")}
                 </span>
                 <span className="text-xs text-text-muted">
-                  {registryServers.length} servers
+                  {t("hub.registry.serversCount", { count: registryServers.length })}
                 </span>
               </div>
 
@@ -892,12 +894,12 @@ export const HubView: React.FC = () => {
                     ) : (
                       <Download className="h-3.5 w-3.5 mr-1.5" />
                     )}
-                    Import Selected ({selectedRegistryEntries.size})
+                    {t("hub.github.importSelected")} ({selectedRegistryEntries.size})
                   </Button>
                 </>
               ) : (
                 <div className="text-xs text-text-muted text-center py-8">
-                  {registrySearch ? "No servers found" : "Loading..."}
+                  {registrySearch ? t("hub.registry.noServersFound") : t("common.loading")}
                 </div>
               )}
 
@@ -922,7 +924,7 @@ export const HubView: React.FC = () => {
                   {preview.metadata.name}
                 </h3>
                 <p className="text-sm text-text-muted">
-                  {preview.metadata.author ? `by ${preview.metadata.author}` : "Unknown author"} · v{preview.metadata.version}
+                  {preview.metadata.author ? `${t("hub.preview.by")} ${preview.metadata.author}` : t("hub.preview.unknownAuthor")} · v{preview.metadata.version}
                 </p>
               </div>
               <Button variant="ghost" size="icon" className="h-8 w-8" onClick={clearPreview}>
@@ -933,9 +935,9 @@ export const HubView: React.FC = () => {
             <ScrollArea className="flex-1">
               {/* Description */}
               <div className="mb-4">
-                <h4 className="text-xs font-medium text-text-muted mb-2">Description</h4>
+                <h4 className="text-xs font-medium text-text-muted mb-2">{t("hub.preview.description")}</h4>
                 <Markdown 
-                  content={preview.metadata.description || "No description"} 
+                  content={preview.metadata.description || t("hub.preview.noDescription")} 
                   className="text-sm text-text-secondary"
                 />
               </div>
@@ -943,7 +945,7 @@ export const HubView: React.FC = () => {
               {/* Tags */}
               {preview.metadata.tags.length > 0 && (
                 <div className="mb-4">
-                  <h4 className="text-xs font-medium text-text-muted mb-2">Tags</h4>
+                  <h4 className="text-xs font-medium text-text-muted mb-2">{t("hub.preview.tags")}</h4>
                   <div className="flex flex-wrap gap-1">
                     {preview.metadata.tags.map((tag) => (
                       <Badge key={tag} variant="blue" className="text-[10px]">
@@ -957,7 +959,7 @@ export const HubView: React.FC = () => {
               {/* Permissions */}
               {preview.metadata.permissions.length > 0 && (
                 <div className="mb-4">
-                  <h4 className="text-xs font-medium text-text-muted mb-2">Permissions Required</h4>
+                  <h4 className="text-xs font-medium text-text-muted mb-2">{t("hub.preview.permissionsRequired")}</h4>
                   <div className="rounded-md border border-border-default bg-bg-tertiary p-3 space-y-2">
                     {preview.metadata.permissions.map((permission) => {
                       const level = getPermissionLevel(permission);
@@ -975,7 +977,7 @@ export const HubView: React.FC = () => {
                             <span className="text-xs text-text-primary">{permission}</span>
                           </div>
                           <Badge variant={level} className="text-[10px]">
-                            {level === "low" ? "Low Risk" : level === "medium" ? "Medium Risk" : "High Risk"}
+                            {level === "low" ? t("hub.preview.lowRisk") : level === "medium" ? t("hub.preview.mediumRisk") : t("hub.preview.highRisk")}
                           </Badge>
                         </div>
                       );
@@ -987,7 +989,7 @@ export const HubView: React.FC = () => {
               {/* Parameters */}
               {preview.metadata.parameters.length > 0 && (
                 <div className="mb-4">
-                  <h4 className="text-xs font-medium text-text-muted mb-2">Parameters</h4>
+                  <h4 className="text-xs font-medium text-text-muted mb-2">{t("hub.preview.parameters")}</h4>
                   <div className="space-y-2">
                     {preview.metadata.parameters.map((param) => (
                       <div key={param.name} className="text-xs">
@@ -1003,10 +1005,10 @@ export const HubView: React.FC = () => {
 
               {/* Source preview */}
               <div className="mb-4">
-                <h4 className="text-xs font-medium text-text-muted mb-2">Source Preview</h4>
+                <h4 className="text-xs font-medium text-text-muted mb-2">{t("hub.preview.sourcePreview")}</h4>
                 <pre className="text-xs text-text-secondary bg-bg-tertiary rounded-md p-3 overflow-x-auto max-h-64">
                   {preview.content.slice(0, 1000)}
-                  {preview.content.length > 1000 && "\n\n... (truncated)"}
+                  {preview.content.length > 1000 && `\n\n${t("hub.preview.truncated")}`}
                 </pre>
               </div>
             </ScrollArea>
@@ -1016,7 +1018,7 @@ export const HubView: React.FC = () => {
               {importSuccess ? (
                 <Button className="w-full" disabled>
                   <Check className="h-4 w-4 mr-2" />
-                  Imported Successfully!
+                  {t("hub.preview.importedSuccessfully")}
                 </Button>
               ) : registryPreview ? (
                 <Button
@@ -1029,7 +1031,7 @@ export const HubView: React.FC = () => {
                   ) : (
                     <Download className="h-4 w-4 mr-2" />
                   )}
-                  Import to Library
+                  {t("hub.preview.importToLibrary")}
                 </Button>
               ) : (
                 <Button
@@ -1042,7 +1044,7 @@ export const HubView: React.FC = () => {
                   ) : (
                     <Download className="h-4 w-4 mr-2" />
                   )}
-                  Import to Library
+                  {t("hub.preview.importToLibrary")}
                 </Button>
               )}
               {importMutation.isError && (
@@ -1061,9 +1063,9 @@ export const HubView: React.FC = () => {
           <div className="flex h-full items-center justify-center text-text-muted">
             <div className="text-center">
               <Download className="h-12 w-12 mx-auto mb-4 opacity-50" />
-              <p className="text-sm">Enter a URL to preview the skill</p>
+              <p className="text-sm">{t("hub.preview.enterUrlToPreview")}</p>
               <p className="text-xs mt-1">
-                Supported formats: .md, .json
+                {t("hub.preview.supportedFormats")}
               </p>
             </div>
           </div>

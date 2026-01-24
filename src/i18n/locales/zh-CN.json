@@ -23,7 +23,21 @@
     "selectAll": "全选",
     "deselectAll": "取消全选",
     "noData": "暂无数据",
-    "version": "版本"
+    "version": "版本",
+    "connect": "连接",
+    "preview": "预览",
+    "import": "导入",
+    "copy": "复制",
+    "saveToFile": "保存到文件",
+    "copyToClipboard": "复制到剪贴板",
+    "skills": "个技能",
+    "total": "共",
+    "selected": "已选择",
+    "notSet": "未设置",
+    "default": "默认",
+    "clone": "克隆",
+    "create": "创建",
+    "saveChanges": "保存更改"
   },
   "app": {
     "name": "Skill Desktop",
@@ -93,47 +107,122 @@
   },
   "spaces": {
     "title": "工作空间",
-    "description": "管理您的技能工作空间",
-    "createNew": "创建新空间",
-    "newSpace": "新建空间",
+    "noDescription": "暂无描述",
+    "createSpace": "创建新空间",
     "editSpace": "编辑空间",
+    "cloneSpace": "克隆空间",
     "deleteSpace": "删除空间",
-    "spaceName": "空间名称",
-    "activeDirectory": "活动目录",
-    "spaceDescription": "描述",
-    "skillVisibility": "技能可见性",
-    "enabledSkills": "已启用 {{count}} 个技能",
-    "syncSpace": "同步空间",
-    "exportConfig": "导出配置",
+    "selectSpace": "选择一个空间查看详情",
+    "form": {
+      "spaceName": "空间名称",
+      "spaceNamePlaceholder": "我的工作空间",
+      "spaceNameRequired": "空间名称 *",
+      "activeDirectory": "活动目录",
+      "activeDirectoryRequired": "活动目录 *",
+      "activeDirectoryPlaceholder": "/path/to/active/directory",
+      "description": "描述",
+      "descriptionOptional": "描述（可选）",
+      "descriptionPlaceholder": "简要描述此工作空间"
+    },
+    "info": {
+      "activeSkills": "活动技能",
+      "activeDirectory": "活动目录"
+    },
+    "actions": {
+      "manageSkills": "管理技能",
+      "exportClaudeConfig": "导出 Claude 配置",
+      "exportGenericJson": "导出通用 JSON",
+      "exportMcpConfig": "导出 MCP 配置",
+      "syncSymlinks": "同步符号链接",
+      "syncing": "同步中...",
+      "syncedSkills": "已同步 {{count}} 个技能"
+    },
+    "manageSkillsDialog": {
+      "title": "管理「{{name}}」的技能",
+      "selectedCount": "已选择 {{count}} / {{total}}"
+    },
+    "cloneDialog": {
+      "title": "克隆空间",
+      "description": "创建「{{name}}」的副本，保留相同的技能可见性设置。",
+      "newSpaceName": "新空间名称",
+      "newSpaceNamePlaceholder": "我的工作空间（副本）"
+    },
     "deleteConfirm": {
       "title": "删除空间",
       "description": "确定要删除「{{name}}」吗？此操作无法撤销。"
+    },
+    "exportDialog": {
+      "claudeTitle": "Claude Desktop 配置",
+      "mcpTitle": "MCP 服务器配置",
+      "genericTitle": "通用配置"
     }
   },
   "hub": {
-    "title": "技能中心",
-    "description": "发现并导入社区技能",
-    "searchPlaceholder": "搜索 MCP 服务器...",
-    "featured": "精选",
-    "searchResults": "搜索结果",
-    "noResults": "未找到结果",
-    "import": "导入",
-    "importing": "导入中...",
-    "imported": "已导入",
-    "preview": "预览",
-    "registry": {
-      "glama": "Glama",
-      "mcpSo": "MCP.so",
-      "mcpServersOrg": "MCPServers.org",
-      "smithery": "Smithery"
+    "title": "导入技能",
+    "source": {
+      "url": "URL",
+      "urlDesc": "直接链接",
+      "github": "GitHub",
+      "githubDesc": "仓库",
+      "mcp": "MCP",
+      "mcpDesc": "服务器",
+      "registry": "注册表",
+      "registryDesc": "浏览"
     },
-    "importFromUrl": "从 URL 导入",
-    "importFromGithub": "从 GitHub 导入",
-    "urlPlaceholder": "输入技能 URL...",
-    "githubOwner": "所有者",
-    "githubRepo": "仓库",
-    "githubPath": "路径",
-    "githubBranch": "分支"
+    "url": {
+      "label": "URL 地址",
+      "placeholder": "https://example.com/skill.md",
+      "previewContent": "预览内容"
+    },
+    "github": {
+      "repoUrl": "仓库 URL",
+      "repoUrlPlaceholder": "https://github.com/owner/repo",
+      "connectToRepo": "连接到仓库",
+      "importSelected": "导入所选",
+      "importAll": "导入全部",
+      "importedSkills": "已导入 {{count}} 个技能",
+      "skippedSkills": "跳过 {{count}} 个"
+    },
+    "mcp": {
+      "serverUrl": "MCP 服务器 URL",
+      "serverUrlPlaceholder": "http://localhost:3000",
+      "connectToServer": "连接到服务器",
+      "toolsAvailable": "{{count}} 个工具可用",
+      "noToolsFound": "此服务器上未找到工具"
+    },
+    "registry": {
+      "source": "注册表来源",
+      "allRegistries": "所有注册表",
+      "searchServers": "搜索 MCP 服务器",
+      "searchPlaceholder": "搜索服务器...",
+      "featuredServers": "精选服务器",
+      "searchResults": "搜索结果",
+      "serversCount": "{{count}} 个服务器",
+      "noServersFound": "未找到服务器"
+    },
+    "warnings": {
+      "setLibraryPath": "请先在设置中设置技能库路径",
+      "verifySource": "导入前请确认来源可信"
+    },
+    "preview": {
+      "title": "预览",
+      "by": "作者",
+      "unknownAuthor": "未知作者",
+      "description": "描述",
+      "noDescription": "暂无描述",
+      "tags": "标签",
+      "permissionsRequired": "所需权限",
+      "lowRisk": "低风险",
+      "mediumRisk": "中风险",
+      "highRisk": "高风险",
+      "parameters": "参数",
+      "sourcePreview": "源码预览",
+      "truncated": "...（已截断）",
+      "importToLibrary": "导入到技能库",
+      "importedSuccessfully": "导入成功！",
+      "enterUrlToPreview": "输入 URL 预览技能",
+      "supportedFormats": "支持的格式：.md, .json"
+    }
   },
   "settings": {
     "title": "设置",

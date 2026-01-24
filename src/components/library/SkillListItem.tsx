@@ -1,4 +1,5 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 import { Download, ExternalLink, Shield, ShieldAlert } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAppStore } from "@/stores";
@@ -27,6 +28,7 @@ export const SkillListItem: React.FC<SkillListItemProps> = ({
   onToggleSelection,
   isQuarantined = false,
 }) => {
+  const { t } = useTranslation();
   const { setSelectedSkillHash, selectedSkillHash } = useAppStore();
 
   const isSelected = selectedSkillHash === skill.hash;
@@ -108,7 +110,7 @@ export const SkillListItem: React.FC<SkillListItemProps> = ({
       {/* Description */}
       <div className="flex-1 min-w-0">
         <span className="text-xs text-text-secondary truncate block">
-          {skill.description || "No description"}
+          {skill.description || t("skillCard.noDescription")}
         </span>
       </div>
 
@@ -145,7 +147,7 @@ export const SkillListItem: React.FC<SkillListItemProps> = ({
             )}
           </>
         ) : (
-          <span className="text-[10px] text-text-muted">None</span>
+          <span className="text-[10px] text-text-muted">0</span>
         )}
       </div>
 

@@ -22,12 +22,26 @@
     "retry": "再試行",
     "selectAll": "すべて選択",
     "deselectAll": "選択解除",
-    "noData": "データがありません",
-    "version": "バージョン"
+    "noData": "データなし",
+    "version": "バージョン",
+    "connect": "接続",
+    "preview": "プレビュー",
+    "import": "インポート",
+    "copy": "コピー",
+    "saveToFile": "ファイルに保存",
+    "copyToClipboard": "クリップボードにコピー",
+    "skills": "スキル",
+    "total": "合計",
+    "selected": "選択済み",
+    "notSet": "未設定",
+    "default": "デフォルト",
+    "clone": "複製",
+    "create": "作成",
+    "saveChanges": "変更を保存"
   },
   "app": {
     "name": "Skill Desktop",
-    "description": "開発者向けの Agent Skill 管理インフラストラクチャ"
+    "description": "開発者向けAgent Skill管理インフラストラクチャ"
   },
   "nav": {
     "library": "ライブラリ",
@@ -51,23 +65,23 @@
       "quarantine": "隔離"
     },
     "selection": {
-      "selected": "{{count}} 件選択中",
+      "selected": "{{count}}件選択中",
       "quarantine": "隔離",
       "delete": "削除"
     },
     "deleteConfirm": {
-      "title": "{{count}} 件のスキルを削除",
-      "description": "{{count}} 件のスキルを削除してもよろしいですか？この操作は取り消せません。"
+      "title": "{{count}}件のスキルを削除",
+      "description": "{{count}}件のスキルを削除してもよろしいですか？この操作は元に戻せません。"
     },
     "quarantineConfirm": {
-      "title": "{{count}} 件のスキルを隔離",
-      "description": "{{count}} 件のスキルを隔離エリアに移動します。隔離されたスキルは不安定または機密性が高い可能性があります。",
+      "title": "{{count}}件のスキルを隔離",
+      "description": "{{count}}件のスキルを隔離エリアに移動します。隔離されたスキルは不安定または機密としてマークされます。",
       "markAsSafe": "安全としてマーク"
     }
   },
   "skillCard": {
     "by": "作成者",
-    "noDescription": "説明がありません",
+    "noDescription": "説明なし",
     "quarantined": "隔離中"
   },
   "skillDetail": {
@@ -83,57 +97,132 @@
       "showInFolder": "フォルダで表示",
       "openFile": "ファイルを開く",
       "quarantine": "隔離",
-      "unquarantine": "隔離を解除",
+      "unquarantine": "隔離解除",
       "delete": "削除"
     },
     "deleteConfirm": {
       "title": "スキルを削除",
-      "description": "「{{name}}」を削除してもよろしいですか？この操作は取り消せません。"
+      "description": "「{{name}}」を削除してもよろしいですか？この操作は元に戻せません。"
     }
   },
   "spaces": {
-    "title": "スペース",
-    "description": "スキルワークスペースを管理",
-    "createNew": "新しいスペースを作成",
-    "newSpace": "新規スペース",
+    "title": "ワークスペース",
+    "noDescription": "説明なし",
+    "createSpace": "新しいスペースを作成",
     "editSpace": "スペースを編集",
+    "cloneSpace": "スペースを複製",
     "deleteSpace": "スペースを削除",
-    "spaceName": "スペース名",
-    "activeDirectory": "アクティブディレクトリ",
-    "spaceDescription": "説明",
-    "skillVisibility": "スキルの表示設定",
-    "enabledSkills": "{{count}} 件のスキルが有効",
-    "syncSpace": "スペースを同期",
-    "exportConfig": "設定をエクスポート",
+    "selectSpace": "スペースを選択して詳細を表示",
+    "form": {
+      "spaceName": "スペース名",
+      "spaceNamePlaceholder": "マイワークスペース",
+      "spaceNameRequired": "スペース名 *",
+      "activeDirectory": "アクティブディレクトリ",
+      "activeDirectoryRequired": "アクティブディレクトリ *",
+      "activeDirectoryPlaceholder": "/path/to/active/directory",
+      "description": "説明",
+      "descriptionOptional": "説明（任意）",
+      "descriptionPlaceholder": "このワークスペースの簡単な説明"
+    },
+    "info": {
+      "activeSkills": "アクティブスキル",
+      "activeDirectory": "アクティブディレクトリ"
+    },
+    "actions": {
+      "manageSkills": "スキルを管理",
+      "exportClaudeConfig": "Claude設定をエクスポート",
+      "exportGenericJson": "汎用JSONをエクスポート",
+      "exportMcpConfig": "MCP設定をエクスポート",
+      "syncSymlinks": "シンボリックリンクを同期",
+      "syncing": "同期中...",
+      "syncedSkills": "{{count}}件のスキルを同期しました"
+    },
+    "manageSkillsDialog": {
+      "title": "「{{name}}」のスキルを管理",
+      "selectedCount": "{{count}} / {{total}} 選択中"
+    },
+    "cloneDialog": {
+      "title": "スペースを複製",
+      "description": "「{{name}}」のコピーを作成し、同じスキル可視性設定を保持します。",
+      "newSpaceName": "新しいスペース名",
+      "newSpaceNamePlaceholder": "マイワークスペース（コピー）"
+    },
     "deleteConfirm": {
       "title": "スペースを削除",
-      "description": "「{{name}}」を削除してもよろしいですか？この操作は取り消せません。"
+      "description": "「{{name}}」を削除してもよろしいですか？この操作は元に戻せません。"
+    },
+    "exportDialog": {
+      "claudeTitle": "Claude Desktop設定",
+      "mcpTitle": "MCPサーバー設定",
+      "genericTitle": "汎用設定"
     }
   },
   "hub": {
-    "title": "スキルハブ",
-    "description": "コミュニティからスキルを発見してインポート",
-    "searchPlaceholder": "MCP サーバーを検索...",
-    "featured": "おすすめ",
-    "searchResults": "検索結果",
-    "noResults": "結果が見つかりません",
-    "import": "インポート",
-    "importing": "インポート中...",
-    "imported": "インポート済み",
-    "preview": "プレビュー",
-    "registry": {
-      "glama": "Glama",
-      "mcpSo": "MCP.so",
-      "mcpServersOrg": "MCPServers.org",
-      "smithery": "Smithery"
+    "title": "スキルをインポート",
+    "source": {
+      "url": "URL",
+      "urlDesc": "直接リンク",
+      "github": "GitHub",
+      "githubDesc": "リポジトリ",
+      "mcp": "MCP",
+      "mcpDesc": "サーバー",
+      "registry": "レジストリ",
+      "registryDesc": "ブラウズ"
     },
-    "importFromUrl": "URL からインポート",
-    "importFromGithub": "GitHub からインポート",
-    "urlPlaceholder": "スキル URL を入力...",
-    "githubOwner": "オーナー",
-    "githubRepo": "リポジトリ",
-    "githubPath": "パス",
-    "githubBranch": "ブランチ"
+    "url": {
+      "label": "URLアドレス",
+      "placeholder": "https://example.com/skill.md",
+      "previewContent": "コンテンツをプレビュー"
+    },
+    "github": {
+      "repoUrl": "リポジトリURL",
+      "repoUrlPlaceholder": "https://github.com/owner/repo",
+      "connectToRepo": "リポジトリに接続",
+      "importSelected": "選択をインポート",
+      "importAll": "すべてインポート",
+      "importedSkills": "{{count}}件のスキルをインポートしました",
+      "skippedSkills": "{{count}}件スキップ"
+    },
+    "mcp": {
+      "serverUrl": "MCPサーバーURL",
+      "serverUrlPlaceholder": "http://localhost:3000",
+      "connectToServer": "サーバーに接続",
+      "toolsAvailable": "{{count}}件のツールが利用可能",
+      "noToolsFound": "このサーバーにツールが見つかりません"
+    },
+    "registry": {
+      "source": "レジストリソース",
+      "allRegistries": "すべてのレジストリ",
+      "searchServers": "MCPサーバーを検索",
+      "searchPlaceholder": "サーバーを検索...",
+      "featuredServers": "おすすめサーバー",
+      "searchResults": "検索結果",
+      "serversCount": "{{count}}件のサーバー",
+      "noServersFound": "サーバーが見つかりません"
+    },
+    "warnings": {
+      "setLibraryPath": "設定でライブラリパスを設定してください",
+      "verifySource": "インポート前にソースの信頼性を確認してください"
+    },
+    "preview": {
+      "title": "プレビュー",
+      "by": "作成者",
+      "unknownAuthor": "不明な作成者",
+      "description": "説明",
+      "noDescription": "説明なし",
+      "tags": "タグ",
+      "permissionsRequired": "必要な権限",
+      "lowRisk": "低リスク",
+      "mediumRisk": "中リスク",
+      "highRisk": "高リスク",
+      "parameters": "パラメータ",
+      "sourcePreview": "ソースプレビュー",
+      "truncated": "...（省略）",
+      "importToLibrary": "ライブラリにインポート",
+      "importedSuccessfully": "インポート成功！",
+      "enterUrlToPreview": "URLを入力してスキルをプレビュー",
+      "supportedFormats": "対応形式: .md, .json"
+    }
   },
   "settings": {
     "title": "設定",
@@ -143,19 +232,19 @@
       "themeDesc": "お好みの配色を選択",
       "dark": "ダーク",
       "light": "ライト",
-      "system": "システム設定に従う",
+      "system": "システム",
       "language": "言語",
       "languageDesc": "お好みの言語を選択"
     },
     "library": {
       "title": "ライブラリ設定",
       "directory": "ライブラリディレクトリ",
-      "directoryDesc": "スキルが保存される場所",
+      "directoryDesc": "スキルの保存場所",
       "rescan": "再スキャン",
-      "rescanDesc": "ライブラリディレクトリの変更を手動でスキャン",
+      "rescanDesc": "ライブラリディレクトリの変更を手動で再スキャン",
       "rescanNow": "今すぐスキャン",
       "scanning": "スキャン中...",
-      "foundSkills": "{{count}} 件のスキルが見つかりました",
+      "foundSkills": "{{count}}件のスキルが見つかりました",
       "autoSync": "ファイル変更を自動同期",
       "autoSyncDesc": "ファイル変更時にインデックスを自動更新"
     },
@@ -165,7 +254,7 @@
       "confirmDangerousDesc": "シェルコマンド実行前に確認を表示"
     },
     "about": {
-      "title": "このアプリについて",
+      "title": "について",
       "checkUpdates": "アップデートを確認",
       "documentation": "ドキュメント",
       "reportIssue": "問題を報告"

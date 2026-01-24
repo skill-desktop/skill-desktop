@@ -1,4 +1,5 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 import { Download, ExternalLink, Shield, Tag, ShieldAlert } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAppStore } from "@/stores";
@@ -27,6 +28,7 @@ export const SkillCard: React.FC<SkillCardProps> = ({
   onToggleSelection,
   isQuarantined = false,
 }) => {
+  const { t } = useTranslation();
   const { setSelectedSkillHash, selectedSkillHash } = useAppStore();
 
   const isSelected = selectedSkillHash === skill.hash;
@@ -95,7 +97,7 @@ export const SkillCard: React.FC<SkillCardProps> = ({
               </h3>
               {skill.author && (
                 <p className="text-[10px] text-text-muted truncate">
-                  by {skill.author}
+                  {t("skillCard.by")} {skill.author}
                 </p>
               )}
             </div>
@@ -112,7 +114,7 @@ export const SkillCard: React.FC<SkillCardProps> = ({
 
         {/* Description */}
         <p className="mt-2.5 text-xs text-text-secondary line-clamp-2 leading-relaxed">
-          {skill.description || "No description available"}
+          {skill.description || t("skillCard.noDescription")}
         </p>
 
         {/* Tags */}
@@ -161,7 +163,7 @@ export const SkillCard: React.FC<SkillCardProps> = ({
                 </div>
               </>
             ) : (
-              <span className="text-[10px] text-text-muted">No permissions</span>
+              <span className="text-[10px] text-text-muted">{t("skillDetail.permissions")}: 0</span>
             )}
           </div>
 

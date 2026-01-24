@@ -23,7 +23,21 @@
     "selectAll": "Seleccionar todo",
     "deselectAll": "Deseleccionar todo",
     "noData": "Sin datos",
-    "version": "Versión"
+    "version": "Versión",
+    "connect": "Conectar",
+    "preview": "Vista previa",
+    "import": "Importar",
+    "copy": "Copiar",
+    "saveToFile": "Guardar en archivo",
+    "copyToClipboard": "Copiar al portapapeles",
+    "skills": "habilidades",
+    "total": "total",
+    "selected": "seleccionado",
+    "notSet": "No establecido",
+    "default": "Predeterminado",
+    "clone": "Clonar",
+    "create": "Crear",
+    "saveChanges": "Guardar cambios"
   },
   "app": {
     "name": "Skill Desktop",
@@ -41,13 +55,13 @@
   },
   "library": {
     "title": "Biblioteca",
-    "noLibraryPath": "No se ha establecido el directorio de biblioteca",
-    "noLibraryPathDesc": "Por favor, seleccione un directorio donde se almacenarán sus skills.",
+    "noLibraryPath": "No se ha establecido directorio de biblioteca",
+    "noLibraryPathDesc": "Por favor, seleccione un directorio para almacenar sus skills.",
     "goToSettings": "Ir a Configuración",
-    "failedToLoad": "Error al cargar los skills",
+    "failedToLoad": "Error al cargar skills",
     "filter": {
       "all": "Todos",
-      "safe": "Seguros",
+      "safe": "Seguro",
       "quarantine": "Cuarentena"
     },
     "selection": {
@@ -71,7 +85,7 @@
     "quarantined": "En cuarentena"
   },
   "skillDetail": {
-    "noSkillSelected": "Seleccione un skill para ver los detalles",
+    "noSkillSelected": "Seleccione un skill para ver detalles",
     "version": "Versión",
     "author": "Autor",
     "tags": "Etiquetas",
@@ -92,48 +106,123 @@
     }
   },
   "spaces": {
-    "title": "Espacios",
-    "description": "Gestione sus espacios de trabajo de skills",
-    "createNew": "Crear nuevo espacio",
-    "newSpace": "Nuevo espacio",
+    "title": "Espacios de trabajo",
+    "noDescription": "Sin descripción",
+    "createSpace": "Crear nuevo espacio",
     "editSpace": "Editar espacio",
+    "cloneSpace": "Clonar espacio",
     "deleteSpace": "Eliminar espacio",
-    "spaceName": "Nombre del espacio",
-    "activeDirectory": "Directorio activo",
-    "spaceDescription": "Descripción",
-    "skillVisibility": "Visibilidad de skills",
-    "enabledSkills": "{{count}} skills habilitados",
-    "syncSpace": "Sincronizar espacio",
-    "exportConfig": "Exportar configuración",
+    "selectSpace": "Seleccione un espacio para ver detalles",
+    "form": {
+      "spaceName": "Nombre del espacio",
+      "spaceNamePlaceholder": "Mi espacio de trabajo",
+      "spaceNameRequired": "Nombre del espacio *",
+      "activeDirectory": "Directorio activo",
+      "activeDirectoryRequired": "Directorio activo *",
+      "activeDirectoryPlaceholder": "/ruta/al/directorio/activo",
+      "description": "Descripción",
+      "descriptionOptional": "Descripción (opcional)",
+      "descriptionPlaceholder": "Breve descripción de este espacio de trabajo"
+    },
+    "info": {
+      "activeSkills": "Skills activos",
+      "activeDirectory": "Directorio activo"
+    },
+    "actions": {
+      "manageSkills": "Gestionar skills",
+      "exportClaudeConfig": "Exportar config Claude",
+      "exportGenericJson": "Exportar JSON genérico",
+      "exportMcpConfig": "Exportar config MCP",
+      "syncSymlinks": "Sincronizar enlaces simbólicos",
+      "syncing": "Sincronizando...",
+      "syncedSkills": "{{count}} skills sincronizados"
+    },
+    "manageSkillsDialog": {
+      "title": "Gestionar skills para \"{{name}}\"",
+      "selectedCount": "{{count}} de {{total}} seleccionados"
+    },
+    "cloneDialog": {
+      "title": "Clonar espacio",
+      "description": "Crear una copia de \"{{name}}\" con la misma configuración de visibilidad de skills.",
+      "newSpaceName": "Nuevo nombre de espacio",
+      "newSpaceNamePlaceholder": "Mi espacio de trabajo (Copia)"
+    },
     "deleteConfirm": {
       "title": "Eliminar espacio",
       "description": "¿Está seguro de que desea eliminar \"{{name}}\"? Esta acción no se puede deshacer."
+    },
+    "exportDialog": {
+      "claudeTitle": "Configuración de Claude Desktop",
+      "mcpTitle": "Configuración del servidor MCP",
+      "genericTitle": "Configuración genérica"
     }
   },
   "hub": {
-    "title": "Hub de Skills",
-    "description": "Descubra e importe skills de la comunidad",
-    "searchPlaceholder": "Buscar servidores MCP...",
-    "featured": "Destacados",
-    "searchResults": "Resultados de búsqueda",
-    "noResults": "No se encontraron resultados",
-    "import": "Importar",
-    "importing": "Importando...",
-    "imported": "Importado",
-    "preview": "Vista previa",
-    "registry": {
-      "glama": "Glama",
-      "mcpSo": "MCP.so",
-      "mcpServersOrg": "MCPServers.org",
-      "smithery": "Smithery"
+    "title": "Importar skill",
+    "source": {
+      "url": "URL",
+      "urlDesc": "Enlace directo",
+      "github": "GitHub",
+      "githubDesc": "Repositorio",
+      "mcp": "MCP",
+      "mcpDesc": "Servidor",
+      "registry": "Registro",
+      "registryDesc": "Explorar"
     },
-    "importFromUrl": "Importar desde URL",
-    "importFromGithub": "Importar desde GitHub",
-    "urlPlaceholder": "Ingrese la URL del skill...",
-    "githubOwner": "Propietario",
-    "githubRepo": "Repositorio",
-    "githubPath": "Ruta",
-    "githubBranch": "Rama"
+    "url": {
+      "label": "Dirección URL",
+      "placeholder": "https://example.com/skill.md",
+      "previewContent": "Vista previa del contenido"
+    },
+    "github": {
+      "repoUrl": "URL del repositorio",
+      "repoUrlPlaceholder": "https://github.com/owner/repo",
+      "connectToRepo": "Conectar al repositorio",
+      "importSelected": "Importar seleccionados",
+      "importAll": "Importar todo",
+      "importedSkills": "{{count}} skills importados",
+      "skippedSkills": "{{count}} omitidos"
+    },
+    "mcp": {
+      "serverUrl": "URL del servidor MCP",
+      "serverUrlPlaceholder": "http://localhost:3000",
+      "connectToServer": "Conectar al servidor",
+      "toolsAvailable": "{{count}} herramientas disponibles",
+      "noToolsFound": "No se encontraron herramientas en este servidor"
+    },
+    "registry": {
+      "source": "Fuente del registro",
+      "allRegistries": "Todos los registros",
+      "searchServers": "Buscar servidores MCP",
+      "searchPlaceholder": "Buscar servidores...",
+      "featuredServers": "Servidores destacados",
+      "searchResults": "Resultados de búsqueda",
+      "serversCount": "{{count}} servidores",
+      "noServersFound": "No se encontraron servidores"
+    },
+    "warnings": {
+      "setLibraryPath": "Por favor, establezca primero una ruta de biblioteca en Configuración",
+      "verifySource": "Por favor, verifique la confiabilidad de la fuente antes de importar"
+    },
+    "preview": {
+      "title": "Vista previa",
+      "by": "por",
+      "unknownAuthor": "Autor desconocido",
+      "description": "Descripción",
+      "noDescription": "Sin descripción",
+      "tags": "Etiquetas",
+      "permissionsRequired": "Permisos requeridos",
+      "lowRisk": "Riesgo bajo",
+      "mediumRisk": "Riesgo medio",
+      "highRisk": "Riesgo alto",
+      "parameters": "Parámetros",
+      "sourcePreview": "Vista previa del código",
+      "truncated": "... (truncado)",
+      "importToLibrary": "Importar a biblioteca",
+      "importedSuccessfully": "¡Importado con éxito!",
+      "enterUrlToPreview": "Ingrese una URL para previsualizar el skill",
+      "supportedFormats": "Formatos soportados: .md, .json"
+    }
   },
   "settings": {
     "title": "Configuración",
@@ -152,7 +241,7 @@
       "directory": "Directorio de biblioteca",
       "directoryDesc": "Ubicación donde se almacenan sus skills",
       "rescan": "Reescanear",
-      "rescanDesc": "Escanear manualmente el directorio de biblioteca para detectar cambios",
+      "rescanDesc": "Reescanear manualmente el directorio de la biblioteca",
       "rescanNow": "Escanear ahora",
       "scanning": "Escaneando...",
       "foundSkills": "{{count}} skills encontrados",
@@ -162,7 +251,7 @@
     "security": {
       "title": "Seguridad",
       "confirmDangerous": "Confirmar comandos peligrosos",
-      "confirmDangerousDesc": "Mostrar confirmación antes de ejecutar comandos de shell"
+      "confirmDangerousDesc": "Mostrar confirmación antes de ejecutar comandos shell"
     },
     "about": {
       "title": "Acerca de",

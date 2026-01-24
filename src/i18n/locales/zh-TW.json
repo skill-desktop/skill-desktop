@@ -23,7 +23,21 @@
     "selectAll": "全選",
     "deselectAll": "取消全選",
     "noData": "暫無資料",
-    "version": "版本"
+    "version": "版本",
+    "connect": "連接",
+    "preview": "預覽",
+    "import": "匯入",
+    "copy": "複製",
+    "saveToFile": "儲存到檔案",
+    "copyToClipboard": "複製到剪貼簿",
+    "skills": "個技能",
+    "total": "共",
+    "selected": "已選擇",
+    "notSet": "未設定",
+    "default": "預設",
+    "clone": "複製",
+    "create": "建立",
+    "saveChanges": "儲存變更"
   },
   "app": {
     "name": "Skill Desktop",
@@ -71,7 +85,7 @@
     "quarantined": "已隔離"
   },
   "skillDetail": {
-    "noSkillSelected": "選擇一個技能查看詳情",
+    "noSkillSelected": "選擇一個技能檢視詳情",
     "version": "版本",
     "author": "作者",
     "tags": "標籤",
@@ -93,47 +107,122 @@
   },
   "spaces": {
     "title": "工作空間",
-    "description": "管理您的技能工作空間",
-    "createNew": "建立新空間",
-    "newSpace": "新建空間",
+    "noDescription": "暫無描述",
+    "createSpace": "建立新空間",
     "editSpace": "編輯空間",
+    "cloneSpace": "複製空間",
     "deleteSpace": "刪除空間",
-    "spaceName": "空間名稱",
-    "activeDirectory": "活動目錄",
-    "spaceDescription": "描述",
-    "skillVisibility": "技能可見性",
-    "enabledSkills": "已啟用 {{count}} 個技能",
-    "syncSpace": "同步空間",
-    "exportConfig": "匯出設定",
+    "selectSpace": "選擇一個空間檢視詳情",
+    "form": {
+      "spaceName": "空間名稱",
+      "spaceNamePlaceholder": "我的工作空間",
+      "spaceNameRequired": "空間名稱 *",
+      "activeDirectory": "活動目錄",
+      "activeDirectoryRequired": "活動目錄 *",
+      "activeDirectoryPlaceholder": "/path/to/active/directory",
+      "description": "描述",
+      "descriptionOptional": "描述（選填）",
+      "descriptionPlaceholder": "簡要描述此工作空間"
+    },
+    "info": {
+      "activeSkills": "活動技能",
+      "activeDirectory": "活動目錄"
+    },
+    "actions": {
+      "manageSkills": "管理技能",
+      "exportClaudeConfig": "匯出 Claude 配置",
+      "exportGenericJson": "匯出通用 JSON",
+      "exportMcpConfig": "匯出 MCP 配置",
+      "syncSymlinks": "同步符號連結",
+      "syncing": "同步中...",
+      "syncedSkills": "已同步 {{count}} 個技能"
+    },
+    "manageSkillsDialog": {
+      "title": "管理「{{name}}」的技能",
+      "selectedCount": "已選擇 {{count}} / {{total}}"
+    },
+    "cloneDialog": {
+      "title": "複製空間",
+      "description": "建立「{{name}}」的副本，保留相同的技能可見性設定。",
+      "newSpaceName": "新空間名稱",
+      "newSpaceNamePlaceholder": "我的工作空間（副本）"
+    },
     "deleteConfirm": {
       "title": "刪除空間",
       "description": "確定要刪除「{{name}}」嗎？此操作無法復原。"
+    },
+    "exportDialog": {
+      "claudeTitle": "Claude Desktop 配置",
+      "mcpTitle": "MCP 伺服器配置",
+      "genericTitle": "通用配置"
     }
   },
   "hub": {
-    "title": "技能中心",
-    "description": "發現並匯入社群技能",
-    "searchPlaceholder": "搜尋 MCP 伺服器...",
-    "featured": "精選",
-    "searchResults": "搜尋結果",
-    "noResults": "未找到結果",
-    "import": "匯入",
-    "importing": "匯入中...",
-    "imported": "已匯入",
-    "preview": "預覽",
-    "registry": {
-      "glama": "Glama",
-      "mcpSo": "MCP.so",
-      "mcpServersOrg": "MCPServers.org",
-      "smithery": "Smithery"
+    "title": "匯入技能",
+    "source": {
+      "url": "URL",
+      "urlDesc": "直接連結",
+      "github": "GitHub",
+      "githubDesc": "儲存庫",
+      "mcp": "MCP",
+      "mcpDesc": "伺服器",
+      "registry": "註冊表",
+      "registryDesc": "瀏覽"
     },
-    "importFromUrl": "從 URL 匯入",
-    "importFromGithub": "從 GitHub 匯入",
-    "urlPlaceholder": "輸入技能 URL...",
-    "githubOwner": "擁有者",
-    "githubRepo": "儲存庫",
-    "githubPath": "路徑",
-    "githubBranch": "分支"
+    "url": {
+      "label": "URL 地址",
+      "placeholder": "https://example.com/skill.md",
+      "previewContent": "預覽內容"
+    },
+    "github": {
+      "repoUrl": "儲存庫 URL",
+      "repoUrlPlaceholder": "https://github.com/owner/repo",
+      "connectToRepo": "連接到儲存庫",
+      "importSelected": "匯入所選",
+      "importAll": "匯入全部",
+      "importedSkills": "已匯入 {{count}} 個技能",
+      "skippedSkills": "跳過 {{count}} 個"
+    },
+    "mcp": {
+      "serverUrl": "MCP 伺服器 URL",
+      "serverUrlPlaceholder": "http://localhost:3000",
+      "connectToServer": "連接到伺服器",
+      "toolsAvailable": "{{count}} 個工具可用",
+      "noToolsFound": "此伺服器上未找到工具"
+    },
+    "registry": {
+      "source": "註冊表來源",
+      "allRegistries": "所有註冊表",
+      "searchServers": "搜尋 MCP 伺服器",
+      "searchPlaceholder": "搜尋伺服器...",
+      "featuredServers": "精選伺服器",
+      "searchResults": "搜尋結果",
+      "serversCount": "{{count}} 個伺服器",
+      "noServersFound": "未找到伺服器"
+    },
+    "warnings": {
+      "setLibraryPath": "請先在設定中設定技能庫路徑",
+      "verifySource": "匯入前請確認來源可信"
+    },
+    "preview": {
+      "title": "預覽",
+      "by": "作者",
+      "unknownAuthor": "未知作者",
+      "description": "描述",
+      "noDescription": "暫無描述",
+      "tags": "標籤",
+      "permissionsRequired": "所需權限",
+      "lowRisk": "低風險",
+      "mediumRisk": "中風險",
+      "highRisk": "高風險",
+      "parameters": "參數",
+      "sourcePreview": "原始碼預覽",
+      "truncated": "...（已截斷）",
+      "importToLibrary": "匯入到技能庫",
+      "importedSuccessfully": "匯入成功！",
+      "enterUrlToPreview": "輸入 URL 預覽技能",
+      "supportedFormats": "支援的格式：.md, .json"
+    }
   },
   "settings": {
     "title": "設定",

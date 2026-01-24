@@ -1,4 +1,5 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 import { CheckSquare } from "lucide-react";
 import { useSettingsStore } from "@/stores";
 import { ScrollArea, Button } from "@/components/ui";
@@ -29,14 +30,14 @@ export const SkillList: React.FC<SkillListProps> = ({
   onEnterSelectionMode,
   quarantinedHashes = new Set(),
 }) => {
+  const { t } = useTranslation();
   const { viewMode } = useSettingsStore();
 
   if (skills.length === 0) {
     return (
       <div className="flex h-full flex-col items-center justify-center text-text-muted">
         <div className="text-4xl mb-4">📭</div>
-        <p className="text-sm">No skills found</p>
-        <p className="text-xs mt-1">Import or create a skill to get started</p>
+        <p className="text-sm">{t("common.noData")}</p>
       </div>
     );
   }
@@ -49,7 +50,7 @@ export const SkillList: React.FC<SkillListProps> = ({
           <div className="mb-4 flex justify-end">
             <Button variant="ghost" size="sm" onClick={onEnterSelectionMode}>
               <CheckSquare className="h-3.5 w-3.5 mr-1.5" />
-              Select
+              {t("common.selectAll")}
             </Button>
           </div>
         )}
@@ -82,7 +83,7 @@ export const SkillList: React.FC<SkillListProps> = ({
         <div className="px-4 py-2 flex justify-end border-b border-border-muted">
           <Button variant="ghost" size="sm" onClick={onEnterSelectionMode}>
             <CheckSquare className="h-3.5 w-3.5 mr-1.5" />
-            Select
+            {t("common.selectAll")}
           </Button>
         </div>
       )}

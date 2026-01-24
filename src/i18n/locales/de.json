@@ -19,15 +19,29 @@
     "next": "Weiter",
     "done": "Fertig",
     "refresh": "Aktualisieren",
-    "retry": "Erneut versuchen",
+    "retry": "Wiederholen",
     "selectAll": "Alle auswählen",
     "deselectAll": "Auswahl aufheben",
     "noData": "Keine Daten",
-    "version": "Version"
+    "version": "Version",
+    "connect": "Verbinden",
+    "preview": "Vorschau",
+    "import": "Importieren",
+    "copy": "Kopieren",
+    "saveToFile": "In Datei speichern",
+    "copyToClipboard": "In Zwischenablage kopieren",
+    "skills": "Skills",
+    "total": "Gesamt",
+    "selected": "Ausgewählt",
+    "notSet": "Nicht festgelegt",
+    "default": "Standard",
+    "clone": "Klonen",
+    "create": "Erstellen",
+    "saveChanges": "Änderungen speichern"
   },
   "app": {
     "name": "Skill Desktop",
-    "description": "Agent Skill Management-Infrastruktur für Entwickler"
+    "description": "Agent Skill Verwaltungsinfrastruktur für Entwickler"
   },
   "nav": {
     "library": "Bibliothek",
@@ -42,7 +56,7 @@
   "library": {
     "title": "Bibliothek",
     "noLibraryPath": "Kein Bibliotheksverzeichnis festgelegt",
-    "noLibraryPathDesc": "Bitte wählen Sie ein Verzeichnis aus, in dem Ihre Skills gespeichert werden sollen.",
+    "noLibraryPathDesc": "Bitte wählen Sie ein Verzeichnis zum Speichern Ihrer Skills.",
     "goToSettings": "Zu Einstellungen",
     "failedToLoad": "Skills konnten nicht geladen werden",
     "filter": {
@@ -57,11 +71,11 @@
     },
     "deleteConfirm": {
       "title": "{{count}} Skills löschen",
-      "description": "Möchten Sie wirklich {{count}} Skill(s) löschen? Diese Aktion kann nicht rückgängig gemacht werden."
+      "description": "Möchten Sie {{count}} Skill(s) wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden."
     },
     "quarantineConfirm": {
       "title": "{{count}} Skills in Quarantäne",
-      "description": "{{count}} Skill(s) in den Quarantänebereich verschieben. Quarantäne-Skills werden als potenziell instabil oder sensibel markiert.",
+      "description": "{{count}} Skill(s) in den Quarantänebereich verschieben. Quarantänisierte Skills werden als potenziell instabil oder sensibel markiert.",
       "markAsSafe": "Als sicher markieren"
     }
   },
@@ -71,7 +85,7 @@
     "quarantined": "In Quarantäne"
   },
   "skillDetail": {
-    "noSkillSelected": "Wählen Sie einen Skill aus, um Details anzuzeigen",
+    "noSkillSelected": "Skill auswählen, um Details anzuzeigen",
     "version": "Version",
     "author": "Autor",
     "tags": "Tags",
@@ -92,48 +106,123 @@
     }
   },
   "spaces": {
-    "title": "Bereiche",
-    "description": "Verwalten Sie Ihre Skill-Arbeitsbereiche",
-    "createNew": "Neuen Bereich erstellen",
-    "newSpace": "Neuer Bereich",
+    "title": "Arbeitsbereiche",
+    "noDescription": "Keine Beschreibung",
+    "createSpace": "Neuen Bereich erstellen",
     "editSpace": "Bereich bearbeiten",
+    "cloneSpace": "Bereich klonen",
     "deleteSpace": "Bereich löschen",
-    "spaceName": "Bereichsname",
-    "activeDirectory": "Aktives Verzeichnis",
-    "spaceDescription": "Beschreibung",
-    "skillVisibility": "Skill-Sichtbarkeit",
-    "enabledSkills": "{{count}} Skills aktiviert",
-    "syncSpace": "Bereich synchronisieren",
-    "exportConfig": "Konfiguration exportieren",
+    "selectSpace": "Bereich auswählen, um Details anzuzeigen",
+    "form": {
+      "spaceName": "Bereichsname",
+      "spaceNamePlaceholder": "Mein Arbeitsbereich",
+      "spaceNameRequired": "Bereichsname *",
+      "activeDirectory": "Aktives Verzeichnis",
+      "activeDirectoryRequired": "Aktives Verzeichnis *",
+      "activeDirectoryPlaceholder": "/pfad/zum/aktiven/verzeichnis",
+      "description": "Beschreibung",
+      "descriptionOptional": "Beschreibung (optional)",
+      "descriptionPlaceholder": "Kurze Beschreibung dieses Arbeitsbereichs"
+    },
+    "info": {
+      "activeSkills": "Aktive Skills",
+      "activeDirectory": "Aktives Verzeichnis"
+    },
+    "actions": {
+      "manageSkills": "Skills verwalten",
+      "exportClaudeConfig": "Claude-Konfiguration exportieren",
+      "exportGenericJson": "Generisches JSON exportieren",
+      "exportMcpConfig": "MCP-Konfiguration exportieren",
+      "syncSymlinks": "Symbolische Links synchronisieren",
+      "syncing": "Synchronisiere...",
+      "syncedSkills": "{{count}} Skills synchronisiert"
+    },
+    "manageSkillsDialog": {
+      "title": "Skills für \"{{name}}\" verwalten",
+      "selectedCount": "{{count}} von {{total}} ausgewählt"
+    },
+    "cloneDialog": {
+      "title": "Bereich klonen",
+      "description": "Erstellen Sie eine Kopie von \"{{name}}\" mit denselben Skill-Sichtbarkeitseinstellungen.",
+      "newSpaceName": "Neuer Bereichsname",
+      "newSpaceNamePlaceholder": "Mein Arbeitsbereich (Kopie)"
+    },
     "deleteConfirm": {
       "title": "Bereich löschen",
       "description": "Möchten Sie \"{{name}}\" wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden."
+    },
+    "exportDialog": {
+      "claudeTitle": "Claude Desktop Konfiguration",
+      "mcpTitle": "MCP Server Konfiguration",
+      "genericTitle": "Generische Konfiguration"
     }
   },
   "hub": {
-    "title": "Skill Hub",
-    "description": "Entdecken und importieren Sie Skills aus der Community",
-    "searchPlaceholder": "MCP-Server suchen...",
-    "featured": "Empfohlen",
-    "searchResults": "Suchergebnisse",
-    "noResults": "Keine Ergebnisse gefunden",
-    "import": "Importieren",
-    "importing": "Importiere...",
-    "imported": "Importiert",
-    "preview": "Vorschau",
-    "registry": {
-      "glama": "Glama",
-      "mcpSo": "MCP.so",
-      "mcpServersOrg": "MCPServers.org",
-      "smithery": "Smithery"
+    "title": "Skill importieren",
+    "source": {
+      "url": "URL",
+      "urlDesc": "Direktlink",
+      "github": "GitHub",
+      "githubDesc": "Repository",
+      "mcp": "MCP",
+      "mcpDesc": "Server",
+      "registry": "Registry",
+      "registryDesc": "Durchsuchen"
     },
-    "importFromUrl": "Von URL importieren",
-    "importFromGithub": "Von GitHub importieren",
-    "urlPlaceholder": "Skill-URL eingeben...",
-    "githubOwner": "Besitzer",
-    "githubRepo": "Repository",
-    "githubPath": "Pfad",
-    "githubBranch": "Branch"
+    "url": {
+      "label": "URL-Adresse",
+      "placeholder": "https://example.com/skill.md",
+      "previewContent": "Inhalt vorschauen"
+    },
+    "github": {
+      "repoUrl": "Repository-URL",
+      "repoUrlPlaceholder": "https://github.com/owner/repo",
+      "connectToRepo": "Mit Repository verbinden",
+      "importSelected": "Ausgewählte importieren",
+      "importAll": "Alle importieren",
+      "importedSkills": "{{count}} Skills importiert",
+      "skippedSkills": "{{count}} übersprungen"
+    },
+    "mcp": {
+      "serverUrl": "MCP Server URL",
+      "serverUrlPlaceholder": "http://localhost:3000",
+      "connectToServer": "Mit Server verbinden",
+      "toolsAvailable": "{{count}} Tools verfügbar",
+      "noToolsFound": "Keine Tools auf diesem Server gefunden"
+    },
+    "registry": {
+      "source": "Registry-Quelle",
+      "allRegistries": "Alle Registries",
+      "searchServers": "MCP Server suchen",
+      "searchPlaceholder": "Server suchen...",
+      "featuredServers": "Empfohlene Server",
+      "searchResults": "Suchergebnisse",
+      "serversCount": "{{count}} Server",
+      "noServersFound": "Keine Server gefunden"
+    },
+    "warnings": {
+      "setLibraryPath": "Bitte legen Sie zuerst einen Bibliothekspfad in den Einstellungen fest",
+      "verifySource": "Bitte überprüfen Sie die Vertrauenswürdigkeit der Quelle vor dem Import"
+    },
+    "preview": {
+      "title": "Vorschau",
+      "by": "von",
+      "unknownAuthor": "Unbekannter Autor",
+      "description": "Beschreibung",
+      "noDescription": "Keine Beschreibung",
+      "tags": "Tags",
+      "permissionsRequired": "Erforderliche Berechtigungen",
+      "lowRisk": "Niedriges Risiko",
+      "mediumRisk": "Mittleres Risiko",
+      "highRisk": "Hohes Risiko",
+      "parameters": "Parameter",
+      "sourcePreview": "Quellvorschau",
+      "truncated": "... (gekürzt)",
+      "importToLibrary": "In Bibliothek importieren",
+      "importedSuccessfully": "Erfolgreich importiert!",
+      "enterUrlToPreview": "URL eingeben, um Skill anzuzeigen",
+      "supportedFormats": "Unterstützte Formate: .md, .json"
+    }
   },
   "settings": {
     "title": "Einstellungen",
@@ -152,7 +241,7 @@
       "directory": "Bibliotheksverzeichnis",
       "directoryDesc": "Speicherort Ihrer Skills",
       "rescan": "Neu scannen",
-      "rescanDesc": "Bibliotheksverzeichnis manuell auf Änderungen scannen",
+      "rescanDesc": "Bibliotheksverzeichnis manuell nach Änderungen durchsuchen",
       "rescanNow": "Jetzt scannen",
       "scanning": "Scanne...",
       "foundSkills": "{{count}} Skills gefunden",

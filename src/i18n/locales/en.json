@@ -23,7 +23,21 @@
     "selectAll": "Select All",
     "deselectAll": "Deselect All",
     "noData": "No data",
-    "version": "Version"
+    "version": "Version",
+    "connect": "Connect",
+    "preview": "Preview",
+    "import": "Import",
+    "copy": "Copy",
+    "saveToFile": "Save to File",
+    "copyToClipboard": "Copy to Clipboard",
+    "skills": "skills",
+    "total": "total",
+    "selected": "selected",
+    "notSet": "Not set",
+    "default": "Default",
+    "clone": "Clone",
+    "create": "Create",
+    "saveChanges": "Save Changes"
   },
   "app": {
     "name": "Skill Desktop",
@@ -92,48 +106,123 @@
     }
   },
   "spaces": {
-    "title": "Spaces",
-    "description": "Manage your skill workspaces",
-    "createNew": "Create New Space",
-    "newSpace": "New Space",
+    "title": "Workspaces",
+    "noDescription": "No description",
+    "createSpace": "Create New Space",
     "editSpace": "Edit Space",
+    "cloneSpace": "Clone Space",
     "deleteSpace": "Delete Space",
-    "spaceName": "Space Name",
-    "activeDirectory": "Active Directory",
-    "spaceDescription": "Description",
-    "skillVisibility": "Skill Visibility",
-    "enabledSkills": "{{count}} skills enabled",
-    "syncSpace": "Sync Space",
-    "exportConfig": "Export Config",
+    "selectSpace": "Select a space to view details",
+    "form": {
+      "spaceName": "Space Name",
+      "spaceNamePlaceholder": "My Workspace",
+      "spaceNameRequired": "Space Name *",
+      "activeDirectory": "Active Directory",
+      "activeDirectoryRequired": "Active Directory *",
+      "activeDirectoryPlaceholder": "/path/to/active/directory",
+      "description": "Description",
+      "descriptionOptional": "Description (optional)",
+      "descriptionPlaceholder": "A brief description of this workspace"
+    },
+    "info": {
+      "activeSkills": "Active Skills",
+      "activeDirectory": "Active Directory"
+    },
+    "actions": {
+      "manageSkills": "Manage Skills",
+      "exportClaudeConfig": "Export Claude Config",
+      "exportGenericJson": "Export Generic JSON",
+      "exportMcpConfig": "Export MCP Config",
+      "syncSymlinks": "Sync Symlinks",
+      "syncing": "Syncing...",
+      "syncedSkills": "Synced {{count}} skills"
+    },
+    "manageSkillsDialog": {
+      "title": "Manage Skills for {{name}}",
+      "selectedCount": "{{count}} of {{total}} selected"
+    },
+    "cloneDialog": {
+      "title": "Clone Space",
+      "description": "Create a copy of \"{{name}}\" with the same skill visibility settings.",
+      "newSpaceName": "New Space Name",
+      "newSpaceNamePlaceholder": "My Workspace (Copy)"
+    },
     "deleteConfirm": {
       "title": "Delete Space",
       "description": "Are you sure you want to delete \"{{name}}\"? This action cannot be undone."
+    },
+    "exportDialog": {
+      "claudeTitle": "Claude Desktop Configuration",
+      "mcpTitle": "MCP Server Configuration",
+      "genericTitle": "Generic Configuration"
     }
   },
   "hub": {
-    "title": "Skill Hub",
-    "description": "Discover and import skills from the community",
-    "searchPlaceholder": "Search MCP servers...",
-    "featured": "Featured",
-    "searchResults": "Search Results",
-    "noResults": "No results found",
-    "import": "Import",
-    "importing": "Importing...",
-    "imported": "Imported",
-    "preview": "Preview",
-    "registry": {
-      "glama": "Glama",
-      "mcpSo": "MCP.so",
-      "mcpServersOrg": "MCPServers.org",
-      "smithery": "Smithery"
+    "title": "Import Skill",
+    "source": {
+      "url": "URL",
+      "urlDesc": "Direct link",
+      "github": "GitHub",
+      "githubDesc": "Repository",
+      "mcp": "MCP",
+      "mcpDesc": "Server",
+      "registry": "Registry",
+      "registryDesc": "Browse"
     },
-    "importFromUrl": "Import from URL",
-    "importFromGithub": "Import from GitHub",
-    "urlPlaceholder": "Enter skill URL...",
-    "githubOwner": "Owner",
-    "githubRepo": "Repository",
-    "githubPath": "Path",
-    "githubBranch": "Branch"
+    "url": {
+      "label": "URL Address",
+      "placeholder": "https://example.com/skill.md",
+      "previewContent": "Preview Content"
+    },
+    "github": {
+      "repoUrl": "Repository URL",
+      "repoUrlPlaceholder": "https://github.com/owner/repo",
+      "connectToRepo": "Connect to Repository",
+      "importSelected": "Import Selected",
+      "importAll": "Import All",
+      "importedSkills": "Imported {{count}} skills",
+      "skippedSkills": "skipped {{count}}"
+    },
+    "mcp": {
+      "serverUrl": "MCP Server URL",
+      "serverUrlPlaceholder": "http://localhost:3000",
+      "connectToServer": "Connect to Server",
+      "toolsAvailable": "{{count}} tools available",
+      "noToolsFound": "No tools found on this server"
+    },
+    "registry": {
+      "source": "Registry Source",
+      "allRegistries": "All Registries",
+      "searchServers": "Search MCP Servers",
+      "searchPlaceholder": "Search servers...",
+      "featuredServers": "Featured Servers",
+      "searchResults": "Search Results",
+      "serversCount": "{{count}} servers",
+      "noServersFound": "No servers found"
+    },
+    "warnings": {
+      "setLibraryPath": "Please set a library path in Settings first",
+      "verifySource": "Please verify the source is trustworthy before importing"
+    },
+    "preview": {
+      "title": "Preview",
+      "by": "by",
+      "unknownAuthor": "Unknown author",
+      "description": "Description",
+      "noDescription": "No description",
+      "tags": "Tags",
+      "permissionsRequired": "Permissions Required",
+      "lowRisk": "Low Risk",
+      "mediumRisk": "Medium Risk",
+      "highRisk": "High Risk",
+      "parameters": "Parameters",
+      "sourcePreview": "Source Preview",
+      "truncated": "... (truncated)",
+      "importToLibrary": "Import to Library",
+      "importedSuccessfully": "Imported Successfully!",
+      "enterUrlToPreview": "Enter a URL to preview the skill",
+      "supportedFormats": "Supported formats: .md, .json"
+    }
   },
   "settings": {
     "title": "Settings",

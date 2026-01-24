@@ -1,4 +1,5 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 import { Plus, Settings2, Trash2, FolderOpen, Check, Loader2, Download, Copy, FileJson, Link, CopyPlus, Server } from "lucide-react";
 import { invoke } from "@tauri-apps/api/core";
 import { cn } from "@/lib/utils";
@@ -77,6 +78,7 @@ const SpaceSkillCount: React.FC<{ spaceId: string; totalSkills: number }> = ({ s
 };
 
 export const SpacesView: React.FC = () => {
+  const { t } = useTranslation();
   const { currentSpaceId, setCurrentSpaceId } = useAppStore();
   const [showCreateDialog, setShowCreateDialog] = React.useState(false);
   const [showEditDialog, setShowEditDialog] = React.useState(false);
@@ -425,7 +427,7 @@ export const SpacesView: React.FC = () => {
         {/* Space list */}
         <div className="w-72 border-r border-border-default bg-bg-secondary">
           <div className="flex items-center justify-between border-b border-border-default p-3">
-            <h2 className="text-sm font-medium text-text-primary">Workspaces</h2>
+            <h2 className="text-sm font-medium text-text-primary">{t("spaces.title")}</h2>
             <Button
               variant="ghost"
               size="icon"
@@ -456,7 +458,7 @@ export const SpacesView: React.FC = () => {
                     </span>
                     {space.isDefault && (
                       <Badge variant="blue" className="text-[10px]">
-                        Default
+                        {t("common.default")}
                       </Badge>
                     )}
                   </div>
@@ -481,17 +483,17 @@ export const SpacesView: React.FC = () => {
                     {selectedSpace.name}
                   </h1>
                   <p className="text-sm text-text-secondary mt-1">
-                    {selectedSpace.description || "No description"}
+                    {selectedSpace.description || t("spaces.noDescription")}
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
                   <Button variant="secondary" size="sm" onClick={openEditDialog}>
                     <Settings2 className="h-3.5 w-3.5 mr-1.5" />
-                    Edit
+                    {t("common.edit")}
                   </Button>
                   <Button variant="secondary" size="sm" onClick={openCloneDialog}>
                     <CopyPlus className="h-3.5 w-3.5 mr-1.5" />
-                    Clone
+                    {t("common.clone")}
                   </Button>
                   {!selectedSpace.isDefault && (
                     <Button
@@ -513,18 +515,18 @@ export const SpacesView: React.FC = () => {
                   {visibleSkillCount}
                 </div>
                 <div className="text-xs text-text-muted">
-                  Active Skills {skills.length > 0 && `/ ${skills.length} total`}
+                  {t("spaces.info.activeSkills")} {skills.length > 0 && `/ ${skills.length} ${t("common.total")}`}
                 </div>
               </div>
                 <div className="rounded-lg border border-border-default bg-bg-secondary p-4">
                   <div className="flex items-center gap-2">
                     <FolderOpen className="h-5 w-5 text-text-muted" />
                     <span className="text-sm text-text-primary truncate">
-                      {selectedSpace.activeDirPath || "Not set"}
+                      {selectedSpace.activeDirPath || t("common.notSet")}
                     </span>
                   </div>
                   <div className="text-xs text-text-muted mt-1">
-                    Active Directory
+                    {t("spaces.info.activeDirectory")}
                   </div>
                 </div>
               </div>
@@ -538,7 +540,7 @@ export const SpacesView: React.FC = () => {
                 disabled={skills.length === 0}
               >
                 <Plus className="h-4 w-4 mr-2" />
-                Manage Skills ({visibleSkillCount}/{skills.length})
+                {t("spaces.actions.manageSkills")} ({visibleSkillCount}/{skills.length})
               </Button>
               <Button
                 variant="secondary"
@@ -551,7 +553,7 @@ export const SpacesView: React.FC = () => {
                 ) : (
                   <Download className="h-4 w-4 mr-2" />
                 )}
-                Export Claude Config
+                {t("spaces.actions.exportClaudeConfig")}
               </Button>
               <Button
                 variant="secondary"
@@ -564,7 +566,7 @@ export const SpacesView: React.FC = () => {
                 ) : (
                   <FileJson className="h-4 w-4 mr-2" />
                 )}
-                Export Generic JSON
+                {t("spaces.actions.exportGenericJson")}
               </Button>
               <Button
                 variant="secondary"
@@ -577,7 +579,7 @@ export const SpacesView: React.FC = () => {
                 ) : (
                   <Server className="h-4 w-4 mr-2" />
                 )}
-                Export MCP Config
+                {t("spaces.actions.exportMcpConfig")}
               </Button>
 
               {/* Sync symlinks button */}
@@ -596,10 +598,10 @@ export const SpacesView: React.FC = () => {
                     <Link className="h-4 w-4 mr-2" />
                   )}
                   {syncSpaceMutation.isPending
-                    ? "Syncing..."
+                    ? t("spaces.actions.syncing")
                     : syncSpaceMutation.isSuccess
-                    ? `Synced ${syncSpaceMutation.data?.created} skills`
-                    : "Sync Symlinks"}
+                    ? t("spaces.actions.syncedSkills", { count: syncSpaceMutation.data?.created })
+                    : t("spaces.actions.syncSymlinks")}
                 </Button>
               )}
             </div>
@@ -607,7 +609,7 @@ export const SpacesView: React.FC = () => {
           </div>
         ) : (
           <div className="flex flex-1 items-center justify-center text-text-muted">
-            <p>Select a space to view details</p>
+            <p>{t("spaces.selectSpace")}</p>
           </div>
         )}
       </div>
@@ -616,16 +618,16 @@ export const SpacesView: React.FC = () => {
       <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Create New Space</DialogTitle>
+            <DialogTitle>{t("spaces.createSpace")}</DialogTitle>
           </DialogHeader>
 
           <div className="space-y-4 py-4">
             <div>
               <label className="text-xs text-text-muted mb-1.5 block">
-                Space Name *
+                {t("spaces.form.spaceNameRequired")}
               </label>
               <Input
-                placeholder="My Workspace"
+                placeholder={t("spaces.form.spaceNamePlaceholder")}
                 value={formName}
                 onChange={(e) => setFormName(e.target.value)}
               />
@@ -633,11 +635,11 @@ export const SpacesView: React.FC = () => {
 
             <div>
               <label className="text-xs text-text-muted mb-1.5 block">
-                Active Directory *
+                {t("spaces.form.activeDirectoryRequired")}
               </label>
               <div className="flex items-center gap-2">
                 <Input
-                  placeholder="/path/to/active/directory"
+                  placeholder={t("spaces.form.activeDirectoryPlaceholder")}
                   value={formActiveDir}
                   onChange={(e) => setFormActiveDir(e.target.value)}
                   className="flex-1"
@@ -650,10 +652,10 @@ export const SpacesView: React.FC = () => {
 
             <div>
               <label className="text-xs text-text-muted mb-1.5 block">
-                Description (optional)
+                {t("spaces.form.descriptionOptional")}
               </label>
               <Input
-                placeholder="A brief description of this workspace"
+                placeholder={t("spaces.form.descriptionPlaceholder")}
                 value={formDescription}
                 onChange={(e) => setFormDescription(e.target.value)}
               />
@@ -662,7 +664,7 @@ export const SpacesView: React.FC = () => {
 
           <DialogFooter>
             <Button variant="secondary" onClick={() => setShowCreateDialog(false)}>
-              Cancel
+              {t("common.cancel")}
             </Button>
             <Button
               onClick={handleCreateSpace}
@@ -673,7 +675,7 @@ export const SpacesView: React.FC = () => {
               ) : (
                 <Plus className="h-4 w-4 mr-1.5" />
               )}
-              Create Space
+              {t("common.create")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -683,16 +685,16 @@ export const SpacesView: React.FC = () => {
       <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Edit Space</DialogTitle>
+            <DialogTitle>{t("spaces.editSpace")}</DialogTitle>
           </DialogHeader>
 
           <div className="space-y-4 py-4">
             <div>
               <label className="text-xs text-text-muted mb-1.5 block">
-                Space Name *
+                {t("spaces.form.spaceNameRequired")}
               </label>
               <Input
-                placeholder="My Workspace"
+                placeholder={t("spaces.form.spaceNamePlaceholder")}
                 value={formName}
                 onChange={(e) => setFormName(e.target.value)}
               />
@@ -700,11 +702,11 @@ export const SpacesView: React.FC = () => {
 
             <div>
               <label className="text-xs text-text-muted mb-1.5 block">
-                Active Directory
+                {t("spaces.form.activeDirectory")}
               </label>
               <div className="flex items-center gap-2">
                 <Input
-                  placeholder="/path/to/active/directory"
+                  placeholder={t("spaces.form.activeDirectoryPlaceholder")}
                   value={formActiveDir}
                   onChange={(e) => setFormActiveDir(e.target.value)}
                   className="flex-1"
@@ -717,10 +719,10 @@ export const SpacesView: React.FC = () => {
 
             <div>
               <label className="text-xs text-text-muted mb-1.5 block">
-                Description
+                {t("spaces.form.description")}
               </label>
               <Input
-                placeholder="A brief description of this workspace"
+                placeholder={t("spaces.form.descriptionPlaceholder")}
                 value={formDescription}
                 onChange={(e) => setFormDescription(e.target.value)}
               />
@@ -729,7 +731,7 @@ export const SpacesView: React.FC = () => {
 
           <DialogFooter>
             <Button variant="secondary" onClick={() => setShowEditDialog(false)}>
-              Cancel
+              {t("common.cancel")}
             </Button>
             <Button
               onClick={handleUpdateSpace}
@@ -740,7 +742,7 @@ export const SpacesView: React.FC = () => {
               ) : (
                 <Check className="h-4 w-4 mr-1.5" />
               )}
-              Save Changes
+              {t("common.saveChanges")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -750,9 +752,9 @@ export const SpacesView: React.FC = () => {
       <Dialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Delete Space</DialogTitle>
+            <DialogTitle>{t("spaces.deleteConfirm.title")}</DialogTitle>
             <DialogDescription>
-              Are you sure you want to delete "{selectedSpace?.name}"? This action cannot be undone.
+              {t("spaces.deleteConfirm.description", { name: selectedSpace?.name })}
             </DialogDescription>
           </DialogHeader>
 
@@ -762,7 +764,7 @@ export const SpacesView: React.FC = () => {
               size="sm"
               onClick={() => setShowDeleteConfirm(false)}
             >
-              Cancel
+              {t("common.cancel")}
             </Button>
             <Button
               variant="destructive"
@@ -775,7 +777,7 @@ export const SpacesView: React.FC = () => {
               ) : (
                 <Trash2 className="h-3.5 w-3.5 mr-1.5" />
               )}
-              Delete
+              {t("common.delete")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -785,7 +787,7 @@ export const SpacesView: React.FC = () => {
       <Dialog open={showSkillsDialog} onOpenChange={setShowSkillsDialog}>
         <DialogContent className="max-w-[600px] max-h-[80vh] flex flex-col">
           <DialogHeader>
-            <DialogTitle>Manage Skills for {selectedSpace?.name}</DialogTitle>
+            <DialogTitle>{t("spaces.manageSkillsDialog.title", { name: selectedSpace?.name })}</DialogTitle>
           </DialogHeader>
 
           {/* Actions */}
@@ -796,7 +798,7 @@ export const SpacesView: React.FC = () => {
               onClick={handleSelectAllSkills}
               disabled={setBulkVisibilityMutation.isPending}
             >
-              Select All
+              {t("common.selectAll")}
             </Button>
             <Button
               variant="secondary"
@@ -804,10 +806,10 @@ export const SpacesView: React.FC = () => {
               onClick={handleDeselectAllSkills}
               disabled={setBulkVisibilityMutation.isPending}
             >
-              Deselect All
+              {t("common.deselectAll")}
             </Button>
             <span className="text-xs text-text-muted ml-auto">
-              {visibleSkillCount} of {skills.length} selected
+              {t("spaces.manageSkillsDialog.selectedCount", { count: visibleSkillCount, total: skills.length })}
             </span>
           </div>
 
@@ -866,7 +868,7 @@ export const SpacesView: React.FC = () => {
 
           <DialogFooter>
             <Button onClick={() => setShowSkillsDialog(false)}>
-              Done
+              {t("common.done")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -876,19 +878,19 @@ export const SpacesView: React.FC = () => {
       <Dialog open={showCloneDialog} onOpenChange={setShowCloneDialog}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Clone Space</DialogTitle>
+            <DialogTitle>{t("spaces.cloneDialog.title")}</DialogTitle>
             <DialogDescription>
-              Create a copy of "{selectedSpace?.name}" with the same skill visibility settings.
+              {t("spaces.cloneDialog.description", { name: selectedSpace?.name })}
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4 py-4">
             <div>
               <label className="text-xs text-text-muted mb-1.5 block">
-                New Space Name *
+                {t("spaces.cloneDialog.newSpaceName")} *
               </label>
               <Input
-                placeholder="My Workspace (Copy)"
+                placeholder={t("spaces.cloneDialog.newSpaceNamePlaceholder")}
                 value={cloneName}
                 onChange={(e) => setCloneName(e.target.value)}
               />
@@ -896,11 +898,11 @@ export const SpacesView: React.FC = () => {
 
             <div>
               <label className="text-xs text-text-muted mb-1.5 block">
-                Active Directory *
+                {t("spaces.form.activeDirectoryRequired")}
               </label>
               <div className="flex items-center gap-2">
                 <Input
-                  placeholder="/path/to/active/directory"
+                  placeholder={t("spaces.form.activeDirectoryPlaceholder")}
                   value={cloneActiveDir}
                   onChange={(e) => setCloneActiveDir(e.target.value)}
                   className="flex-1"
@@ -917,7 +919,7 @@ export const SpacesView: React.FC = () => {
 
           <DialogFooter>
             <Button variant="secondary" onClick={() => setShowCloneDialog(false)}>
-              Cancel
+              {t("common.cancel")}
             </Button>
             <Button
               onClick={handleCloneSpace}
@@ -928,7 +930,7 @@ export const SpacesView: React.FC = () => {
               ) : (
                 <CopyPlus className="h-4 w-4 mr-1.5" />
               )}
-              Clone Space
+              {t("spaces.cloneSpace")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -940,10 +942,10 @@ export const SpacesView: React.FC = () => {
           <DialogHeader>
             <DialogTitle>
               {exportType === "claude" 
-                ? "Claude Desktop Configuration" 
+                ? t("spaces.exportDialog.claudeTitle")
                 : exportType === "mcp" 
-                ? "MCP Server Configuration" 
-                : "Generic Configuration"}
+                ? t("spaces.exportDialog.mcpTitle")
+                : t("spaces.exportDialog.genericTitle")}
             </DialogTitle>
           </DialogHeader>
 
@@ -956,11 +958,11 @@ export const SpacesView: React.FC = () => {
           <DialogFooter>
             <Button variant="secondary" onClick={handleCopyConfig}>
               <Copy className="h-4 w-4 mr-1.5" />
-              Copy to Clipboard
+              {t("common.copyToClipboard")}
             </Button>
             <Button onClick={handleSaveConfig}>
               <Download className="h-4 w-4 mr-1.5" />
-              Save to File
+              {t("common.saveToFile")}
             </Button>
           </DialogFooter>
         </DialogContent>
