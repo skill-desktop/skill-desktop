@@ -192,16 +192,55 @@ fn chrono_now() -> String {
     let duration = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .unwrap_or_default();
-    let secs = duration.as_secs();
+    let secs = duration.as_secs() as i64;
+    
+    // Calculate date components correctly
+    // Days since epoch
+    let days = secs / 86400;
+    let time_secs = secs % 86400;
+    
+    // Calculate year, month, day using a proper algorithm
+    let mut year = 1970;
+    let mut remaining_days = days;
+    
+    loop {
+        let days_in_year = if is_leap_year(year) { 366 } else { 365 };
+        if remaining_days < days_in_year {
+            break;
+        }
+        remaining_days -= days_in_year;
+        year += 1;
+    }
+    
+    let is_leap = is_leap_year(year);
+    let days_in_months: [i64; 12] = if is_leap {
+        [31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
+    } else {
+        [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
+    };
+    
+    let mut month = 1;
+    for days_in_month in days_in_months.iter() {
+        if remaining_days < *days_in_month {
+            break;
+        }
+        remaining_days -= days_in_month;
+        month += 1;
+    }
+    
+    let day = remaining_days + 1;
+    let hour = time_secs / 3600;
+    let minute = (time_secs % 3600) / 60;
+    let second = time_secs % 60;
+    
     format!(
-        "{}-{:02}-{:02}T{:02}:{:02}:{:02}Z",
-        1970 + secs / 31536000,
-        (secs % 31536000) / 2592000 + 1,
-        (secs % 2592000) / 86400 + 1,
-        (secs % 86400) / 3600,
-        (secs % 3600) / 60,
-        secs % 60
+        "{:04}-{:02}-{:02}T{:02}:{:02}:{:02}Z",
+        year, month, day, hour, minute, second
     )
+}
+
+fn is_leap_year(year: i64) -> bool {
+    (year % 4 == 0 && year % 100 != 0) || (year % 400 == 0)
 }
 
 /// Get all spaces
@@ -259,33 +298,48 @@ pub async fn update_space(
     spaces_state: State<'_, SpacesState>,
     db_state: State<'_, DatabaseState>,
 ) -> Result<Space, String> {
-    let mut guard = spaces_state.spaces.lock().map_err(|e| e.to_string())?;
-    
-    let space = guard
-        .iter_mut()
-        .find(|s| s.id == id)
-        .ok_or("Space not found")?;
+    // First, get the current space and prepare the updated version
+    let updated_space = {
+        let guard = spaces_state.spaces.lock().map_err(|e| e.to_string())?;
+        
+        let space = guard
+            .iter()
+            .find(|s| s.id == id)
+            .ok_or("Space not found")?;
 
-    if let Some(n) = name {
-        space.name = n;
-    }
-    if let Some(dir) = active_dir {
-        // Create the directory if it doesn't exist
-        let path = PathBuf::from(&dir);
-        if !path.exists() {
-            std::fs::create_dir_all(&path).map_err(|e| e.to_string())?;
+        let mut updated = space.clone();
+        
+        if let Some(n) = name {
+            updated.name = n;
         }
-        space.active_dir_path = dir;
-    }
-    if description.is_some() {
-        space.description = description;
-    }
-    space.updated_at = chrono_now();
+        if let Some(dir) = &active_dir {
+            // Create the directory if it doesn't exist
+            let path = PathBuf::from(dir);
+            if !path.exists() {
+                std::fs::create_dir_all(&path).map_err(|e| e.to_string())?;
+            }
+            updated.active_dir_path = dir.clone();
+        }
+        if description.is_some() {
+            updated.description = description;
+        }
+        updated.updated_at = chrono_now();
+        
+        updated
+    };
 
-    // Persist to database
-    db_state.0.update_space(space)?;
+    // Persist to database first
+    db_state.0.update_space(&updated_space)?;
 
-    Ok(space.clone())
+    // Then update in-memory state
+    {
+        let mut guard = spaces_state.spaces.lock().map_err(|e| e.to_string())?;
+        if let Some(space) = guard.iter_mut().find(|s| s.id == id) {
+            *space = updated_space.clone();
+        }
+    }
+
+    Ok(updated_space)
 }
 
 /// Delete a space
@@ -392,7 +446,7 @@ pub struct BatchDeleteResult {
     pub failed: Vec<(String, String)>,
 }
 
-/// Quarantine state for skills (stored in memory, keyed by hash)
+/// Quarantine state for skills (cached in memory, persisted to database)
 pub struct QuarantineState {
     pub quarantined: std::sync::Mutex<std::collections::HashSet<String>>,
 }
@@ -411,7 +465,12 @@ pub async fn set_skill_quarantine(
     hash: String,
     is_quarantined: bool,
     quarantine_state: State<'_, QuarantineState>,
+    db_state: State<'_, DatabaseState>,
 ) -> Result<(), String> {
+    // Persist to database first
+    db_state.0.set_skill_quarantine(&hash, is_quarantined)?;
+    
+    // Then update in-memory cache
     let mut quarantined = quarantine_state.quarantined.lock().map_err(|e| e.to_string())?;
     
     if is_quarantined {
@@ -427,9 +486,16 @@ pub async fn set_skill_quarantine(
 #[tauri::command]
 pub async fn get_quarantined_skills(
     quarantine_state: State<'_, QuarantineState>,
+    db_state: State<'_, DatabaseState>,
 ) -> Result<Vec<String>, String> {
-    let quarantined = quarantine_state.quarantined.lock().map_err(|e| e.to_string())?;
-    Ok(quarantined.iter().cloned().collect())
+    // Try to get from database (source of truth)
+    let db_quarantined = db_state.0.get_quarantined_skills()?;
+    
+    // Update in-memory cache
+    let mut quarantined = quarantine_state.quarantined.lock().map_err(|e| e.to_string())?;
+    *quarantined = db_quarantined.iter().cloned().collect();
+    
+    Ok(db_quarantined)
 }
 
 /// Show file in system file manager (Finder on macOS)
@@ -601,6 +667,7 @@ pub async fn export_claude_config(
     space_id: String,
     library_state: State<'_, LibraryState>,
     spaces_state: State<'_, SpacesState>,
+    db_state: State<'_, DatabaseState>,
 ) -> Result<String, String> {
     // Get library path
     let library_path = {
@@ -617,7 +684,19 @@ pub async fn export_claude_config(
     }
 
     // Get all skills
-    let skills = get_all_skills_internal(&library_path)?;
+    let all_skills = get_all_skills_internal(&library_path)?;
+    
+    // Get visibility map from database
+    let visibility_map = db_state.0.get_visibility_map(&space_id)?;
+    
+    // Filter to visible skills only
+    let skills: Vec<_> = if visibility_map.is_empty() {
+        all_skills
+    } else {
+        all_skills.into_iter()
+            .filter(|s| visibility_map.get(&s.hash).copied().unwrap_or(false))
+            .collect()
+    };
 
     // Build MCP servers config
     let mut mcp_servers = serde_json::Map::new();
@@ -644,6 +723,7 @@ pub async fn export_generic_config(
     space_id: String,
     library_state: State<'_, LibraryState>,
     spaces_state: State<'_, SpacesState>,
+    db_state: State<'_, DatabaseState>,
 ) -> Result<String, String> {
     // Get library path
     let library_path = {
@@ -662,7 +742,19 @@ pub async fn export_generic_config(
     };
 
     // Get all skills
-    let skills = get_all_skills_internal(&library_path)?;
+    let all_skills = get_all_skills_internal(&library_path)?;
+    
+    // Get visibility map from database
+    let visibility_map = db_state.0.get_visibility_map(&space_id)?;
+    
+    // Filter to visible skills only
+    let skills: Vec<_> = if visibility_map.is_empty() {
+        all_skills
+    } else {
+        all_skills.into_iter()
+            .filter(|s| visibility_map.get(&s.hash).copied().unwrap_or(false))
+            .collect()
+    };
 
     let config = serde_json::json!({
         "space": {

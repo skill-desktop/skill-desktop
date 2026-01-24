@@ -31,11 +31,16 @@ pub fn parse_front_matter(content: &str) -> Option<SkillMetadata> {
         return None;
     }
 
-    // Find closing delimiter
+    // Find closing delimiter (searching from line 1 onwards)
+    // position() returns index relative to the iterator after skip(1)
+    // So if "---" is at lines[2], position returns 1
+    // We need to add 1 to get the actual index in lines
     let end_idx = lines.iter().skip(1).position(|&line| line == "---")?;
-
-    // Extract YAML content
-    let yaml_content = lines[1..=end_idx].join("\n");
+    
+    // end_idx is relative to skip(1), so actual index is end_idx + 1
+    // We want lines from index 1 to end_idx (exclusive of the closing ---)
+    // lines[1..end_idx+1] gives us lines from 1 to end_idx (inclusive)
+    let yaml_content = lines[1..end_idx + 1].join("\n");
 
     // Parse YAML
     serde_yaml::from_str(&yaml_content).ok()
@@ -95,17 +100,55 @@ fn chrono_now() -> String {
     let duration = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .unwrap_or_default();
-    // Format as ISO 8601
-    let secs = duration.as_secs();
+    let secs = duration.as_secs() as i64;
+    
+    // Calculate date components correctly
+    // Days since epoch
+    let days = secs / 86400;
+    let time_secs = secs % 86400;
+    
+    // Calculate year, month, day using a proper algorithm
+    let mut year = 1970;
+    let mut remaining_days = days;
+    
+    loop {
+        let days_in_year = if is_leap_year(year) { 366 } else { 365 };
+        if remaining_days < days_in_year {
+            break;
+        }
+        remaining_days -= days_in_year;
+        year += 1;
+    }
+    
+    let is_leap = is_leap_year(year);
+    let days_in_months: [i64; 12] = if is_leap {
+        [31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
+    } else {
+        [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
+    };
+    
+    let mut month = 1;
+    for days_in_month in days_in_months.iter() {
+        if remaining_days < *days_in_month {
+            break;
+        }
+        remaining_days -= days_in_month;
+        month += 1;
+    }
+    
+    let day = remaining_days + 1;
+    let hour = time_secs / 3600;
+    let minute = (time_secs % 3600) / 60;
+    let second = time_secs % 60;
+    
     format!(
-        "{}-{:02}-{:02}T{:02}:{:02}:{:02}Z",
-        1970 + secs / 31536000,
-        (secs % 31536000) / 2592000 + 1,
-        (secs % 2592000) / 86400 + 1,
-        (secs % 86400) / 3600,
-        (secs % 3600) / 60,
-        secs % 60
+        "{:04}-{:02}-{:02}T{:02}:{:02}:{:02}Z",
+        year, month, day, hour, minute, second
     )
+}
+
+fn is_leap_year(year: i64) -> bool {
+    (year % 4 == 0 && year % 100 != 0) || (year % 400 == 0)
 }
 
 #[cfg(test)]

@@ -5,10 +5,15 @@ use std::path::Path;
 use std::os::unix::fs::symlink;
 
 /// Sync symlinks in a space's active directory
+/// 
+/// # Arguments
+/// * `library_path` - The root library directory path
+/// * `active_path` - The space's active directory where symlinks will be created
+/// * `enabled_skill_paths` - Full paths to the skill files to be linked
 pub fn sync_space_links(
-    library_path: &Path,
+    _library_path: &Path,
     active_path: &Path,
-    enabled_skills: &[String],
+    enabled_skill_paths: &[String],
 ) -> Result<SyncResult, String> {
     // 1. Ensure active directory exists
     if !active_path.exists() {
@@ -22,18 +27,24 @@ pub fn sync_space_links(
     let mut created = 0;
     let mut failed = Vec::new();
 
-    for skill_file in enabled_skills {
-        let src = library_path.join(skill_file);
-        let dst = active_path.join(skill_file);
+    for skill_path in enabled_skill_paths {
+        let src = Path::new(skill_path);
+        
+        // Get just the filename for the destination
+        let filename = src
+            .file_name()
+            .map(|s| s.to_string_lossy().to_string())
+            .unwrap_or_else(|| skill_path.clone());
+        let dst = active_path.join(&filename);
 
         if !src.exists() {
-            failed.push((skill_file.clone(), "Source file not found".to_string()));
+            failed.push((filename, "Source file not found".to_string()));
             continue;
         }
 
-        match create_symlink(&src, &dst) {
+        match create_symlink(src, &dst) {
             Ok(_) => created += 1,
-            Err(e) => failed.push((skill_file.clone(), e)),
+            Err(e) => failed.push((filename, e)),
         }
     }
 

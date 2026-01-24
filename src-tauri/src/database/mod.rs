@@ -24,6 +24,12 @@ CREATE TABLE IF NOT EXISTS space_skill_visibility (
 
 CREATE INDEX IF NOT EXISTS idx_visibility_space ON space_skill_visibility(space_id);
 
+-- Quarantine table: tracks quarantined skills
+CREATE TABLE IF NOT EXISTS skill_quarantine (
+    skill_hash TEXT PRIMARY KEY,
+    quarantined_at TEXT DEFAULT (datetime('now'))
+);
+
 -- Settings table
 CREATE TABLE IF NOT EXISTS settings (
     key TEXT PRIMARY KEY,
@@ -197,6 +203,39 @@ impl Database {
             conn.execute(
                 "INSERT OR REPLACE INTO space_skill_visibility (space_id, skill_hash, is_visible) VALUES (?, ?, ?)",
                 rusqlite::params![space_id, hash, is_visible],
+            ).map_err(|e| e.to_string())?;
+        }
+        Ok(())
+    }
+    
+    // ========== Quarantine ==========
+    
+    pub fn get_quarantined_skills(&self) -> Result<Vec<String>, String> {
+        let conn = self.conn.lock().map_err(|e| e.to_string())?;
+        let mut stmt = conn
+            .prepare("SELECT skill_hash FROM skill_quarantine")
+            .map_err(|e| e.to_string())?;
+        
+        let hashes = stmt
+            .query_map([], |row| row.get(0))
+            .map_err(|e| e.to_string())?
+            .filter_map(|r| r.ok())
+            .collect();
+        
+        Ok(hashes)
+    }
+    
+    pub fn set_skill_quarantine(&self, skill_hash: &str, is_quarantined: bool) -> Result<(), String> {
+        let conn = self.conn.lock().map_err(|e| e.to_string())?;
+        if is_quarantined {
+            conn.execute(
+                "INSERT OR REPLACE INTO skill_quarantine (skill_hash) VALUES (?)",
+                [skill_hash],
+            ).map_err(|e| e.to_string())?;
+        } else {
+            conn.execute(
+                "DELETE FROM skill_quarantine WHERE skill_hash = ?",
+                [skill_hash],
             ).map_err(|e| e.to_string())?;
         }
         Ok(())

@@ -259,16 +259,16 @@ export const SpacesView: React.FC = () => {
   const autoSyncSymlinks = React.useCallback(async (newVisibilityMap: Record<string, boolean>) => {
     if (!selectedSpace || !libraryPath || !selectedSpace.activeDirPath) return;
     
-    // Get visible skill filenames based on new visibility map
-    const visibleSkillFilenames = skills
+    // Get visible skill full paths based on new visibility map
+    const visibleSkillPaths = skills
       .filter((s) => newVisibilityMap[s.hash] ?? true)
-      .map((s) => s.filename);
+      .map((s) => s.localPath);
     
     try {
       await syncSpaceMutation.mutateAsync({
         libraryPath,
         activePath: selectedSpace.activeDirPath,
-        enabledSkills: visibleSkillFilenames,
+        enabledSkills: visibleSkillPaths,
       });
     } catch (error) {
       console.error("Failed to auto-sync symlinks:", error);
@@ -341,16 +341,16 @@ export const SpacesView: React.FC = () => {
   const handleSyncSpace = async () => {
     if (!selectedSpace || !libraryPath || !selectedSpace.activeDirPath) return;
 
-    // Get visible skill filenames
-    const visibleSkillFilenames = skills
+    // Get visible skill full paths
+    const visibleSkillPaths = skills
       .filter((s) => visibilityMap[s.hash] ?? true)
-      .map((s) => s.filename);
+      .map((s) => s.localPath);
 
     try {
       const result = await syncSpaceMutation.mutateAsync({
         libraryPath,
         activePath: selectedSpace.activeDirPath,
-        enabledSkills: visibleSkillFilenames,
+        enabledSkills: visibleSkillPaths,
       });
       console.log("Sync result:", result);
     } catch (error) {

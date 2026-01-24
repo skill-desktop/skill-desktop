@@ -45,7 +45,7 @@ export const SettingsView: React.FC = () => {
     if (backendLibraryPath && backendLibraryPath !== libraryPath) {
       setLibraryPath(backendLibraryPath);
     }
-  }, [backendLibraryPath]);
+  }, [backendLibraryPath, libraryPath, setLibraryPath]);
 
   // Handle folder selection
   const handleSelectFolder = async () => {
