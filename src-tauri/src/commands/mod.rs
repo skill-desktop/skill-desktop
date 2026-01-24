@@ -1579,3 +1579,832 @@ This skill can be invoked through the MCP protocol.
         server_url
     )
 }
+
+// ========== MCP Registry Commands ==========
+
+/// Supported MCP registries
+#[derive(Debug, Clone, Copy, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum McpRegistry {
+    Glama,
+    McpSo,
+    McpServersOrg,
+    Smithery,
+}
+
+/// MCP server entry from registry
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct McpRegistryEntry {
+    pub id: String,
+    pub name: String,
+    pub description: String,
+    pub author: Option<String>,
+    pub repository: Option<String>,
+    pub homepage: Option<String>,
+    pub tags: Vec<String>,
+    pub registry: String,
+}
+
+/// Search MCP registries for servers
+#[tauri::command]
+pub async fn search_mcp_registry(
+    query: String,
+    registry: Option<McpRegistry>,
+) -> Result<Vec<McpRegistryEntry>, String> {
+    let mut all_results = Vec::new();
+    
+    // Search specified registry or all registries
+    let registries = match registry {
+        Some(r) => vec![r],
+        None => vec![McpRegistry::Glama, McpRegistry::McpSo, McpRegistry::McpServersOrg],
+    };
+    
+    for reg in registries {
+        match reg {
+            McpRegistry::Glama => {
+                if let Ok(results) = search_glama(&query).await {
+                    all_results.extend(results);
+                }
+            }
+            McpRegistry::McpSo => {
+                if let Ok(results) = search_mcp_so(&query).await {
+                    all_results.extend(results);
+                }
+            }
+            McpRegistry::McpServersOrg => {
+                if let Ok(results) = search_mcpservers_org(&query).await {
+                    all_results.extend(results);
+                }
+            }
+            McpRegistry::Smithery => {
+                if let Ok(results) = search_smithery(&query).await {
+                    all_results.extend(results);
+                }
+            }
+        }
+    }
+    
+    Ok(all_results)
+}
+
+/// Get popular/featured MCP servers from registries
+#[tauri::command]
+pub async fn get_featured_mcp_servers(
+    registry: Option<McpRegistry>,
+) -> Result<Vec<McpRegistryEntry>, String> {
+    let mut all_results = Vec::new();
+    
+    let registries = match registry {
+        Some(r) => vec![r],
+        None => vec![McpRegistry::Glama, McpRegistry::McpSo, McpRegistry::McpServersOrg],
+    };
+    
+    for reg in registries {
+        match reg {
+            McpRegistry::Glama => {
+                if let Ok(results) = get_glama_featured().await {
+                    all_results.extend(results);
+                }
+            }
+            McpRegistry::McpSo => {
+                if let Ok(results) = get_mcp_so_featured().await {
+                    all_results.extend(results);
+                }
+            }
+            McpRegistry::McpServersOrg => {
+                if let Ok(results) = get_mcpservers_org_featured().await {
+                    all_results.extend(results);
+                }
+            }
+            McpRegistry::Smithery => {
+                if let Ok(results) = get_smithery_featured().await {
+                    all_results.extend(results);
+                }
+            }
+        }
+    }
+    
+    Ok(all_results)
+}
+
+/// Get MCP server details from registry
+#[tauri::command]
+pub async fn get_mcp_server_details(
+    server_id: String,
+    registry: McpRegistry,
+) -> Result<McpRegistryEntry, String> {
+    match registry {
+        McpRegistry::Glama => get_glama_server_details(&server_id).await,
+        McpRegistry::McpSo => get_mcp_so_server_details(&server_id).await,
+        McpRegistry::McpServersOrg => get_mcpservers_org_server_details(&server_id).await,
+        McpRegistry::Smithery => get_smithery_server_details(&server_id).await,
+    }
+}
+
+// ========== Glama.ai Parser ==========
+
+async fn search_glama(query: &str) -> Result<Vec<McpRegistryEntry>, String> {
+    let client = reqwest::Client::new();
+    let url = format!("https://glama.ai/api/mcp/servers?q={}", urlencoding::encode(query));
+    
+    let response = client
+        .get(&url)
+        .header("User-Agent", "Skill-Desktop/0.1.0")
+        .header("Accept", "application/json")
+        .send()
+        .await
+        .map_err(|e| format!("Failed to fetch Glama API: {}", e))?;
+    
+    if !response.status().is_success() {
+        return Err(format!("Glama API error: {}", response.status()));
+    }
+    
+    let data: serde_json::Value = response
+        .json()
+        .await
+        .map_err(|e| format!("Failed to parse Glama response: {}", e))?;
+    
+    parse_glama_response(&data)
+}
+
+async fn get_glama_featured() -> Result<Vec<McpRegistryEntry>, String> {
+    let client = reqwest::Client::new();
+    let url = "https://glama.ai/api/mcp/servers?featured=true&limit=20";
+    
+    let response = client
+        .get(url)
+        .header("User-Agent", "Skill-Desktop/0.1.0")
+        .header("Accept", "application/json")
+        .send()
+        .await
+        .map_err(|e| format!("Failed to fetch Glama API: {}", e))?;
+    
+    if !response.status().is_success() {
+        return Err(format!("Glama API error: {}", response.status()));
+    }
+    
+    let data: serde_json::Value = response
+        .json()
+        .await
+        .map_err(|e| format!("Failed to parse Glama response: {}", e))?;
+    
+    parse_glama_response(&data)
+}
+
+async fn get_glama_server_details(server_id: &str) -> Result<McpRegistryEntry, String> {
+    let client = reqwest::Client::new();
+    let url = format!("https://glama.ai/api/mcp/servers/{}", server_id);
+    
+    let response = client
+        .get(&url)
+        .header("User-Agent", "Skill-Desktop/0.1.0")
+        .header("Accept", "application/json")
+        .send()
+        .await
+        .map_err(|e| format!("Failed to fetch Glama API: {}", e))?;
+    
+    if !response.status().is_success() {
+        return Err(format!("Glama API error: {}", response.status()));
+    }
+    
+    let data: serde_json::Value = response
+        .json()
+        .await
+        .map_err(|e| format!("Failed to parse Glama response: {}", e))?;
+    
+    parse_glama_server(&data)
+}
+
+fn parse_glama_response(data: &serde_json::Value) -> Result<Vec<McpRegistryEntry>, String> {
+    let servers = data.get("servers")
+        .or_else(|| data.get("data"))
+        .and_then(|s| s.as_array())
+        .ok_or("Invalid Glama response format")?;
+    
+    let entries: Vec<McpRegistryEntry> = servers
+        .iter()
+        .filter_map(|server| parse_glama_server(server).ok())
+        .collect();
+    
+    Ok(entries)
+}
+
+fn parse_glama_server(server: &serde_json::Value) -> Result<McpRegistryEntry, String> {
+    let id = server.get("id")
+        .or_else(|| server.get("slug"))
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+        .to_string();
+    
+    let name = server.get("name")
+        .or_else(|| server.get("title"))
+        .and_then(|v| v.as_str())
+        .unwrap_or(&id)
+        .to_string();
+    
+    let description = server.get("description")
+        .or_else(|| server.get("summary"))
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+        .to_string();
+    
+    let author = server.get("author")
+        .or_else(|| server.get("owner"))
+        .and_then(|v| v.as_str())
+        .map(String::from);
+    
+    let repository = server.get("repository")
+        .or_else(|| server.get("repo"))
+        .or_else(|| server.get("github"))
+        .and_then(|v| v.as_str())
+        .map(String::from);
+    
+    let homepage = server.get("homepage")
+        .or_else(|| server.get("url"))
+        .and_then(|v| v.as_str())
+        .map(String::from);
+    
+    let tags = server.get("tags")
+        .or_else(|| server.get("categories"))
+        .and_then(|v| v.as_array())
+        .map(|arr| arr.iter().filter_map(|t| t.as_str().map(String::from)).collect())
+        .unwrap_or_default();
+    
+    Ok(McpRegistryEntry {
+        id,
+        name,
+        description,
+        author,
+        repository,
+        homepage,
+        tags,
+        registry: "glama".to_string(),
+    })
+}
+
+// ========== MCP.so Parser ==========
+
+async fn search_mcp_so(query: &str) -> Result<Vec<McpRegistryEntry>, String> {
+    let client = reqwest::Client::new();
+    // MCP.so uses a different API structure - try to fetch and filter client-side
+    let url = format!("https://mcp.so/api/servers?search={}", urlencoding::encode(query));
+    
+    let response = client
+        .get(&url)
+        .header("User-Agent", "Skill-Desktop/0.1.0")
+        .header("Accept", "application/json")
+        .send()
+        .await
+        .map_err(|e| format!("Failed to fetch MCP.so API: {}", e))?;
+    
+    if !response.status().is_success() {
+        // Try alternative endpoint
+        return search_mcp_so_fallback(query).await;
+    }
+    
+    let data: serde_json::Value = response
+        .json()
+        .await
+        .map_err(|e| format!("Failed to parse MCP.so response: {}", e))?;
+    
+    parse_mcp_so_response(&data)
+}
+
+async fn search_mcp_so_fallback(query: &str) -> Result<Vec<McpRegistryEntry>, String> {
+    // Fallback: fetch all and filter
+    let all = get_mcp_so_featured().await?;
+    let query_lower = query.to_lowercase();
+    
+    Ok(all.into_iter()
+        .filter(|e| {
+            e.name.to_lowercase().contains(&query_lower) ||
+            e.description.to_lowercase().contains(&query_lower) ||
+            e.tags.iter().any(|t| t.to_lowercase().contains(&query_lower))
+        })
+        .collect())
+}
+
+async fn get_mcp_so_featured() -> Result<Vec<McpRegistryEntry>, String> {
+    let client = reqwest::Client::new();
+    let url = "https://mcp.so/api/servers";
+    
+    let response = client
+        .get(url)
+        .header("User-Agent", "Skill-Desktop/0.1.0")
+        .header("Accept", "application/json")
+        .send()
+        .await
+        .map_err(|e| format!("Failed to fetch MCP.so API: {}", e))?;
+    
+    if !response.status().is_success() {
+        return Err(format!("MCP.so API error: {}", response.status()));
+    }
+    
+    let data: serde_json::Value = response
+        .json()
+        .await
+        .map_err(|e| format!("Failed to parse MCP.so response: {}", e))?;
+    
+    parse_mcp_so_response(&data)
+}
+
+async fn get_mcp_so_server_details(server_id: &str) -> Result<McpRegistryEntry, String> {
+    let client = reqwest::Client::new();
+    let url = format!("https://mcp.so/api/servers/{}", server_id);
+    
+    let response = client
+        .get(&url)
+        .header("User-Agent", "Skill-Desktop/0.1.0")
+        .header("Accept", "application/json")
+        .send()
+        .await
+        .map_err(|e| format!("Failed to fetch MCP.so API: {}", e))?;
+    
+    if !response.status().is_success() {
+        return Err(format!("MCP.so API error: {}", response.status()));
+    }
+    
+    let data: serde_json::Value = response
+        .json()
+        .await
+        .map_err(|e| format!("Failed to parse MCP.so response: {}", e))?;
+    
+    parse_mcp_so_server(&data)
+}
+
+fn parse_mcp_so_response(data: &serde_json::Value) -> Result<Vec<McpRegistryEntry>, String> {
+    let servers = data.get("servers")
+        .or_else(|| data.get("data"))
+        .or_else(|| data.as_array().map(|_| data))
+        .and_then(|s| s.as_array())
+        .ok_or("Invalid MCP.so response format")?;
+    
+    let entries: Vec<McpRegistryEntry> = servers
+        .iter()
+        .filter_map(|server| parse_mcp_so_server(server).ok())
+        .collect();
+    
+    Ok(entries)
+}
+
+fn parse_mcp_so_server(server: &serde_json::Value) -> Result<McpRegistryEntry, String> {
+    let id = server.get("id")
+        .or_else(|| server.get("slug"))
+        .or_else(|| server.get("name"))
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+        .to_string();
+    
+    let name = server.get("name")
+        .or_else(|| server.get("title"))
+        .and_then(|v| v.as_str())
+        .unwrap_or(&id)
+        .to_string();
+    
+    let description = server.get("description")
+        .or_else(|| server.get("summary"))
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+        .to_string();
+    
+    let author = server.get("author")
+        .or_else(|| server.get("owner"))
+        .or_else(|| server.get("publisher"))
+        .and_then(|v| v.as_str())
+        .map(String::from);
+    
+    let repository = server.get("repository")
+        .or_else(|| server.get("repo"))
+        .or_else(|| server.get("github"))
+        .or_else(|| server.get("source"))
+        .and_then(|v| v.as_str())
+        .map(String::from);
+    
+    let homepage = server.get("homepage")
+        .or_else(|| server.get("url"))
+        .or_else(|| server.get("website"))
+        .and_then(|v| v.as_str())
+        .map(String::from);
+    
+    let tags = server.get("tags")
+        .or_else(|| server.get("categories"))
+        .or_else(|| server.get("keywords"))
+        .and_then(|v| v.as_array())
+        .map(|arr| arr.iter().filter_map(|t| t.as_str().map(String::from)).collect())
+        .unwrap_or_default();
+    
+    Ok(McpRegistryEntry {
+        id,
+        name,
+        description,
+        author,
+        repository,
+        homepage,
+        tags,
+        registry: "mcp.so".to_string(),
+    })
+}
+
+// ========== MCPServers.org Parser ==========
+
+async fn search_mcpservers_org(query: &str) -> Result<Vec<McpRegistryEntry>, String> {
+    let client = reqwest::Client::new();
+    let url = format!("https://mcpservers.org/api/servers?q={}", urlencoding::encode(query));
+    
+    let response = client
+        .get(&url)
+        .header("User-Agent", "Skill-Desktop/0.1.0")
+        .header("Accept", "application/json")
+        .send()
+        .await
+        .map_err(|e| format!("Failed to fetch MCPServers.org API: {}", e))?;
+    
+    if !response.status().is_success() {
+        return search_mcpservers_org_fallback(query).await;
+    }
+    
+    let data: serde_json::Value = response
+        .json()
+        .await
+        .map_err(|e| format!("Failed to parse MCPServers.org response: {}", e))?;
+    
+    parse_mcpservers_org_response(&data)
+}
+
+async fn search_mcpservers_org_fallback(query: &str) -> Result<Vec<McpRegistryEntry>, String> {
+    let all = get_mcpservers_org_featured().await?;
+    let query_lower = query.to_lowercase();
+    
+    Ok(all.into_iter()
+        .filter(|e| {
+            e.name.to_lowercase().contains(&query_lower) ||
+            e.description.to_lowercase().contains(&query_lower) ||
+            e.tags.iter().any(|t| t.to_lowercase().contains(&query_lower))
+        })
+        .collect())
+}
+
+async fn get_mcpservers_org_featured() -> Result<Vec<McpRegistryEntry>, String> {
+    let client = reqwest::Client::new();
+    let url = "https://mcpservers.org/api/servers";
+    
+    let response = client
+        .get(url)
+        .header("User-Agent", "Skill-Desktop/0.1.0")
+        .header("Accept", "application/json")
+        .send()
+        .await
+        .map_err(|e| format!("Failed to fetch MCPServers.org API: {}", e))?;
+    
+    if !response.status().is_success() {
+        return Err(format!("MCPServers.org API error: {}", response.status()));
+    }
+    
+    let data: serde_json::Value = response
+        .json()
+        .await
+        .map_err(|e| format!("Failed to parse MCPServers.org response: {}", e))?;
+    
+    parse_mcpservers_org_response(&data)
+}
+
+async fn get_mcpservers_org_server_details(server_id: &str) -> Result<McpRegistryEntry, String> {
+    let client = reqwest::Client::new();
+    let url = format!("https://mcpservers.org/api/servers/{}", server_id);
+    
+    let response = client
+        .get(&url)
+        .header("User-Agent", "Skill-Desktop/0.1.0")
+        .header("Accept", "application/json")
+        .send()
+        .await
+        .map_err(|e| format!("Failed to fetch MCPServers.org API: {}", e))?;
+    
+    if !response.status().is_success() {
+        return Err(format!("MCPServers.org API error: {}", response.status()));
+    }
+    
+    let data: serde_json::Value = response
+        .json()
+        .await
+        .map_err(|e| format!("Failed to parse MCPServers.org response: {}", e))?;
+    
+    parse_mcpservers_org_server(&data)
+}
+
+fn parse_mcpservers_org_response(data: &serde_json::Value) -> Result<Vec<McpRegistryEntry>, String> {
+    let servers = data.get("servers")
+        .or_else(|| data.get("data"))
+        .or_else(|| data.as_array().map(|_| data))
+        .and_then(|s| s.as_array())
+        .ok_or("Invalid MCPServers.org response format")?;
+    
+    let entries: Vec<McpRegistryEntry> = servers
+        .iter()
+        .filter_map(|server| parse_mcpservers_org_server(server).ok())
+        .collect();
+    
+    Ok(entries)
+}
+
+fn parse_mcpservers_org_server(server: &serde_json::Value) -> Result<McpRegistryEntry, String> {
+    let id = server.get("id")
+        .or_else(|| server.get("slug"))
+        .or_else(|| server.get("name"))
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+        .to_string();
+    
+    let name = server.get("name")
+        .or_else(|| server.get("title"))
+        .and_then(|v| v.as_str())
+        .unwrap_or(&id)
+        .to_string();
+    
+    let description = server.get("description")
+        .or_else(|| server.get("summary"))
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+        .to_string();
+    
+    let author = server.get("author")
+        .or_else(|| server.get("owner"))
+        .and_then(|v| v.as_str())
+        .map(String::from);
+    
+    let repository = server.get("repository")
+        .or_else(|| server.get("repo"))
+        .or_else(|| server.get("github"))
+        .and_then(|v| v.as_str())
+        .map(String::from);
+    
+    let homepage = server.get("homepage")
+        .or_else(|| server.get("url"))
+        .and_then(|v| v.as_str())
+        .map(String::from);
+    
+    let tags = server.get("tags")
+        .or_else(|| server.get("categories"))
+        .and_then(|v| v.as_array())
+        .map(|arr| arr.iter().filter_map(|t| t.as_str().map(String::from)).collect())
+        .unwrap_or_default();
+    
+    Ok(McpRegistryEntry {
+        id,
+        name,
+        description,
+        author,
+        repository,
+        homepage,
+        tags,
+        registry: "mcpservers.org".to_string(),
+    })
+}
+
+// ========== Smithery.ai Parser ==========
+
+async fn search_smithery(query: &str) -> Result<Vec<McpRegistryEntry>, String> {
+    let client = reqwest::Client::new();
+    let url = format!("https://smithery.ai/api/servers?q={}", urlencoding::encode(query));
+    
+    let response = client
+        .get(&url)
+        .header("User-Agent", "Skill-Desktop/0.1.0")
+        .header("Accept", "application/json")
+        .send()
+        .await
+        .map_err(|e| format!("Failed to fetch Smithery API: {}", e))?;
+    
+    if !response.status().is_success() {
+        // Smithery often rate limits, return empty
+        return Ok(vec![]);
+    }
+    
+    let data: serde_json::Value = response
+        .json()
+        .await
+        .map_err(|e| format!("Failed to parse Smithery response: {}", e))?;
+    
+    parse_smithery_response(&data)
+}
+
+async fn get_smithery_featured() -> Result<Vec<McpRegistryEntry>, String> {
+    let client = reqwest::Client::new();
+    let url = "https://smithery.ai/api/servers?featured=true";
+    
+    let response = client
+        .get(url)
+        .header("User-Agent", "Skill-Desktop/0.1.0")
+        .header("Accept", "application/json")
+        .send()
+        .await
+        .map_err(|e| format!("Failed to fetch Smithery API: {}", e))?;
+    
+    if !response.status().is_success() {
+        return Ok(vec![]);
+    }
+    
+    let data: serde_json::Value = response
+        .json()
+        .await
+        .map_err(|e| format!("Failed to parse Smithery response: {}", e))?;
+    
+    parse_smithery_response(&data)
+}
+
+async fn get_smithery_server_details(server_id: &str) -> Result<McpRegistryEntry, String> {
+    let client = reqwest::Client::new();
+    let url = format!("https://smithery.ai/api/servers/{}", server_id);
+    
+    let response = client
+        .get(&url)
+        .header("User-Agent", "Skill-Desktop/0.1.0")
+        .header("Accept", "application/json")
+        .send()
+        .await
+        .map_err(|e| format!("Failed to fetch Smithery API: {}", e))?;
+    
+    if !response.status().is_success() {
+        return Err(format!("Smithery API error: {}", response.status()));
+    }
+    
+    let data: serde_json::Value = response
+        .json()
+        .await
+        .map_err(|e| format!("Failed to parse Smithery response: {}", e))?;
+    
+    parse_smithery_server(&data)
+}
+
+fn parse_smithery_response(data: &serde_json::Value) -> Result<Vec<McpRegistryEntry>, String> {
+    let servers = data.get("servers")
+        .or_else(|| data.get("data"))
+        .or_else(|| data.as_array().map(|_| data))
+        .and_then(|s| s.as_array())
+        .ok_or("Invalid Smithery response format")?;
+    
+    let entries: Vec<McpRegistryEntry> = servers
+        .iter()
+        .filter_map(|server| parse_smithery_server(server).ok())
+        .collect();
+    
+    Ok(entries)
+}
+
+fn parse_smithery_server(server: &serde_json::Value) -> Result<McpRegistryEntry, String> {
+    let id = server.get("id")
+        .or_else(|| server.get("slug"))
+        .or_else(|| server.get("name"))
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+        .to_string();
+    
+    let name = server.get("name")
+        .or_else(|| server.get("title"))
+        .and_then(|v| v.as_str())
+        .unwrap_or(&id)
+        .to_string();
+    
+    let description = server.get("description")
+        .or_else(|| server.get("summary"))
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+        .to_string();
+    
+    let author = server.get("author")
+        .or_else(|| server.get("owner"))
+        .and_then(|v| v.as_str())
+        .map(String::from);
+    
+    let repository = server.get("repository")
+        .or_else(|| server.get("repo"))
+        .or_else(|| server.get("github"))
+        .and_then(|v| v.as_str())
+        .map(String::from);
+    
+    let homepage = server.get("homepage")
+        .or_else(|| server.get("url"))
+        .and_then(|v| v.as_str())
+        .map(String::from);
+    
+    let tags = server.get("tags")
+        .or_else(|| server.get("categories"))
+        .and_then(|v| v.as_array())
+        .map(|arr| arr.iter().filter_map(|t| t.as_str().map(String::from)).collect())
+        .unwrap_or_default();
+    
+    Ok(McpRegistryEntry {
+        id,
+        name,
+        description,
+        author,
+        repository,
+        homepage,
+        tags,
+        registry: "smithery".to_string(),
+    })
+}
+
+/// Import MCP server from registry as skill
+#[tauri::command]
+pub async fn import_mcp_registry_server(
+    entry: McpRegistryEntry,
+    library_state: State<'_, LibraryState>,
+) -> Result<Skill, String> {
+    // Get library path
+    let library_path = {
+        let guard = library_state.path.lock().map_err(|e| e.to_string())?;
+        guard.clone().ok_or("Library path not set")?
+    };
+    
+    // Generate skill content
+    let skill_content = generate_registry_skill_content(&entry);
+    
+    // Generate filename
+    let filename = format!("{}.md", entry.name.replace(" ", "-").to_lowercase());
+    let file_path = library_path.join(&filename);
+    
+    // Check if file already exists
+    if file_path.exists() {
+        return Err(format!("A skill with filename '{}' already exists", filename));
+    }
+    
+    // Write file
+    std::fs::write(&file_path, &skill_content)
+        .map_err(|e| format!("Failed to write file: {}", e))?;
+    
+    // Calculate hash and create skill
+    let hash = calculate_file_hash(&file_path)
+        .map_err(|e| format!("Failed to calculate hash: {}", e))?;
+    
+    let metadata = crate::scanner::parse_front_matter(&skill_content)
+        .ok_or("Failed to parse generated skill metadata")?;
+    
+    let source_url = entry.repository.or(entry.homepage);
+    let skill = create_skill_from_file(&file_path, hash, metadata, source_url);
+    
+    Ok(skill)
+}
+
+/// Generate skill content from registry entry
+fn generate_registry_skill_content(entry: &McpRegistryEntry) -> String {
+    let tags_yaml = if entry.tags.is_empty() {
+        "tags:\n  - mcp\n  - registry".to_string()
+    } else {
+        let mut tags = entry.tags.clone();
+        if !tags.contains(&"mcp".to_string()) {
+            tags.push("mcp".to_string());
+        }
+        if !tags.contains(&"registry".to_string()) {
+            tags.push("registry".to_string());
+        }
+        format!("tags:\n{}", tags.iter().map(|t| format!("  - {}", t)).collect::<Vec<_>>().join("\n"))
+    };
+    
+    let author = entry.author.as_deref().unwrap_or("Unknown");
+    let repo_section = entry.repository.as_ref()
+        .map(|r| format!("- **Repository**: {}", r))
+        .unwrap_or_default();
+    let homepage_section = entry.homepage.as_ref()
+        .map(|h| format!("- **Homepage**: {}", h))
+        .unwrap_or_default();
+    
+    format!(
+        r#"---
+name: "{}"
+version: "1.0.0"
+description: "{}"
+author: "{}"
+{}
+permissions:
+  - network
+parameters: []
+---
+
+# {}
+
+{}
+
+## Source
+
+- **Registry**: {}
+{}
+{}
+
+## Installation
+
+This MCP server was imported from the {} registry. Please refer to the repository for installation instructions.
+"#,
+        entry.name,
+        entry.description.replace("\"", "\\\""),
+        author,
+        tags_yaml,
+        entry.name,
+        entry.description,
+        entry.registry,
+        repo_section,
+        homepage_section,
+        entry.registry
+    )
+}

@@ -1,5 +1,5 @@
 import React from "react";
-import { Link, Github, Server, Download, AlertTriangle, Loader2, Check, X, Folder, FileText, ChevronRight, ArrowLeft } from "lucide-react";
+import { Link, Github, Server, Download, AlertTriangle, Loader2, Check, X, Folder, FileText, ChevronRight, ArrowLeft, Globe, Search } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button, Input, ScrollArea, Badge, Markdown } from "@/components/ui";
 import {
@@ -11,11 +11,16 @@ import {
   useImportGitHubDirectory,
   useConnectMcpServer,
   useImportMcpToolAsSkill,
+  useFeaturedMcpServers,
+  useSearchMcpRegistry,
+  useImportMcpRegistryServer,
+  type McpRegistryEntry,
+  type McpRegistry,
 } from "@/hooks";
 import { useSettingsStore } from "@/stores";
 import { getPermissionLevel } from "@/types";
 
-type ImportSource = "url" | "github" | "mcp";
+type ImportSource = "url" | "github" | "mcp" | "registry";
 
 interface PreviewData {
   metadata: {
@@ -210,6 +215,90 @@ export const HubView: React.FC = () => {
   const connectMcpMutation = useConnectMcpServer();
   const importMcpToolMutation = useImportMcpToolAsSkill();
 
+  // Registry state
+  const [registrySearch, setRegistrySearch] = React.useState("");
+  const [selectedRegistry, setSelectedRegistry] = React.useState<McpRegistry | undefined>(undefined);
+  const [selectedRegistryEntries, setSelectedRegistryEntries] = React.useState<Set<string>>(new Set());
+  const [registryPreview, setRegistryPreview] = React.useState<McpRegistryEntry | null>(null);
+
+  const { data: featuredServers = [], isLoading: isLoadingFeatured } = useFeaturedMcpServers(selectedRegistry);
+  const { data: searchResults = [], isLoading: isSearching } = useSearchMcpRegistry(registrySearch, selectedRegistry);
+  const importRegistryMutation = useImportMcpRegistryServer();
+
+  const registryServers = registrySearch ? searchResults : featuredServers;
+
+  const handleToggleRegistrySelection = (entryId: string) => {
+    const newSelected = new Set(selectedRegistryEntries);
+    if (newSelected.has(entryId)) {
+      newSelected.delete(entryId);
+    } else {
+      newSelected.add(entryId);
+    }
+    setSelectedRegistryEntries(newSelected);
+  };
+
+  const handlePreviewRegistryEntry = (entry: McpRegistryEntry) => {
+    setRegistryPreview(entry);
+    // Also set the main preview
+    setPreview({
+      metadata: {
+        name: entry.name,
+        version: "1.0.0",
+        description: entry.description,
+        author: entry.author,
+        tags: entry.tags.length > 0 ? entry.tags : ["mcp", "registry"],
+        permissions: ["network"],
+        parameters: [],
+      },
+      content: `# ${entry.name}\n\n${entry.description}\n\n## Source\n\n- **Registry**: ${entry.registry}\n${entry.repository ? `- **Repository**: ${entry.repository}` : ""}\n${entry.homepage ? `- **Homepage**: ${entry.homepage}` : ""}`,
+      sourceUrl: entry.repository || entry.homepage || "",
+    });
+  };
+
+  const handleImportSelectedRegistryEntries = async () => {
+    if (selectedRegistryEntries.size === 0) return;
+
+    let successCount = 0;
+    let errorCount = 0;
+
+    for (const entryId of selectedRegistryEntries) {
+      const entry = registryServers.find((e) => e.id === entryId);
+      if (!entry) continue;
+
+      try {
+        await importRegistryMutation.mutateAsync(entry);
+        successCount++;
+      } catch (error) {
+        console.error(`Failed to import ${entry.name}:`, error);
+        errorCount++;
+      }
+    }
+
+    if (successCount > 0) {
+      setImportSuccess(true);
+      setSelectedRegistryEntries(new Set());
+      setTimeout(() => {
+        setImportSuccess(false);
+      }, 2000);
+    }
+  };
+
+  const handleImportRegistryEntry = async () => {
+    if (!registryPreview) return;
+
+    try {
+      await importRegistryMutation.mutateAsync(registryPreview);
+      setImportSuccess(true);
+      setTimeout(() => {
+        setPreview(null);
+        setRegistryPreview(null);
+        setImportSuccess(false);
+      }, 2000);
+    } catch (error) {
+      console.error("Failed to import:", error);
+    }
+  };
+
   const handleConnectMcp = async () => {
     if (!mcpUrl) return;
     setMcpTools([]);
@@ -322,8 +411,10 @@ export const HubView: React.FC = () => {
   const clearPreview = () => {
     setPreview(null);
     setUrl("");
+    setRegistryPreview(null);
     previewMutation.reset();
     importMutation.reset();
+    importRegistryMutation.reset();
     setImportSuccess(false);
   };
 
@@ -336,7 +427,7 @@ export const HubView: React.FC = () => {
         </h2>
 
         {/* Source selection */}
-        <div className="grid grid-cols-3 gap-2 mb-4">
+        <div className="grid grid-cols-4 gap-2 mb-4">
           <SourceButton
             icon={<Link className="h-5 w-5" />}
             label="URL"
@@ -357,6 +448,13 @@ export const HubView: React.FC = () => {
             description="Server"
             selected={importSource === "mcp"}
             onClick={() => setImportSource("mcp")}
+          />
+          <SourceButton
+            icon={<Globe className="h-5 w-5" />}
+            label="Registry"
+            description="Browse"
+            selected={importSource === "registry"}
+            onClick={() => setImportSource("registry")}
           />
         </div>
 
@@ -672,6 +770,147 @@ export const HubView: React.FC = () => {
             )}
           </div>
         )}
+
+        {importSource === "registry" && (
+          <div className="space-y-3">
+            {/* Registry filter */}
+            <div>
+              <label className="text-xs text-text-muted mb-1.5 block">
+                Registry Source
+              </label>
+              <select
+                className="w-full h-9 rounded-md border border-border-default bg-bg-primary px-3 text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-accent-blue"
+                value={selectedRegistry || ""}
+                onChange={(e) => setSelectedRegistry(e.target.value as McpRegistry || undefined)}
+              >
+                <option value="">All Registries</option>
+                <option value="glama">Glama.ai</option>
+                <option value="mcpso">MCP.so</option>
+                <option value="mcpserversorg">MCPServers.org</option>
+                <option value="smithery">Smithery.ai</option>
+              </select>
+            </div>
+
+            {/* Search input */}
+            <div>
+              <label className="text-xs text-text-muted mb-1.5 block">
+                Search MCP Servers
+              </label>
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-text-muted" />
+                <Input
+                  placeholder="Search servers..."
+                  value={registrySearch}
+                  onChange={(e) => setRegistrySearch(e.target.value)}
+                  className="pl-9"
+                />
+              </div>
+            </div>
+
+            {!libraryPath && (
+              <div className="flex items-start gap-2 text-xs text-accent-yellow">
+                <AlertTriangle className="h-3.5 w-3.5 shrink-0 mt-0.5" />
+                <span>Please set a library path in Settings first</span>
+              </div>
+            )}
+
+            {/* Servers list */}
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs text-text-muted">
+                  {registrySearch ? "Search Results" : "Featured Servers"}
+                </span>
+                <span className="text-xs text-text-muted">
+                  {registryServers.length} servers
+                </span>
+              </div>
+
+              {isLoadingFeatured || isSearching ? (
+                <div className="flex items-center justify-center py-8">
+                  <Loader2 className="h-6 w-6 animate-spin text-text-muted" />
+                </div>
+              ) : registryServers.length > 0 ? (
+                <>
+                  <ScrollArea className="h-56 rounded-md border border-border-default">
+                    <div className="divide-y divide-border-muted">
+                      {registryServers.map((entry) => (
+                        <div
+                          key={`${entry.registry}-${entry.id}`}
+                          className={cn(
+                            "flex items-start gap-2 px-3 py-2 text-xs hover:bg-bg-tertiary cursor-pointer",
+                            selectedRegistryEntries.has(entry.id) && "bg-accent-blue/10"
+                          )}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={selectedRegistryEntries.has(entry.id)}
+                            onChange={() => handleToggleRegistrySelection(entry.id)}
+                            className="h-3.5 w-3.5 mt-0.5"
+                          />
+                          <button
+                            className="flex-1 text-left"
+                            onClick={() => handlePreviewRegistryEntry(entry)}
+                          >
+                            <div className="flex items-center gap-2">
+                              <span className="text-text-primary font-medium">
+                                {entry.name}
+                              </span>
+                              <Badge variant="default" className="text-[9px] px-1 py-0">
+                                {entry.registry}
+                              </Badge>
+                            </div>
+                            <div className="text-text-muted line-clamp-2 mt-0.5">
+                              {entry.description}
+                            </div>
+                            {entry.tags.length > 0 && (
+                              <div className="flex flex-wrap gap-1 mt-1">
+                                {entry.tags.slice(0, 3).map((tag) => (
+                                  <Badge key={tag} variant="blue" className="text-[9px] px-1 py-0">
+                                    {tag}
+                                  </Badge>
+                                ))}
+                                {entry.tags.length > 3 && (
+                                  <span className="text-[9px] text-text-muted">
+                                    +{entry.tags.length - 3}
+                                  </span>
+                                )}
+                              </div>
+                            )}
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </ScrollArea>
+
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    className="w-full mt-3"
+                    onClick={handleImportSelectedRegistryEntries}
+                    disabled={selectedRegistryEntries.size === 0 || importRegistryMutation.isPending || !libraryPath}
+                  >
+                    {importRegistryMutation.isPending ? (
+                      <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+                    ) : (
+                      <Download className="h-3.5 w-3.5 mr-1.5" />
+                    )}
+                    Import Selected ({selectedRegistryEntries.size})
+                  </Button>
+                </>
+              ) : (
+                <div className="text-xs text-text-muted text-center py-8">
+                  {registrySearch ? "No servers found" : "Loading..."}
+                </div>
+              )}
+
+              {importRegistryMutation.isError && (
+                <div className="text-xs text-accent-red mt-2">
+                  {String(importRegistryMutation.error)}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Preview/Browse area */}
@@ -781,6 +1020,19 @@ export const HubView: React.FC = () => {
                   <Check className="h-4 w-4 mr-2" />
                   Imported Successfully!
                 </Button>
+              ) : registryPreview ? (
+                <Button
+                  className="w-full"
+                  onClick={handleImportRegistryEntry}
+                  disabled={importRegistryMutation.isPending}
+                >
+                  {importRegistryMutation.isPending ? (
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  ) : (
+                    <Download className="h-4 w-4 mr-2" />
+                  )}
+                  Import to Library
+                </Button>
               ) : (
                 <Button
                   className="w-full"
@@ -798,6 +1050,11 @@ export const HubView: React.FC = () => {
               {importMutation.isError && (
                 <div className="text-xs text-accent-red mt-2">
                   {String(importMutation.error)}
+                </div>
+              )}
+              {importRegistryMutation.isError && (
+                <div className="text-xs text-accent-red mt-2">
+                  {String(importRegistryMutation.error)}
                 </div>
               )}
             </div>

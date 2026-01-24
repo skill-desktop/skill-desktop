@@ -616,3 +616,70 @@ export function useImportMcpToolAsSkill() {
     },
   });
 }
+
+// ========== MCP Registry Hooks ==========
+
+export type McpRegistry = "glama" | "mcpso" | "mcpserversorg" | "smithery";
+
+export interface McpRegistryEntry {
+  id: string;
+  name: string;
+  description: string;
+  author?: string;
+  repository?: string;
+  homepage?: string;
+  tags: string[];
+  registry: string;
+}
+
+export function useSearchMcpRegistry(query: string, registry?: McpRegistry) {
+  return useQuery({
+    queryKey: ["mcp-registry", "search", query, registry],
+    queryFn: async () => {
+      if (!query) return [];
+      return await invoke<McpRegistryEntry[]>("search_mcp_registry", {
+        query,
+        registry,
+      });
+    },
+    enabled: query.length > 0,
+  });
+}
+
+export function useFeaturedMcpServers(registry?: McpRegistry) {
+  return useQuery({
+    queryKey: ["mcp-registry", "featured", registry],
+    queryFn: async () => {
+      return await invoke<McpRegistryEntry[]>("get_featured_mcp_servers", {
+        registry,
+      });
+    },
+  });
+}
+
+export function useMcpServerDetails(serverId: string | null, registry: McpRegistry | null) {
+  return useQuery({
+    queryKey: ["mcp-registry", "details", serverId, registry],
+    queryFn: async () => {
+      if (!serverId || !registry) return null;
+      return await invoke<McpRegistryEntry>("get_mcp_server_details", {
+        serverId,
+        registry,
+      });
+    },
+    enabled: !!serverId && !!registry,
+  });
+}
+
+export function useImportMcpRegistryServer() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (entry: McpRegistryEntry) => {
+      return await invoke<Skill>("import_mcp_registry_server", { entry });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["skills"] });
+    },
+  });
+}

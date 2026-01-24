@@ -121,6 +121,11 @@ pub fn run() {
             // MCP commands
             commands::connect_mcp_server,
             commands::import_mcp_tool_as_skill,
+            // MCP Registry commands
+            commands::search_mcp_registry,
+            commands::get_featured_mcp_servers,
+            commands::get_mcp_server_details,
+            commands::import_mcp_registry_server,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

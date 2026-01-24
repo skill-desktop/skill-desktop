@@ -1,5 +1,5 @@
 import React from "react";
-import { Trash2, X, Loader2, Shield, ShieldAlert, Filter } from "lucide-react";
+import { Trash2, X, Loader2, Shield, ShieldAlert, Filter, Folder } from "lucide-react";
 import { useAppStore, useSettingsStore } from "@/stores";
 import { useSkills, useSearchSkills, useDeleteSkillsBatch, useQuarantinedSkills, useSetSkillQuarantine } from "@/hooks";
 import { SkillList, SkillDetail } from "@/components/library";
@@ -9,7 +9,7 @@ import type { Skill } from "@/types";
 type FilterMode = "all" | "quarantined" | "safe";
 
 export const LibraryView: React.FC = () => {
-  const { searchQuery, selectedSkillHash, setSelectedSkillHash } = useAppStore();
+  const { searchQuery, selectedSkillHash, setSelectedSkillHash, setCurrentView } = useAppStore();
   const { libraryPath } = useSettingsStore();
   
   // Selection state for batch operations
@@ -120,10 +120,17 @@ export const LibraryView: React.FC = () => {
   // Show empty state if no library path is set
   if (!libraryPath) {
     return (
-      <div className="flex h-full flex-col items-center justify-center text-text-muted">
-        <div className="text-4xl mb-4">📁</div>
-        <p className="text-sm">No library directory set</p>
-        <p className="text-xs mt-1">Go to Settings to configure your library path</p>
+      <div className="flex h-full flex-col items-center justify-center p-8 text-center">
+        <div className="flex h-20 w-20 items-center justify-center rounded-full bg-bg-tertiary mb-6">
+          <Folder className="h-10 w-10 text-text-muted" />
+        </div>
+        <h3 className="text-lg font-medium text-text-primary mb-2">No library directory set</h3>
+        <p className="text-sm text-text-muted max-w-sm mb-6">
+          To get started, please select a directory where your skills will be stored.
+        </p>
+        <Button onClick={() => setCurrentView("settings")}>
+          Go to Settings
+        </Button>
       </div>
     );
   }
