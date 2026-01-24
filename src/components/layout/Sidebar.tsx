@@ -1,0 +1,144 @@
+import React from "react";
+import {
+  Library,
+  FolderTree,
+  Globe,
+  FlaskConical,
+  Settings,
+  ChevronLeft,
+  ChevronRight,
+  Plus,
+  Check,
+} from "lucide-react";
+import { cn } from "@/lib/utils";
+import { useAppStore } from "@/stores";
+import { useSpaces } from "@/hooks";
+import { Button } from "@/components/ui";
+
+type View = "library" | "spaces" | "hub" | "sandbox" | "settings";
+
+interface NavItem {
+  id: View;
+  label: string;
+  icon: React.ReactNode;
+}
+
+const navItems: NavItem[] = [
+  { id: "library", label: "Library", icon: <Library className="h-4 w-4" /> },
+  { id: "spaces", label: "Spaces", icon: <FolderTree className="h-4 w-4" /> },
+  { id: "hub", label: "Skill Hub", icon: <Globe className="h-4 w-4" /> },
+  { id: "sandbox", label: "Sandbox", icon: <FlaskConical className="h-4 w-4" /> },
+];
+
+export const Sidebar: React.FC = () => {
+  const {
+    currentView,
+    setCurrentView,
+    sidebarCollapsed,
+    toggleSidebar,
+    currentSpaceId,
+    setCurrentSpaceId,
+  } = useAppStore();
+
+  const { data: spaces = [] } = useSpaces();
+
+  return (
+    <aside
+      className={cn(
+        "flex h-full flex-col border-r border-border-default bg-bg-secondary transition-all duration-200",
+        sidebarCollapsed ? "w-12" : "w-52"
+      )}
+    >
+      {/* Logo and collapse button */}
+      <div className="flex h-10 items-center justify-between border-b border-border-default px-3">
+        {!sidebarCollapsed && (
+          <span className="text-sm font-semibold text-text-primary">
+            Skill Desktop
+          </span>
+        )}
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-6 w-6"
+          onClick={toggleSidebar}
+        >
+          {sidebarCollapsed ? (
+            <ChevronRight className="h-4 w-4" />
+          ) : (
+            <ChevronLeft className="h-4 w-4" />
+          )}
+        </Button>
+      </div>
+
+      {/* Navigation */}
+      <nav className="flex-1 overflow-y-auto py-2">
+        {navItems.map((item) => (
+          <React.Fragment key={item.id}>
+            <button
+              onClick={() => setCurrentView(item.id)}
+              className={cn(
+                "flex w-full items-center gap-3 px-3 py-2 text-sm transition-colors",
+                currentView === item.id
+                  ? "border-l-2 border-accent-blue bg-bg-tertiary text-text-primary"
+                  : "border-l-2 border-transparent text-text-secondary hover:bg-bg-tertiary hover:text-text-primary"
+              )}
+            >
+              {item.icon}
+              {!sidebarCollapsed && <span>{item.label}</span>}
+            </button>
+
+            {/* Show spaces submenu when spaces is selected */}
+            {item.id === "spaces" &&
+              currentView === "spaces" &&
+              !sidebarCollapsed && (
+                <div className="ml-4 border-l border-border-muted">
+                  {spaces.map((space) => (
+                    <button
+                      key={space.id}
+                      onClick={() => setCurrentSpaceId(space.id)}
+                      className={cn(
+                        "flex w-full items-center justify-between px-3 py-1.5 text-xs transition-colors",
+                        currentSpaceId === space.id
+                          ? "text-text-primary bg-bg-tertiary"
+                          : "text-text-secondary hover:bg-bg-tertiary hover:text-text-primary"
+                      )}
+                    >
+                      <span className="truncate">{space.name}</span>
+                      <div className="flex items-center gap-1">
+                        {currentSpaceId === space.id && (
+                          <Check className="h-3 w-3 text-accent-blue" />
+                        )}
+                      </div>
+                    </button>
+                  ))}
+                  <button
+                    onClick={() => setCurrentView("spaces")}
+                    className="flex w-full items-center gap-2 px-3 py-1.5 text-xs text-text-muted hover:bg-bg-tertiary hover:text-text-primary"
+                  >
+                    <Plus className="h-3 w-3" />
+                    <span>New Space</span>
+                  </button>
+                </div>
+              )}
+          </React.Fragment>
+        ))}
+      </nav>
+
+      {/* Settings at bottom */}
+      <div className="border-t border-border-default py-2">
+        <button
+          onClick={() => setCurrentView("settings")}
+          className={cn(
+            "flex w-full items-center gap-3 px-3 py-2 text-sm transition-colors",
+            currentView === "settings"
+              ? "border-l-2 border-accent-blue bg-bg-tertiary text-text-primary"
+              : "border-l-2 border-transparent text-text-secondary hover:bg-bg-tertiary hover:text-text-primary"
+          )}
+        >
+          <Settings className="h-4 w-4" />
+          {!sidebarCollapsed && <span>Settings</span>}
+        </button>
+      </div>
+    </aside>
+  );
+};
