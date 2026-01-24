@@ -18,8 +18,6 @@ export const Header: React.FC = () => {
         return "Spaces";
       case "hub":
         return "Skill Hub";
-      case "sandbox":
-        return "Sandbox";
       case "settings":
         return "Settings";
       default:

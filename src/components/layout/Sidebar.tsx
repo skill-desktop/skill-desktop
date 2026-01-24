@@ -3,7 +3,6 @@ import {
   Library,
   FolderTree,
   Globe,
-  FlaskConical,
   Settings,
   ChevronLeft,
   ChevronRight,
@@ -15,7 +14,7 @@ import { useAppStore } from "@/stores";
 import { useSpaces } from "@/hooks";
 import { Button } from "@/components/ui";
 
-type View = "library" | "spaces" | "hub" | "sandbox" | "settings";
+type View = "library" | "spaces" | "hub" | "settings";
 
 interface NavItem {
   id: View;
@@ -27,7 +26,6 @@ const navItems: NavItem[] = [
   { id: "library", label: "Library", icon: <Library className="h-4 w-4" /> },
   { id: "spaces", label: "Spaces", icon: <FolderTree className="h-4 w-4" /> },
   { id: "hub", label: "Skill Hub", icon: <Globe className="h-4 w-4" /> },
-  { id: "sandbox", label: "Sandbox", icon: <FlaskConical className="h-4 w-4" /> },
 ];
 
 export const Sidebar: React.FC = () => {

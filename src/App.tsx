@@ -7,7 +7,6 @@ import {
   LibraryView,
   SpacesView,
   HubView,
-  SandboxView,
   SettingsView,
 } from "@/views";
 
@@ -56,10 +55,10 @@ function AppContent() {
         }
       }
 
-      // ⌘1-5 - Switch views
-      if ((e.metaKey || e.ctrlKey) && e.key >= "1" && e.key <= "5") {
+      // ⌘1-4 - Switch views
+      if ((e.metaKey || e.ctrlKey) && e.key >= "1" && e.key <= "4") {
         e.preventDefault();
-        const views = ["library", "spaces", "hub", "sandbox", "settings"] as const;
+        const views = ["library", "spaces", "hub", "settings"] as const;
         const index = parseInt(e.key) - 1;
         if (index < views.length) {
           setCurrentView(views[index]);
@@ -88,8 +87,6 @@ function AppContent() {
         return <SpacesView />;
       case "hub":
         return <HubView />;
-      case "sandbox":
-        return <SandboxView />;
       case "settings":
         return <SettingsView />;
       default:

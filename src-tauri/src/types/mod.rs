@@ -50,15 +50,6 @@ pub struct Space {
     pub updated_at: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct SpaceSkillMapping {
-    pub space_id: String,
-    pub skill_hash: String,
-    pub is_visible: bool,
-    pub added_at: String,
-}
-
 /// Metadata parsed from skill file front matter
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SkillMetadata {

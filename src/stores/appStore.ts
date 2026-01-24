@@ -1,6 +1,6 @@
 import { create } from "zustand";
 
-type View = "library" | "spaces" | "hub" | "sandbox" | "settings";
+type View = "library" | "spaces" | "hub" | "settings";
 
 interface AppState {
   // 当前视图

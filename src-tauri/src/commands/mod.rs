@@ -784,16 +784,6 @@ pub async fn init_space_visibility(
 
 // ========== GitHub Import Commands ==========
 
-/// GitHub repository info for browsing
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct GitHubRepoInfo {
-    pub owner: String,
-    pub repo: String,
-    pub branch: String,
-    pub path: String,
-}
-
 /// GitHub file entry
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -1031,15 +1021,11 @@ pub async fn import_github_directory(
             }
         };
         
-        // Try to parse metadata
-        let metadata = match crate::scanner::parse_front_matter(&content) {
-            Some(m) => m,
-            None => {
-                // Skip files without valid front matter
-                skipped += 1;
-                continue;
-            }
-        };
+        // Try to parse metadata - skip files without valid front matter
+        if crate::scanner::parse_front_matter(&content).is_none() {
+            skipped += 1;
+            continue;
+        }
         
         let file_path = library_path.join(&file.name);
         
@@ -1121,16 +1107,6 @@ pub async fn is_file_watcher_running(
 }
 
 // ========== MCP Server Commands ==========
-
-/// MCP Server info
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct McpServerInfo {
-    pub name: String,
-    pub url: String,
-    pub description: Option<String>,
-    pub status: String, // "connected", "disconnected", "error"
-}
 
 /// MCP Tool info
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
