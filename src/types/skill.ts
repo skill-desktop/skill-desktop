@@ -33,6 +33,7 @@ export interface Skill {
   
   // Internal fields
   isDownloaded: boolean;
+  isQuarantined: boolean;
   createdAt: string;
   updatedAt: string;
 }

@@ -194,6 +194,48 @@ export function useDeleteSkill() {
   });
 }
 
+interface BatchDeleteResult {
+  deleted: number;
+  failed: [string, string][];
+}
+
+export function useDeleteSkillsBatch() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (hashes: string[]) => {
+      return await invoke<BatchDeleteResult>("delete_skills_batch", { hashes });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["skills"] });
+    },
+  });
+}
+
+// ========== Quarantine Hooks ==========
+
+export function useQuarantinedSkills() {
+  return useQuery({
+    queryKey: ["quarantined-skills"],
+    queryFn: async () => {
+      return await invoke<string[]>("get_quarantined_skills");
+    },
+  });
+}
+
+export function useSetSkillQuarantine() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ hash, isQuarantined }: { hash: string; isQuarantined: boolean }) => {
+      await invoke("set_skill_quarantine", { hash, isQuarantined });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["quarantined-skills"] });
+    },
+  });
+}
+
 export function useShowInFolder() {
   return useMutation({
     mutationFn: async (path: string) => {
@@ -266,6 +308,14 @@ export function useExportGenericConfig() {
   return useMutation({
     mutationFn: async (spaceId: string) => {
       return await invoke<string>("export_generic_config", { spaceId });
+    },
+  });
+}
+
+export function useExportMcpConfig() {
+  return useMutation({
+    mutationFn: async (spaceId: string) => {
+      return await invoke<string>("export_mcp_config", { spaceId });
     },
   });
 }

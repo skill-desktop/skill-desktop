@@ -12,12 +12,13 @@ import {
   Code,
   BookOpen,
   Shield,
+  ShieldAlert,
   Tag,
   Hash,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAppStore } from "@/stores";
-import { useDeleteSkill, useShowInFolder, useOpenFile, useSkillContent } from "@/hooks";
+import { useDeleteSkill, useShowInFolder, useOpenFile, useSkillContent, useQuarantinedSkills, useSetSkillQuarantine } from "@/hooks";
 import { Button, Badge, ScrollArea, Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, Markdown } from "@/components/ui";
 import type { Skill } from "@/types";
 import { getPermissionLevel } from "@/types";
@@ -37,10 +38,26 @@ export const SkillDetail: React.FC<SkillDetailProps> = ({ skill }) => {
   const showInFolderMutation = useShowInFolder();
   const openFileMutation = useOpenFile();
   const { data: skillContent } = useSkillContent(skill?.hash || null);
+  const { data: quarantinedHashes = [] } = useQuarantinedSkills();
+  const setQuarantineMutation = useSetSkillQuarantine();
+
+  // Check if current skill is quarantined
+  const isQuarantined = skill ? quarantinedHashes.includes(skill.hash) : false;
 
   if (!skill || !detailPanelOpen) {
     return null;
   }
+
+  const handleToggleQuarantine = async () => {
+    try {
+      await setQuarantineMutation.mutateAsync({ 
+        hash: skill.hash, 
+        isQuarantined: !isQuarantined 
+      });
+    } catch (error) {
+      console.error("Failed to toggle quarantine:", error);
+    }
+  };
 
   const handleCopyName = async () => {
     try {
@@ -315,6 +332,14 @@ export const SkillDetail: React.FC<SkillDetailProps> = ({ skill }) => {
           )}
         </ScrollArea>
 
+        {/* Quarantine status banner */}
+        {isQuarantined && (
+          <div className="flex items-center gap-2 border-t border-accent-yellow/30 bg-accent-yellow/10 px-4 py-2">
+            <ShieldAlert className="h-4 w-4 text-accent-yellow" />
+            <span className="text-xs text-accent-yellow">This skill is quarantined</span>
+          </div>
+        )}
+
         {/* Actions */}
         <div className="flex items-center gap-2 border-t border-border-default p-4">
           <Button
@@ -344,6 +369,22 @@ export const SkillDetail: React.FC<SkillDetailProps> = ({ skill }) => {
               <Folder className="h-3.5 w-3.5 mr-1.5" />
             )}
             Reveal
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className={cn("h-8 w-8", isQuarantined ? "text-accent-yellow" : "text-text-muted")}
+            onClick={handleToggleQuarantine}
+            disabled={setQuarantineMutation.isPending}
+            title={isQuarantined ? "Remove from quarantine" : "Add to quarantine"}
+          >
+            {setQuarantineMutation.isPending ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : isQuarantined ? (
+              <Shield className="h-3.5 w-3.5" />
+            ) : (
+              <ShieldAlert className="h-3.5 w-3.5" />
+            )}
           </Button>
           <Button
             variant="ghost"

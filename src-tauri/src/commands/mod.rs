@@ -360,6 +360,78 @@ pub async fn delete_skill(
     std::fs::remove_file(&skill.local_path).map_err(|e| e.to_string())
 }
 
+/// Delete multiple skill files
+#[tauri::command]
+pub async fn delete_skills_batch(
+    hashes: Vec<String>,
+    library_state: State<'_, LibraryState>,
+) -> Result<BatchDeleteResult, String> {
+    let all_skills = get_all_skills(library_state).await?;
+    
+    let mut deleted = 0;
+    let mut failed: Vec<(String, String)> = Vec::new();
+    
+    for hash in hashes {
+        if let Some(skill) = all_skills.iter().find(|s| s.hash == hash) {
+            match std::fs::remove_file(&skill.local_path) {
+                Ok(_) => deleted += 1,
+                Err(e) => failed.push((skill.name.clone(), e.to_string())),
+            }
+        } else {
+            failed.push((hash, "Skill not found".to_string()));
+        }
+    }
+    
+    Ok(BatchDeleteResult { deleted, failed })
+}
+
+#[derive(Debug, Clone, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BatchDeleteResult {
+    pub deleted: usize,
+    pub failed: Vec<(String, String)>,
+}
+
+/// Quarantine state for skills (stored in memory, keyed by hash)
+pub struct QuarantineState {
+    pub quarantined: std::sync::Mutex<std::collections::HashSet<String>>,
+}
+
+impl Default for QuarantineState {
+    fn default() -> Self {
+        Self {
+            quarantined: std::sync::Mutex::new(std::collections::HashSet::new()),
+        }
+    }
+}
+
+/// Set quarantine status for a skill
+#[tauri::command]
+pub async fn set_skill_quarantine(
+    hash: String,
+    is_quarantined: bool,
+    quarantine_state: State<'_, QuarantineState>,
+) -> Result<(), String> {
+    let mut quarantined = quarantine_state.quarantined.lock().map_err(|e| e.to_string())?;
+    
+    if is_quarantined {
+        quarantined.insert(hash);
+    } else {
+        quarantined.remove(&hash);
+    }
+    
+    Ok(())
+}
+
+/// Get quarantine status for all skills
+#[tauri::command]
+pub async fn get_quarantined_skills(
+    quarantine_state: State<'_, QuarantineState>,
+) -> Result<Vec<String>, String> {
+    let quarantined = quarantine_state.quarantined.lock().map_err(|e| e.to_string())?;
+    Ok(quarantined.iter().cloned().collect())
+}
+
 /// Show file in system file manager (Finder on macOS)
 #[tauri::command]
 pub async fn show_in_folder(path: String) -> Result<(), String> {
@@ -608,6 +680,88 @@ pub async fn export_generic_config(
             "permissions": s.permissions,
             "localPath": s.local_path
         })).collect::<Vec<_>>(),
+        "exportedAt": chrono_now()
+    });
+
+    serde_json::to_string_pretty(&config).map_err(|e| e.to_string())
+}
+
+/// Export configuration as MCP-compatible format
+#[tauri::command]
+pub async fn export_mcp_config(
+    space_id: String,
+    library_state: State<'_, LibraryState>,
+    spaces_state: State<'_, SpacesState>,
+    db_state: State<'_, DatabaseState>,
+) -> Result<String, String> {
+    // Get library path
+    let library_path = {
+        let guard = library_state.path.lock().map_err(|e| e.to_string())?;
+        guard.clone().ok_or("Library path not set")?
+    };
+
+    // Get space
+    let space = {
+        let guard = spaces_state.spaces.lock().map_err(|e| e.to_string())?;
+        guard
+            .iter()
+            .find(|s| s.id == space_id)
+            .cloned()
+            .ok_or("Space not found")?
+    };
+
+    // Get all skills
+    let all_skills = get_all_skills_internal(&library_path)?;
+    
+    // Get visibility map from database
+    let visibility_map = db_state.0.get_visibility_map(&space_id)?;
+    
+    // Filter to visible skills only
+    let skills: Vec<_> = if visibility_map.is_empty() {
+        all_skills
+    } else {
+        all_skills.into_iter()
+            .filter(|s| visibility_map.get(&s.hash).copied().unwrap_or(false))
+            .collect()
+    };
+
+    // Build MCP-compatible tools array
+    let tools: Vec<serde_json::Value> = skills.iter().map(|s| {
+        // Convert parameters to JSON Schema format
+        let properties: serde_json::Map<String, serde_json::Value> = s.parameters.iter().map(|p| {
+            let prop = serde_json::json!({
+                "type": p.param_type,
+                "description": p.description
+            });
+            (p.name.clone(), prop)
+        }).collect();
+        
+        let required: Vec<String> = s.parameters.iter()
+            .filter(|p| p.required)
+            .map(|p| p.name.clone())
+            .collect();
+
+        serde_json::json!({
+            "name": s.name,
+            "description": s.description,
+            "inputSchema": {
+                "type": "object",
+                "properties": properties,
+                "required": required
+            }
+        })
+    }).collect();
+
+    let config = serde_json::json!({
+        "protocolVersion": "2024-11-05",
+        "serverInfo": {
+            "name": format!("skill-desktop-{}", space.name),
+            "version": "1.0.0"
+        },
+        "capabilities": {
+            "tools": {}
+        },
+        "tools": tools,
         "exportedAt": chrono_now()
     });
 

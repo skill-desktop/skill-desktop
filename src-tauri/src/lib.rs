@@ -7,7 +7,7 @@ mod scanner;
 mod space;
 mod types;
 
-use commands::{LibraryState, SpacesState, VisibilityState};
+use commands::{LibraryState, SpacesState, VisibilityState, QuarantineState};
 use database::Database;
 use scanner::FileWatcher;
 use std::sync::{Arc, Mutex};
@@ -61,6 +61,9 @@ pub fn run() {
             // Manage visibility state (will be loaded on demand)
             app.manage(VisibilityState::default());
             
+            // Manage quarantine state
+            app.manage(QuarantineState::default());
+            
             // Initialize file watcher
             let mut watcher = FileWatcher::new();
             
@@ -91,12 +94,16 @@ pub fn run() {
             commands::delete_space,
             commands::sync_space,
             commands::delete_skill,
+            commands::delete_skills_batch,
+            commands::set_skill_quarantine,
+            commands::get_quarantined_skills,
             commands::show_in_folder,
             commands::open_file,
             commands::preview_skill_from_url,
             commands::import_skill_from_url,
             commands::export_claude_config,
             commands::export_generic_config,
+            commands::export_mcp_config,
             commands::set_skill_visibility,
             commands::get_visible_skills,
             commands::get_skill_visibility_map,

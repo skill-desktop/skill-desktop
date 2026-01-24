@@ -84,6 +84,7 @@ pub fn create_skill_from_file(
         permissions: metadata.permissions,
         parameters: metadata.parameters,
         is_downloaded,
+        is_quarantined: false,
         created_at: now.clone(),
         updated_at: now,
     }

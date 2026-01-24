@@ -1,23 +1,32 @@
 import React from "react";
-import { Circle } from "lucide-react";
+import { Circle, FolderOpen, Layers, Eye } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useSettingsStore, useAppStore } from "@/stores";
-import { useSkills, useSpaces } from "@/hooks";
+import { useSkills, useSpaces, useIsFileWatcherRunning, useSkillVisibilityMap } from "@/hooks";
 
-type Status = "ready" | "scanning" | "error";
+type Status = "ready" | "scanning" | "watching" | "error";
 
 export const StatusBar: React.FC = () => {
   const { libraryPath } = useSettingsStore();
   const { currentSpaceId } = useAppStore();
   const { data: skills = [], isLoading: isLoadingSkills, error: skillsError } = useSkills();
   const { data: spaces = [] } = useSpaces();
+  const { data: isWatching = false } = useIsFileWatcherRunning();
+  const { data: visibilityMap = {} } = useSkillVisibilityMap(currentSpaceId);
+
+  // Calculate visible skills count for current space
+  const visibleSkillCount = React.useMemo(() => {
+    if (Object.keys(visibilityMap).length === 0) return skills.length;
+    return Object.values(visibilityMap).filter(Boolean).length;
+  }, [visibilityMap, skills.length]);
 
   // Determine current status
   const status: Status = React.useMemo(() => {
     if (skillsError) return "error";
     if (isLoadingSkills) return "scanning";
+    if (isWatching) return "watching";
     return "ready";
-  }, [skillsError, isLoadingSkills]);
+  }, [skillsError, isLoadingSkills, isWatching]);
 
   // Get current space name
   const currentSpace = React.useMemo(() => {
@@ -40,26 +49,27 @@ export const StatusBar: React.FC = () => {
       }
     }
     // Truncate if too long
-    if (libraryPath.length > 40) {
-      return "..." + libraryPath.slice(-37);
+    if (libraryPath.length > 30) {
+      return "..." + libraryPath.slice(-27);
     }
     return libraryPath;
   }, [libraryPath]);
 
   const statusConfig = {
     ready: {
-      color: "text-permission-low",
-      bgColor: "bg-permission-low",
+      color: "text-text-muted",
       label: "Ready",
     },
     scanning: {
       color: "text-accent-yellow",
-      bgColor: "bg-accent-yellow",
-      label: "Scanning",
+      label: "Scanning...",
+    },
+    watching: {
+      color: "text-permission-low",
+      label: "Watching",
     },
     error: {
       color: "text-accent-red",
-      bgColor: "bg-accent-red",
       label: "Error",
     },
   };
@@ -68,15 +78,15 @@ export const StatusBar: React.FC = () => {
 
   return (
     <footer className="flex h-6 items-center justify-between border-t border-border-default bg-bg-secondary px-3 text-[11px] text-text-muted">
-      {/* Left side: Status indicator */}
+      {/* Left side: Status and Library */}
       <div className="flex items-center gap-4">
         <div className="flex items-center gap-1.5">
           <Circle className={cn("h-2 w-2 fill-current", config.color)} />
-          <span>{config.label}</span>
+          <span className={config.color}>{config.label}</span>
         </div>
 
         <div className="flex items-center gap-1">
-          <span className="text-text-muted">Library:</span>
+          <FolderOpen className="h-3 w-3" />
           <span className="text-text-secondary" title={libraryPath}>
             {displayPath}
           </span>
@@ -85,13 +95,24 @@ export const StatusBar: React.FC = () => {
 
       {/* Right side: Stats */}
       <div className="flex items-center gap-4">
+        {/* Total skills */}
         <div className="flex items-center gap-1">
+          <Layers className="h-3 w-3" />
           <span className="text-text-primary font-medium">{skills.length}</span>
-          <span>Skills</span>
+          <span>total</span>
         </div>
 
-        <div className="flex items-center gap-1">
-          <span className="text-text-muted">Space:</span>
+        {/* Visible skills in current space */}
+        {currentSpaceId && (
+          <div className="flex items-center gap-1">
+            <Eye className="h-3 w-3" />
+            <span className="text-text-primary font-medium">{visibleSkillCount}</span>
+            <span>visible</span>
+          </div>
+        )}
+
+        {/* Current space */}
+        <div className="flex items-center gap-1 border-l border-border-muted pl-4">
           <span className="text-text-secondary">{currentSpace}</span>
         </div>
       </div>

@@ -1,5 +1,5 @@
 import React from "react";
-import { Download, ExternalLink, Shield, Tag } from "lucide-react";
+import { Download, ExternalLink, Shield, Tag, ShieldAlert } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAppStore } from "@/stores";
 import { Badge, Switch } from "@/components/ui";
@@ -10,12 +10,22 @@ interface SkillCardProps {
   skill: Skill;
   isVisible?: boolean;
   onVisibilityChange?: (visible: boolean) => void;
+  // Selection mode props
+  selectionMode?: boolean;
+  isSelected?: boolean;
+  onToggleSelection?: (hash: string) => void;
+  // Quarantine props
+  isQuarantined?: boolean;
 }
 
 export const SkillCard: React.FC<SkillCardProps> = ({
   skill,
   isVisible = true,
   onVisibilityChange,
+  selectionMode = false,
+  isSelected: isSelectedForBatch = false,
+  onToggleSelection,
+  isQuarantined = false,
 }) => {
   const { setSelectedSkillHash, selectedSkillHash } = useAppStore();
 
@@ -24,20 +34,32 @@ export const SkillCard: React.FC<SkillCardProps> = ({
   // Check for high-risk permissions
   const hasHighRisk = skill.permissions.some(p => getPermissionLevel(p) === "high");
 
+  const handleClick = () => {
+    if (selectionMode && onToggleSelection) {
+      onToggleSelection(skill.hash);
+    } else {
+      setSelectedSkillHash(skill.hash);
+    }
+  };
+
   return (
     <div
       className={cn(
         "group relative cursor-pointer rounded-lg border bg-bg-secondary transition-all hover:shadow-md",
-        isSelected
+        selectionMode && isSelectedForBatch
+          ? "border-accent-blue shadow-md ring-2 ring-accent-blue/30"
+          : isSelected
           ? "border-accent-blue shadow-md ring-1 ring-accent-blue/20"
           : "border-border-default hover:border-border-default/80"
       )}
-      onClick={() => setSelectedSkillHash(skill.hash)}
+      onClick={handleClick}
     >
       {/* Header with gradient accent */}
       <div className={cn(
         "h-1 rounded-t-lg",
-        hasHighRisk 
+        isQuarantined
+          ? "bg-gradient-to-r from-accent-yellow/80 to-accent-yellow/20"
+          : hasHighRisk 
           ? "bg-gradient-to-r from-permission-high/60 to-permission-high/20"
           : skill.isDownloaded
           ? "bg-gradient-to-r from-accent-blue/60 to-accent-blue/20"
@@ -48,7 +70,16 @@ export const SkillCard: React.FC<SkillCardProps> = ({
         {/* Header: Switch + Name + Version */}
         <div className="flex items-start justify-between gap-2">
           <div className="flex items-center gap-3 min-w-0">
-            {onVisibilityChange && (
+            {selectionMode ? (
+              <div onClick={(e) => e.stopPropagation()}>
+                <input
+                  type="checkbox"
+                  checked={isSelectedForBatch}
+                  onChange={() => onToggleSelection?.(skill.hash)}
+                  className="h-4 w-4 rounded border-border-default"
+                />
+              </div>
+            ) : onVisibilityChange ? (
               <div onClick={(e) => e.stopPropagation()}>
                 <Switch
                   checked={isVisible}
@@ -57,7 +88,7 @@ export const SkillCard: React.FC<SkillCardProps> = ({
                   }}
                 />
               </div>
-            )}
+            ) : null}
             <div className="flex-1 min-w-0">
               <h3 className="text-sm font-semibold text-text-primary truncate">
                 {skill.name}
@@ -70,6 +101,9 @@ export const SkillCard: React.FC<SkillCardProps> = ({
             </div>
           </div>
           <div className="flex items-center gap-1.5 shrink-0">
+            {isQuarantined && (
+              <ShieldAlert className="h-3.5 w-3.5 text-accent-yellow" />
+            )}
             <span className="text-[10px] text-text-muted px-1.5 py-0.5 rounded bg-bg-tertiary">
               v{skill.version}
             </span>

@@ -1,5 +1,5 @@
 import React from "react";
-import { Plus, Settings2, Trash2, FolderOpen, Check, Loader2, Download, Copy, FileJson, Link } from "lucide-react";
+import { Plus, Settings2, Trash2, FolderOpen, Check, Loader2, Download, Copy, FileJson, Link, CopyPlus, Server } from "lucide-react";
 import { invoke } from "@tauri-apps/api/core";
 import { cn } from "@/lib/utils";
 import { Button, Input, ScrollArea, Badge, Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui";
@@ -11,6 +11,7 @@ import {
   useSkills,
   useExportClaudeConfig,
   useExportGenericConfig,
+  useExportMcpConfig,
   useSkillVisibilityMap,
   useSetSkillVisibility,
   useSetBulkSkillVisibility,
@@ -59,6 +60,22 @@ async function writeFile(path: string, contents: string): Promise<void> {
   });
 }
 
+// Component to display skill count for a space
+const SpaceSkillCount: React.FC<{ spaceId: string; totalSkills: number }> = ({ spaceId, totalSkills }) => {
+  const { data: visibilityMap = {} } = useSkillVisibilityMap(spaceId);
+  
+  // If no visibility map exists, all skills are visible by default
+  const visibleCount = Object.keys(visibilityMap).length > 0
+    ? Object.values(visibilityMap).filter(Boolean).length
+    : totalSkills;
+  
+  return (
+    <span className="text-xs text-text-muted">
+      {visibleCount} / {totalSkills} skills
+    </span>
+  );
+};
+
 export const SpacesView: React.FC = () => {
   const { currentSpaceId, setCurrentSpaceId } = useAppStore();
   const [showCreateDialog, setShowCreateDialog] = React.useState(false);
@@ -66,8 +83,11 @@ export const SpacesView: React.FC = () => {
   const [showDeleteConfirm, setShowDeleteConfirm] = React.useState(false);
   const [showExportDialog, setShowExportDialog] = React.useState(false);
   const [exportConfig, setExportConfig] = React.useState<string | null>(null);
-  const [exportType, setExportType] = React.useState<"claude" | "generic">("claude");
+  const [exportType, setExportType] = React.useState<"claude" | "generic" | "mcp">("claude");
   const [showSkillsDialog, setShowSkillsDialog] = React.useState(false);
+  const [showCloneDialog, setShowCloneDialog] = React.useState(false);
+  const [cloneName, setCloneName] = React.useState("");
+  const [cloneActiveDir, setCloneActiveDir] = React.useState("");
 
   // Form state
   const [formName, setFormName] = React.useState("");
@@ -82,6 +102,7 @@ export const SpacesView: React.FC = () => {
   const deleteSpaceMutation = useDeleteSpace();
   const exportClaudeMutation = useExportClaudeConfig();
   const exportGenericMutation = useExportGenericConfig();
+  const exportMcpMutation = useExportMcpConfig();
   const setSkillVisibilityMutation = useSetSkillVisibility();
   const setBulkVisibilityMutation = useSetBulkSkillVisibility();
   const syncSpaceMutation = useSyncSpace();
@@ -91,8 +112,10 @@ export const SpacesView: React.FC = () => {
   // Get visibility map for selected space
   const { data: visibilityMap = {} } = useSkillVisibilityMap(currentSpaceId);
 
-  // Count visible skills
-  const visibleSkillCount = Object.values(visibilityMap).filter(Boolean).length || skills.length;
+  // Count visible skills for current space
+  const visibleSkillCount = Object.keys(visibilityMap).length > 0
+    ? Object.values(visibilityMap).filter(Boolean).length
+    : skills.length;
 
   const selectedSpace = spaces.find((s) => s.id === currentSpaceId);
 
@@ -176,14 +199,19 @@ export const SpacesView: React.FC = () => {
   };
 
   // Handle export
-  const handleExport = async (type: "claude" | "generic") => {
+  const handleExport = async (type: "claude" | "generic" | "mcp") => {
     if (!selectedSpace) return;
     setExportType(type);
 
     try {
-      const config = type === "claude"
-        ? await exportClaudeMutation.mutateAsync(selectedSpace.id)
-        : await exportGenericMutation.mutateAsync(selectedSpace.id);
+      let config: string;
+      if (type === "claude") {
+        config = await exportClaudeMutation.mutateAsync(selectedSpace.id);
+      } else if (type === "mcp") {
+        config = await exportMcpMutation.mutateAsync(selectedSpace.id);
+      } else {
+        config = await exportGenericMutation.mutateAsync(selectedSpace.id);
+      }
       setExportConfig(config);
       setShowExportDialog(true);
     } catch (error) {
@@ -196,9 +224,14 @@ export const SpacesView: React.FC = () => {
     if (!exportConfig) return;
 
     try {
-      const filename = exportType === "claude"
-        ? "claude_desktop_config.json"
-        : `${selectedSpace?.name || "space"}_config.json`;
+      let filename: string;
+      if (exportType === "claude") {
+        filename = "claude_desktop_config.json";
+      } else if (exportType === "mcp") {
+        filename = `${selectedSpace?.name || "space"}_mcp_config.json`;
+      } else {
+        filename = `${selectedSpace?.name || "space"}_config.json`;
+      }
 
       const filePath = await saveFileDialog(filename);
 
@@ -222,6 +255,26 @@ export const SpacesView: React.FC = () => {
     }
   };
 
+  // Auto-sync symlinks after visibility change
+  const autoSyncSymlinks = React.useCallback(async (newVisibilityMap: Record<string, boolean>) => {
+    if (!selectedSpace || !libraryPath || !selectedSpace.activeDirPath) return;
+    
+    // Get visible skill filenames based on new visibility map
+    const visibleSkillFilenames = skills
+      .filter((s) => newVisibilityMap[s.hash] ?? true)
+      .map((s) => s.filename);
+    
+    try {
+      await syncSpaceMutation.mutateAsync({
+        libraryPath,
+        activePath: selectedSpace.activeDirPath,
+        enabledSkills: visibleSkillFilenames,
+      });
+    } catch (error) {
+      console.error("Failed to auto-sync symlinks:", error);
+    }
+  }, [selectedSpace, libraryPath, skills, syncSpaceMutation]);
+
   // Handle skill visibility toggle
   const handleToggleSkillVisibility = async (skillHash: string, isVisible: boolean) => {
     if (!currentSpaceId) return;
@@ -231,6 +284,12 @@ export const SpacesView: React.FC = () => {
         skillHash,
         isVisible,
       });
+      
+      // Auto-sync symlinks if active directory is set
+      if (selectedSpace?.activeDirPath) {
+        const newVisibilityMap = { ...visibilityMap, [skillHash]: isVisible };
+        await autoSyncSymlinks(newVisibilityMap);
+      }
     } catch (error) {
       console.error("Failed to toggle visibility:", error);
     }
@@ -245,6 +304,13 @@ export const SpacesView: React.FC = () => {
         skillHashes: skills.map((s) => s.hash),
         isVisible: true,
       });
+      
+      // Auto-sync symlinks if active directory is set
+      if (selectedSpace?.activeDirPath) {
+        const newVisibilityMap = { ...visibilityMap };
+        skills.forEach(s => { newVisibilityMap[s.hash] = true; });
+        await autoSyncSymlinks(newVisibilityMap);
+      }
     } catch (error) {
       console.error("Failed to select all:", error);
     }
@@ -259,6 +325,13 @@ export const SpacesView: React.FC = () => {
         skillHashes: skills.map((s) => s.hash),
         isVisible: false,
       });
+      
+      // Auto-sync symlinks if active directory is set
+      if (selectedSpace?.activeDirPath) {
+        const newVisibilityMap = { ...visibilityMap };
+        skills.forEach(s => { newVisibilityMap[s.hash] = false; });
+        await autoSyncSymlinks(newVisibilityMap);
+      }
     } catch (error) {
       console.error("Failed to deselect all:", error);
     }
@@ -282,6 +355,59 @@ export const SpacesView: React.FC = () => {
       console.log("Sync result:", result);
     } catch (error) {
       console.error("Failed to sync space:", error);
+    }
+  };
+
+  // Handle clone space
+  const openCloneDialog = () => {
+    if (selectedSpace) {
+      setCloneName(`${selectedSpace.name} (Copy)`);
+      setCloneActiveDir("");
+      setShowCloneDialog(true);
+    }
+  };
+
+  const handleCloneSpace = async () => {
+    if (!selectedSpace || !cloneName || !cloneActiveDir) return;
+
+    try {
+      // Create new space
+      const newSpace = await createSpaceMutation.mutateAsync({
+        name: cloneName,
+        activeDir: cloneActiveDir,
+        description: selectedSpace.description || undefined,
+      });
+
+      // Copy visibility settings from source space
+      const visibleHashes = Object.entries(visibilityMap)
+        .filter(([_, isVisible]) => isVisible)
+        .map(([hash]) => hash);
+
+      if (visibleHashes.length > 0) {
+        await setBulkVisibilityMutation.mutateAsync({
+          spaceId: newSpace.id,
+          skillHashes: visibleHashes,
+          isVisible: true,
+        });
+      }
+
+      // Also set non-visible ones
+      const hiddenHashes = Object.entries(visibilityMap)
+        .filter(([_, isVisible]) => !isVisible)
+        .map(([hash]) => hash);
+
+      if (hiddenHashes.length > 0) {
+        await setBulkVisibilityMutation.mutateAsync({
+          spaceId: newSpace.id,
+          skillHashes: hiddenHashes,
+          isVisible: false,
+        });
+      }
+
+      setShowCloneDialog(false);
+      setCurrentSpaceId(newSpace.id);
+    } catch (error) {
+      console.error("Failed to clone space:", error);
     }
   };
 
@@ -334,10 +460,7 @@ export const SpacesView: React.FC = () => {
                       </Badge>
                     )}
                   </div>
-                  <span className="text-xs text-text-muted">
-                    {/* TODO: Get actual skill count for space */}
-                    {skills.length} skills
-                  </span>
+                  <SpaceSkillCount spaceId={space.id} totalSkills={skills.length} />
                 </div>
                 {currentSpaceId === space.id && (
                   <Check className="h-4 w-4 text-accent-blue shrink-0" />
@@ -365,6 +488,10 @@ export const SpacesView: React.FC = () => {
                   <Button variant="secondary" size="sm" onClick={openEditDialog}>
                     <Settings2 className="h-3.5 w-3.5 mr-1.5" />
                     Edit
+                  </Button>
+                  <Button variant="secondary" size="sm" onClick={openCloneDialog}>
+                    <CopyPlus className="h-3.5 w-3.5 mr-1.5" />
+                    Clone
                   </Button>
                   {!selectedSpace.isDefault && (
                     <Button
@@ -438,6 +565,19 @@ export const SpacesView: React.FC = () => {
                   <FileJson className="h-4 w-4 mr-2" />
                 )}
                 Export Generic JSON
+              </Button>
+              <Button
+                variant="secondary"
+                className="w-full justify-start"
+                onClick={() => handleExport("mcp")}
+                disabled={exportMcpMutation.isPending}
+              >
+                {exportMcpMutation.isPending ? (
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                ) : (
+                  <Server className="h-4 w-4 mr-2" />
+                )}
+                Export MCP Config
               </Button>
 
               {/* Sync symlinks button */}
@@ -732,12 +872,78 @@ export const SpacesView: React.FC = () => {
         </DialogContent>
       </Dialog>
 
+      {/* Clone Space Dialog */}
+      <Dialog open={showCloneDialog} onOpenChange={setShowCloneDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Clone Space</DialogTitle>
+            <DialogDescription>
+              Create a copy of "{selectedSpace?.name}" with the same skill visibility settings.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            <div>
+              <label className="text-xs text-text-muted mb-1.5 block">
+                New Space Name *
+              </label>
+              <Input
+                placeholder="My Workspace (Copy)"
+                value={cloneName}
+                onChange={(e) => setCloneName(e.target.value)}
+              />
+            </div>
+
+            <div>
+              <label className="text-xs text-text-muted mb-1.5 block">
+                Active Directory *
+              </label>
+              <div className="flex items-center gap-2">
+                <Input
+                  placeholder="/path/to/active/directory"
+                  value={cloneActiveDir}
+                  onChange={(e) => setCloneActiveDir(e.target.value)}
+                  className="flex-1"
+                />
+                <Button variant="secondary" size="sm" onClick={async () => {
+                  const selected = await openFolderDialog();
+                  if (selected) setCloneActiveDir(selected);
+                }}>
+                  <FolderOpen className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="secondary" onClick={() => setShowCloneDialog(false)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleCloneSpace}
+              disabled={!cloneName || !cloneActiveDir || createSpaceMutation.isPending}
+            >
+              {createSpaceMutation.isPending ? (
+                <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
+              ) : (
+                <CopyPlus className="h-4 w-4 mr-1.5" />
+              )}
+              Clone Space
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Export Dialog */}
       <Dialog open={showExportDialog} onOpenChange={setShowExportDialog}>
         <DialogContent className="max-w-[600px] max-h-[80vh] flex flex-col">
           <DialogHeader>
             <DialogTitle>
-              {exportType === "claude" ? "Claude Desktop Configuration" : "Generic Configuration"}
+              {exportType === "claude" 
+                ? "Claude Desktop Configuration" 
+                : exportType === "mcp" 
+                ? "MCP Server Configuration" 
+                : "Generic Configuration"}
             </DialogTitle>
           </DialogHeader>
 

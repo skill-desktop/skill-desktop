@@ -1,5 +1,5 @@
 import React from "react";
-import { Download, ExternalLink, Shield } from "lucide-react";
+import { Download, ExternalLink, Shield, ShieldAlert } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAppStore } from "@/stores";
 import { Badge, Switch } from "@/components/ui";
@@ -10,32 +10,63 @@ interface SkillListItemProps {
   skill: Skill;
   isVisible?: boolean;
   onVisibilityChange?: (visible: boolean) => void;
+  // Selection mode props
+  selectionMode?: boolean;
+  isSelected?: boolean;
+  onToggleSelection?: (hash: string) => void;
+  // Quarantine props
+  isQuarantined?: boolean;
 }
 
 export const SkillListItem: React.FC<SkillListItemProps> = ({
   skill,
   isVisible = true,
   onVisibilityChange,
+  selectionMode = false,
+  isSelected: isSelectedForBatch = false,
+  onToggleSelection,
+  isQuarantined = false,
 }) => {
   const { setSelectedSkillHash, selectedSkillHash } = useAppStore();
 
   const isSelected = selectedSkillHash === skill.hash;
   const hasHighRisk = skill.permissions.some(p => getPermissionLevel(p) === "high");
 
+  const handleClick = () => {
+    if (selectionMode && onToggleSelection) {
+      onToggleSelection(skill.hash);
+    } else {
+      setSelectedSkillHash(skill.hash);
+    }
+  };
+
   return (
     <div
       className={cn(
         "flex items-center gap-4 px-4 py-3 cursor-pointer transition-colors hover:bg-bg-tertiary border-l-2",
-        isSelected 
+        selectionMode && isSelectedForBatch
+          ? "bg-accent-blue/10 border-l-accent-blue"
+          : isSelected 
           ? "bg-bg-tertiary border-l-accent-blue" 
+          : isQuarantined
+          ? "border-l-accent-yellow/70"
           : hasHighRisk
           ? "border-l-permission-high/50"
           : "border-l-transparent"
       )}
-      onClick={() => setSelectedSkillHash(skill.hash)}
+      onClick={handleClick}
     >
-      {/* Visibility toggle */}
-      {onVisibilityChange && (
+      {/* Selection checkbox or Visibility toggle */}
+      {selectionMode ? (
+        <div onClick={(e) => e.stopPropagation()}>
+          <input
+            type="checkbox"
+            checked={isSelectedForBatch}
+            onChange={() => onToggleSelection?.(skill.hash)}
+            className="h-4 w-4 rounded border-border-default"
+          />
+        </div>
+      ) : onVisibilityChange ? (
         <div onClick={(e) => e.stopPropagation()}>
           <Switch
             checked={isVisible}
@@ -44,19 +75,23 @@ export const SkillListItem: React.FC<SkillListItemProps> = ({
             }}
           />
         </div>
-      )}
+      ) : null}
 
-      {/* Risk indicator */}
-      <div className={cn(
-        "w-2 h-2 rounded-full shrink-0",
-        hasHighRisk 
-          ? "bg-permission-high"
-          : skill.permissions.some(p => getPermissionLevel(p) === "medium")
-          ? "bg-permission-medium"
-          : skill.permissions.length > 0
-          ? "bg-permission-low"
-          : "bg-text-muted/30"
-      )} />
+      {/* Risk/Quarantine indicator */}
+      {isQuarantined ? (
+        <ShieldAlert className="w-4 h-4 text-accent-yellow shrink-0" />
+      ) : (
+        <div className={cn(
+          "w-2 h-2 rounded-full shrink-0",
+          hasHighRisk 
+            ? "bg-permission-high"
+            : skill.permissions.some(p => getPermissionLevel(p) === "medium")
+            ? "bg-permission-medium"
+            : skill.permissions.length > 0
+            ? "bg-permission-low"
+            : "bg-text-muted/30"
+        )} />
+      )}
 
       {/* Name and author */}
       <div className="w-44 min-w-0">

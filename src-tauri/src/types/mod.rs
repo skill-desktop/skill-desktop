@@ -32,6 +32,9 @@ pub struct Skill {
     pub parameters: Vec<Parameter>,
     #[serde(default)]
     pub is_downloaded: bool,
+    /// Whether this skill is quarantined (unstable/sensitive)
+    #[serde(default)]
+    pub is_quarantined: bool,
     pub created_at: String,
     pub updated_at: String,
 }
