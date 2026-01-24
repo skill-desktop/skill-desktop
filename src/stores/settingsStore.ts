@@ -1,6 +1,8 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import type { SupportedLanguage } from "@/i18n";
+
+// Define supported language type locally to avoid circular dependency
+type SupportedLanguage = "en" | "zh-CN" | "zh-TW" | "ja" | "ko" | "de" | "fr" | "es" | "pt" | "ru";
 
 interface SettingsState {
   // Library 目录

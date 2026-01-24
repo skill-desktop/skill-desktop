@@ -1,5 +1,7 @@
 import React from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+// Import i18n configuration first to ensure it's initialized before useTranslation
+import "@/i18n";
 import { useTranslation } from "react-i18next";
 import { MainLayout } from "@/components/layout";
 import { LanguageSelector } from "@/components/language";
@@ -12,9 +14,6 @@ import {
   SettingsView,
 } from "@/views";
 import { changeLanguage, detectBrowserLanguage, type SupportedLanguage } from "@/i18n";
-
-// Import i18n configuration
-import "@/i18n";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -176,6 +175,7 @@ function AppContent() {
         onOpenChange={setShowLanguageSelector}
         onLanguageSelected={handleLanguageSelected}
         showContinueButton={true}
+        required={true}
       />
     </>
   );

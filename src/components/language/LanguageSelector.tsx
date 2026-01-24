@@ -10,6 +10,8 @@ interface LanguageSelectorProps {
   onOpenChange: (open: boolean) => void;
   onLanguageSelected?: (language: SupportedLanguage) => void;
   showContinueButton?: boolean;
+  /** If true, user cannot close the dialog by clicking outside or pressing escape */
+  required?: boolean;
 }
 
 export const LanguageSelector: React.FC<LanguageSelectorProps> = ({
@@ -17,6 +19,7 @@ export const LanguageSelector: React.FC<LanguageSelectorProps> = ({
   onOpenChange,
   onLanguageSelected,
   showContinueButton = true,
+  required = false,
 }) => {
   const { t, i18n } = useTranslation();
   const [selectedLanguage, setSelectedLanguage] = React.useState<SupportedLanguage>(
@@ -33,8 +36,17 @@ export const LanguageSelector: React.FC<LanguageSelectorProps> = ({
     onOpenChange(false);
   };
 
+  // If required, prevent closing without selection
+  const handleOpenChange = (newOpen: boolean) => {
+    if (required && !newOpen) {
+      // Don't allow closing if required
+      return;
+    }
+    onOpenChange(newOpen);
+  };
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <div className="flex items-center gap-2">
