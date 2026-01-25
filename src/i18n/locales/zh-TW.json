@@ -298,5 +298,25 @@
     "es": "Español",
     "pt": "Português",
     "ru": "Русский"
+  },
+  "riskCategory": {
+    "file_delete": "檔案/目錄刪除",
+    "shell_exec": "Shell 命令執行",
+    "privilege_escalation": "權限提升",
+    "network_upload": "網路上傳",
+    "network_download": "網路下載",
+    "file_write": "檔案寫入",
+    "environment_access": "環境變數存取",
+    "file_read": "檔案讀取",
+    "system_info": "系統資訊存取"
+  },
+  "riskAnalysis": {
+    "title": "程式碼風險分析",
+    "executableCode": "偵測到可執行程式碼",
+    "detectedRisks": "偵測到的風險",
+    "noRisks": "未偵測到風險",
+    "lineNumber": "第 {{line}} 行",
+    "overallRisk": "整體風險等級",
+    "codeWarning": "此技能包含可執行程式碼。請在啟用前仔細審查偵測到的風險。"
   }
 }

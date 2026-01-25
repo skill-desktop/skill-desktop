@@ -298,5 +298,25 @@
     "es": "Español",
     "pt": "Português",
     "ru": "Русский"
+  },
+  "riskCategory": {
+    "file_delete": "파일/디렉토리 삭제",
+    "shell_exec": "셸 명령 실행",
+    "privilege_escalation": "권한 상승",
+    "network_upload": "네트워크 업로드",
+    "network_download": "네트워크 다운로드",
+    "file_write": "파일 쓰기",
+    "environment_access": "환경 변수 접근",
+    "file_read": "파일 읽기",
+    "system_info": "시스템 정보 접근"
+  },
+  "riskAnalysis": {
+    "title": "코드 위험 분석",
+    "executableCode": "실행 가능한 코드 감지됨",
+    "detectedRisks": "감지된 위험",
+    "noRisks": "위험이 감지되지 않았습니다",
+    "lineNumber": "{{line}}번째 줄",
+    "overallRisk": "전체 위험 수준",
+    "codeWarning": "이 스킬에는 실행 가능한 코드가 포함되어 있습니다. 활성화하기 전에 감지된 위험을 신중하게 검토하세요."
   }
 }

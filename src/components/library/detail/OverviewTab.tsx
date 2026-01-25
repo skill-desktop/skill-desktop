@@ -3,10 +3,11 @@ import { useTranslation } from "react-i18next";
 import { BookOpen, Tag, Shield, Code, Hash, AlertTriangle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Badge, Markdown } from "@/components/ui";
-import { getPermissionLevel } from "@/types";
+import { getPermissionLevel, getSkillRiskLevel } from "@/types";
 import type { Skill } from "@/types";
 import { Section } from "./Section";
 import { MetadataRow } from "./MetadataRow";
+import { RiskAnalysisSection } from "./RiskAnalysisSection";
 
 interface OverviewTabProps {
   skill: Skill;
@@ -14,6 +15,9 @@ interface OverviewTabProps {
 
 export const OverviewTab: React.FC<OverviewTabProps> = ({ skill }) => {
   const { t } = useTranslation();
+  
+  // Get overall risk level considering both permissions and code analysis
+  const overallRiskLevel = getSkillRiskLevel(skill);
 
   return (
     <>
@@ -78,6 +82,11 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({ skill }) => {
         )}
       </Section>
 
+      {/* Risk Analysis from code scanning */}
+      {skill.riskAnalysis && (
+        <RiskAnalysisSection riskAnalysis={skill.riskAnalysis} />
+      )}
+
       {/* Parameters */}
       {skill.parameters.length > 0 && (
         <Section title={t("skillDetail.parameters")} icon={<Code className="h-3.5 w-3.5" />}>
@@ -117,10 +126,8 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({ skill }) => {
         </div>
       </Section>
 
-      {/* Warning for high-risk permissions */}
-      {skill.permissions.some(
-        (p) => getPermissionLevel(p) === "high"
-      ) && (
+      {/* Warning for high-risk (from permissions or code analysis) */}
+      {overallRiskLevel === "high" && !skill.riskAnalysis && (
         <div className="mt-4 flex items-start gap-2 rounded-md border border-permission-high/50 bg-permission-high/10 p-3">
           <AlertTriangle className="h-4 w-4 text-permission-high shrink-0 mt-0.5" />
           <p className="text-xs text-permission-high">

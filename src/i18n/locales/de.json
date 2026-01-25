@@ -298,5 +298,25 @@
     "es": "Español",
     "pt": "Português",
     "ru": "Русский"
+  },
+  "riskCategory": {
+    "file_delete": "Datei-/Verzeichnislöschung",
+    "shell_exec": "Shell-Befehlsausführung",
+    "privilege_escalation": "Rechteerhöhung",
+    "network_upload": "Netzwerk-Upload",
+    "network_download": "Netzwerk-Download",
+    "file_write": "Dateischreibvorgang",
+    "environment_access": "Umgebungsvariablenzugriff",
+    "file_read": "Dateilesevorgang",
+    "system_info": "Systeminformationszugriff"
+  },
+  "riskAnalysis": {
+    "title": "Code-Risikoanalyse",
+    "executableCode": "Ausführbarer Code erkannt",
+    "detectedRisks": "Erkannte Risiken",
+    "noRisks": "Keine Risiken erkannt",
+    "lineNumber": "Zeile {{line}}",
+    "overallRisk": "Gesamtrisikostufe",
+    "codeWarning": "Dieser Skill enthält ausführbaren Code. Überprüfen Sie die erkannten Risiken sorgfältig, bevor Sie ihn aktivieren."
   }
 }

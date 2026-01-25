@@ -5,7 +5,10 @@ use std::path::Path;
 use crate::types::{Skill, SkillMetadata};
 
 pub mod watcher;
+pub mod risk_analyzer;
+
 pub use watcher::FileWatcher;
+pub use risk_analyzer::{analyze_file, analyze_content, RiskLevel};
 
 /// Calculate SHA-256 hash of file contents
 pub fn calculate_file_hash(path: &Path) -> Result<String, std::io::Error> {
@@ -82,6 +85,40 @@ pub fn create_skill_from_file(
 ) -> Skill {
     let now = chrono_now();
     let is_downloaded = source_url.is_some();
+    
+    // Perform risk analysis on the file content
+    let risk_analysis = match fs::read_to_string(path) {
+        Ok(content) => {
+            let analysis = analyze_file(path, &content);
+            if analysis.is_executable_code || !analysis.detected_risks.is_empty() {
+                Some(crate::types::RiskAnalysis {
+                    overall_level: analysis.overall_level.map(|l| match l {
+                        risk_analyzer::RiskLevel::Low => crate::types::RiskLevel::Low,
+                        risk_analyzer::RiskLevel::Medium => crate::types::RiskLevel::Medium,
+                        risk_analyzer::RiskLevel::High => crate::types::RiskLevel::High,
+                    }),
+                    detected_risks: analysis.detected_risks.into_iter().map(|r| {
+                        crate::types::DetectedRisk {
+                            category: r.category,
+                            description: r.description,
+                            level: match r.level {
+                                risk_analyzer::RiskLevel::Low => crate::types::RiskLevel::Low,
+                                risk_analyzer::RiskLevel::Medium => crate::types::RiskLevel::Medium,
+                                risk_analyzer::RiskLevel::High => crate::types::RiskLevel::High,
+                            },
+                            line: r.line,
+                            pattern: r.pattern,
+                        }
+                    }).collect(),
+                    is_executable_code: analysis.is_executable_code,
+                    file_extension: analysis.file_extension,
+                })
+            } else {
+                None
+            }
+        }
+        Err(_) => None,
+    };
 
     Skill {
         hash,
@@ -100,6 +137,7 @@ pub fn create_skill_from_file(
         parameters: metadata.parameters,
         is_downloaded,
         is_quarantined: false,
+        risk_analysis,
         created_at: now.clone(),
         updated_at: now,
     }

@@ -602,11 +602,48 @@ pub async fn preview_skill_from_url(url: String) -> Result<SkillPreview, String>
     let metadata = crate::scanner::parse_front_matter(&content)
         .ok_or("Failed to parse skill metadata. Make sure the file has valid YAML front matter.")?;
 
+    // Perform risk analysis based on URL extension
+    let extension = url.rsplit('.').next();
+    let risk_analysis = analyze_content_risk(&content, extension);
+
     Ok(SkillPreview {
         metadata,
         content,
         source_url: url,
+        risk_analysis,
     })
+}
+
+/// Helper function to analyze content risk
+fn analyze_content_risk(content: &str, extension: Option<&str>) -> Option<crate::types::RiskAnalysis> {
+    let analysis = crate::scanner::analyze_content(content, extension);
+    
+    if analysis.is_executable_code || !analysis.detected_risks.is_empty() {
+        Some(crate::types::RiskAnalysis {
+            overall_level: analysis.overall_level.map(|l| match l {
+                crate::scanner::RiskLevel::Low => crate::types::RiskLevel::Low,
+                crate::scanner::RiskLevel::Medium => crate::types::RiskLevel::Medium,
+                crate::scanner::RiskLevel::High => crate::types::RiskLevel::High,
+            }),
+            detected_risks: analysis.detected_risks.into_iter().map(|r| {
+                crate::types::DetectedRisk {
+                    category: r.category,
+                    description: r.description,
+                    level: match r.level {
+                        crate::scanner::RiskLevel::Low => crate::types::RiskLevel::Low,
+                        crate::scanner::RiskLevel::Medium => crate::types::RiskLevel::Medium,
+                        crate::scanner::RiskLevel::High => crate::types::RiskLevel::High,
+                    },
+                    line: r.line,
+                    pattern: r.pattern,
+                }
+            }).collect(),
+            is_executable_code: analysis.is_executable_code,
+            file_extension: analysis.file_extension,
+        })
+    } else {
+        None
+    }
 }
 
 /// Import skill from URL to library
@@ -667,6 +704,9 @@ pub struct SkillPreview {
     pub metadata: SkillMetadata,
     pub content: String,
     pub source_url: String,
+    /// Risk analysis for the content
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub risk_analysis: Option<crate::types::RiskAnalysis>,
 }
 
 /// Export configuration for Claude Desktop
@@ -1144,10 +1184,15 @@ pub async fn preview_github_skill(
         owner, repo, branch, path
     );
     
+    // Perform risk analysis based on file extension
+    let extension = path.rsplit('.').next();
+    let risk_analysis = analyze_content_risk(&content, extension);
+    
     Ok(SkillPreview {
         metadata,
         content,
         source_url,
+        risk_analysis,
     })
 }
 

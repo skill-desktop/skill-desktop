@@ -298,5 +298,25 @@
     "es": "Español",
     "pt": "Português",
     "ru": "Русский"
+  },
+  "riskCategory": {
+    "file_delete": "File/Directory Deletion",
+    "shell_exec": "Shell Command Execution",
+    "privilege_escalation": "Privilege Escalation",
+    "network_upload": "Network Upload",
+    "network_download": "Network Download",
+    "file_write": "File Write",
+    "environment_access": "Environment Variable Access",
+    "file_read": "File Read",
+    "system_info": "System Information Access"
+  },
+  "riskAnalysis": {
+    "title": "Code Risk Analysis",
+    "executableCode": "Executable Code Detected",
+    "detectedRisks": "Detected Risks",
+    "noRisks": "No risks detected",
+    "lineNumber": "Line {{line}}",
+    "overallRisk": "Overall Risk Level",
+    "codeWarning": "This skill contains executable code. Review the detected risks carefully before enabling."
   }
 }

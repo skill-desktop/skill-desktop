@@ -298,5 +298,25 @@
     "es": "Español",
     "pt": "Português",
     "ru": "Русский"
+  },
+  "riskCategory": {
+    "file_delete": "文件/目录删除",
+    "shell_exec": "Shell 命令执行",
+    "privilege_escalation": "权限提升",
+    "network_upload": "网络上传",
+    "network_download": "网络下载",
+    "file_write": "文件写入",
+    "environment_access": "环境变量访问",
+    "file_read": "文件读取",
+    "system_info": "系统信息访问"
+  },
+  "riskAnalysis": {
+    "title": "代码风险分析",
+    "executableCode": "检测到可执行代码",
+    "detectedRisks": "检测到的风险",
+    "noRisks": "未检测到风险",
+    "lineNumber": "第 {{line}} 行",
+    "overallRisk": "整体风险等级",
+    "codeWarning": "此技能包含可执行代码。请在启用前仔细审查检测到的风险。"
   }
 }

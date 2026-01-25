@@ -11,6 +11,45 @@ pub struct Parameter {
     pub default: Option<serde_json::Value>,
 }
 
+/// Risk level for detected patterns
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum RiskLevel {
+    Low,
+    Medium,
+    High,
+}
+
+/// A detected risk pattern in code
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DetectedRisk {
+    /// Risk category (e.g., "file_delete", "network_upload", etc.)
+    pub category: String,
+    /// Human-readable description
+    pub description: String,
+    /// Risk level
+    pub level: RiskLevel,
+    /// Line number where detected (1-based)
+    pub line: Option<usize>,
+    /// The matched pattern/code snippet
+    pub pattern: String,
+}
+
+/// Result of risk analysis for a skill
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RiskAnalysis {
+    /// Overall risk level (highest of all detected risks)
+    pub overall_level: Option<RiskLevel>,
+    /// List of detected risks
+    pub detected_risks: Vec<DetectedRisk>,
+    /// Whether the file contains executable code
+    pub is_executable_code: bool,
+    /// File extension
+    pub file_extension: Option<String>,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Skill {
@@ -35,6 +74,9 @@ pub struct Skill {
     /// Whether this skill is quarantined (unstable/sensitive)
     #[serde(default)]
     pub is_quarantined: bool,
+    /// Risk analysis result from code scanning
+    #[serde(default)]
+    pub risk_analysis: Option<RiskAnalysis>,
     pub created_at: String,
     pub updated_at: String,
 }

@@ -1,6 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import type { Skill } from "@/types";
+import type { Skill, RiskAnalysis } from "@/types";
 import { skillKeys } from "./useSkills";
 
 // ========== Types ==========
@@ -22,6 +22,8 @@ export interface SkillPreview {
   };
   content: string;
   sourceUrl: string;
+  /** Risk analysis result from code scanning */
+  riskAnalysis?: RiskAnalysis;
 }
 
 export interface GitHubFileEntry {

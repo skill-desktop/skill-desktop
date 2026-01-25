@@ -298,5 +298,25 @@
     "es": "Español",
     "pt": "Português",
     "ru": "Русский"
+  },
+  "riskCategory": {
+    "file_delete": "Suppression de fichier/répertoire",
+    "shell_exec": "Exécution de commande shell",
+    "privilege_escalation": "Élévation de privilèges",
+    "network_upload": "Téléversement réseau",
+    "network_download": "Téléchargement réseau",
+    "file_write": "Écriture de fichier",
+    "environment_access": "Accès aux variables d'environnement",
+    "file_read": "Lecture de fichier",
+    "system_info": "Accès aux informations système"
+  },
+  "riskAnalysis": {
+    "title": "Analyse des risques du code",
+    "executableCode": "Code exécutable détecté",
+    "detectedRisks": "Risques détectés",
+    "noRisks": "Aucun risque détecté",
+    "lineNumber": "Ligne {{line}}",
+    "overallRisk": "Niveau de risque global",
+    "codeWarning": "Ce skill contient du code exécutable. Examinez attentivement les risques détectés avant de l'activer."
   }
 }

@@ -298,5 +298,25 @@
     "es": "Español",
     "pt": "Português",
     "ru": "Русский"
+  },
+  "riskCategory": {
+    "file_delete": "ファイル/ディレクトリの削除",
+    "shell_exec": "シェルコマンドの実行",
+    "privilege_escalation": "権限昇格",
+    "network_upload": "ネットワークアップロード",
+    "network_download": "ネットワークダウンロード",
+    "file_write": "ファイル書き込み",
+    "environment_access": "環境変数アクセス",
+    "file_read": "ファイル読み取り",
+    "system_info": "システム情報アクセス"
+  },
+  "riskAnalysis": {
+    "title": "コードリスク分析",
+    "executableCode": "実行可能コードを検出",
+    "detectedRisks": "検出されたリスク",
+    "noRisks": "リスクは検出されませんでした",
+    "lineNumber": "{{line}}行目",
+    "overallRisk": "全体的なリスクレベル",
+    "codeWarning": "このスキルには実行可能コードが含まれています。有効にする前に検出されたリスクを慎重に確認してください。"
   }
 }
