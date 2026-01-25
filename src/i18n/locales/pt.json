@@ -262,6 +262,7 @@
       "title": "Configurações da biblioteca",
       "directory": "Diretório da biblioteca",
       "directoryDesc": "Local onde suas skills são armazenadas",
+      "useDefault": "Usar padrão: {{path}}",
       "rescan": "Reescanear",
       "rescanDesc": "Reescanear manualmente o diretório da biblioteca",
       "rescanNow": "Escanear agora",

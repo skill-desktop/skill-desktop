@@ -18,7 +18,6 @@
 ### 1.2 设计参考
 
 - VS Code 侧边栏风格
-- Docker Desktop 管理界面
 - Raycast 搜索交互
 - Linear 的简洁美学
 
@@ -792,7 +791,6 @@ ON 状态:   ──────●      (蓝色背景)
 ### 13.2 参考应用
 
 - VS Code
-- Docker Desktop
 - Raycast
 - Linear
 - GitHub Desktop

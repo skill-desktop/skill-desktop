@@ -262,6 +262,7 @@
       "title": "技能庫設定",
       "directory": "技能庫目錄",
       "directoryDesc": "技能檔案的儲存位置",
+      "useDefault": "使用預設路徑：{{path}}",
       "rescan": "重新掃描",
       "rescanDesc": "手動重新掃描技能庫目錄的變更",
       "rescanNow": "立即掃描",

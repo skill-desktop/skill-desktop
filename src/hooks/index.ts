@@ -24,7 +24,10 @@ export {
 export {
   useLibraryPath,
   useSetLibraryPath,
+  useDefaultPaths,
+  useEnsureDefaultSkillPath,
   libraryKeys,
+  type DefaultPaths,
 } from "./useLibrary";
 
 // Space hooks

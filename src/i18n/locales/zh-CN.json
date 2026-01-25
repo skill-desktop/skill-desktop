@@ -287,6 +287,7 @@
       "title": "技能库设置",
       "directory": "技能库目录",
       "directoryDesc": "技能文件的存储位置",
+      "useDefault": "使用默认路径：{{path}}",
       "rescan": "重新扫描",
       "rescanDesc": "手动重新扫描技能库目录的变更",
       "rescanNow": "立即扫描",

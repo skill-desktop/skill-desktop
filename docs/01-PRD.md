@@ -12,7 +12,7 @@
 
 **Skill Desktop** 是一款面向 Agent 开发者的桌面端基础设施，旨在将零散的 Agent 技能（Skills/Tools）转化为可管理、可调试、可分发的标准资产。
 
-**一句话定义**：Agent 时代的 **Docker Desktop + VSCode Extension Manager**。
+**一句话定义**：Agent 时代的专业能力管理平台。
 
 ### 1.2 核心理念
 

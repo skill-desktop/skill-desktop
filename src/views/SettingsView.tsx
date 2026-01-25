@@ -21,6 +21,8 @@ import {
   useLibraryPath,
   useRescanLibrary,
   useUpdateAppSetting,
+  useDefaultPaths,
+  useEnsureDefaultSkillPath,
 } from "@/hooks";
 import type { SupportedLanguage } from "@/i18n";
 import { LLMSettingsPanel } from "@/components/settings/LLMSettingsPanel";
@@ -96,6 +98,8 @@ export const SettingsView: React.FC = () => {
   const setLibraryPathMutation = useSetLibraryPath();
   const rescanMutation = useRescanLibrary();
   const updateAppSettingMutation = useUpdateAppSetting();
+  const { data: defaultPaths } = useDefaultPaths();
+  const ensureDefaultPathMutation = useEnsureDefaultSkillPath();
 
   // Sync local state with backend on mount
   React.useEffect(() => {
@@ -123,6 +127,17 @@ export const SettingsView: React.FC = () => {
   // Handle manual path input
   const handlePathChange = async (path: string) => {
     setLibraryPath(path);
+  };
+
+  // Handle use default path
+  const handleUseDefaultPath = async () => {
+    try {
+      const path = await ensureDefaultPathMutation.mutateAsync();
+      setLibraryPath(path);
+      await setLibraryPathMutation.mutateAsync(path);
+    } catch (error) {
+      console.error("Failed to set default path:", error);
+    }
   };
 
   // Handle path blur (save to backend)
@@ -217,26 +232,42 @@ export const SettingsView: React.FC = () => {
               label={t("settings.library.directory")}
               description={t("settings.library.directoryDesc")}
             >
-              <div className="flex items-center gap-2">
-                <Input
-                  value={libraryPath}
-                  onChange={(e) => handlePathChange(e.target.value)}
-                  onBlur={handlePathBlur}
-                  placeholder="~/SkillLibrary"
-                  className="w-80"
-                />
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  onClick={handleSelectFolder}
-                  disabled={setLibraryPathMutation.isPending}
-                >
-                  {setLibraryPathMutation.isPending ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <FolderOpen className="h-4 w-4" />
-                  )}
-                </Button>
+              <div className="flex flex-col gap-2">
+                <div className="flex items-center gap-2">
+                  <Input
+                    value={libraryPath}
+                    onChange={(e) => handlePathChange(e.target.value)}
+                    onBlur={handlePathBlur}
+                    placeholder={defaultPaths?.skillLibraryPath || "~/SkillLibrary"}
+                    className="w-80"
+                  />
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={handleSelectFolder}
+                    disabled={setLibraryPathMutation.isPending}
+                  >
+                    {setLibraryPathMutation.isPending ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <FolderOpen className="h-4 w-4" />
+                    )}
+                  </Button>
+                </div>
+                {!libraryPath && defaultPaths && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleUseDefaultPath}
+                    disabled={ensureDefaultPathMutation.isPending}
+                    className="text-xs text-text-muted hover:text-accent-blue self-start"
+                  >
+                    {ensureDefaultPathMutation.isPending ? (
+                      <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                    ) : null}
+                    {t("settings.library.useDefault", { path: defaultPaths.skillLibraryPath })}
+                  </Button>
+                )}
               </div>
             </SettingRow>
 

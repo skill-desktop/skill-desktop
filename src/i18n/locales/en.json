@@ -287,6 +287,7 @@
       "title": "Library Settings",
       "directory": "Library Directory",
       "directoryDesc": "Location where your skills are stored",
+      "useDefault": "Use default: {{path}}",
       "rescan": "Rescan Library",
       "rescanDesc": "Manually rescan the library directory for changes",
       "rescanNow": "Rescan Now",

@@ -5,7 +5,7 @@
 <h1 align="center">Skill Desktop</h1>
 
 <p align="center">
-  <strong>The Docker Desktop for AI Agent Skills</strong>
+  <strong>The AI Agent Skills Management Platform</strong>
 </p>
 
 <p align="center">
@@ -39,7 +39,7 @@ Building AI agents is exciting, but managing their skills (tools/capabilities) i
 
 ## The Solution
 
-**Skill Desktop** is a native desktop application that brings order to chaos. Think of it as **Docker Desktop + VS Code Extension Manager** for the AI agent era.
+**Skill Desktop** is a native desktop application that brings order to chaos. Think of it as a powerful platform for managing AI Agent capabilities.
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐

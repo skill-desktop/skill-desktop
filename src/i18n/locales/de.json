@@ -262,6 +262,7 @@
       "title": "Bibliothekseinstellungen",
       "directory": "Bibliotheksverzeichnis",
       "directoryDesc": "Speicherort Ihrer Skills",
+      "useDefault": "Standard verwenden: {{path}}",
       "rescan": "Neu scannen",
       "rescanDesc": "Bibliotheksverzeichnis manuell nach Änderungen durchsuchen",
       "rescanNow": "Jetzt scannen",

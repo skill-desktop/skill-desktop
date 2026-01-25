@@ -287,6 +287,7 @@
       "title": "ライブラリ設定",
       "directory": "ライブラリディレクトリ",
       "directoryDesc": "スキルの保存場所",
+      "useDefault": "デフォルトを使用: {{path}}",
       "rescan": "再スキャン",
       "rescanDesc": "ライブラリディレクトリの変更を手動で再スキャン",
       "rescanNow": "今すぐスキャン",

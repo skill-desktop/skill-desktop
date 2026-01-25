@@ -5,7 +5,7 @@
 <h1 align="center">Skill Desktop</h1>
 
 <p align="center">
-  <strong>AI Agent 技能管理的 Docker Desktop</strong>
+  <strong>AI Agent 技能管理平台</strong>
 </p>
 
 <p align="center">
@@ -39,7 +39,7 @@
 
 ## 解决方案
 
-**Skill Desktop** 是一款原生桌面应用，让混乱变得有序。可以把它想象成 AI Agent 时代的 **Docker Desktop + VS Code 扩展管理器**。
+**Skill Desktop** 是一款原生桌面应用，让混乱变得有序。可以把它想象成一个强大的 AI Agent 能力管理平台。
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐

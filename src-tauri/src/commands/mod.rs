@@ -8,6 +8,108 @@ use crate::space::{sync_space_links, SyncResult};
 use crate::types::{Skill, SkillMetadata, Space};
 use crate::{DatabaseState, WatcherState};
 
+// ========== Default Paths Command ==========
+
+/// Default paths for different platforms
+/// Following the conventions of Claude Code (~/.config/claude/), OpenCode (~/.config/opencode/), etc.
+#[derive(Debug, Clone, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DefaultPaths {
+    /// Default skill library path
+    pub skill_library_path: String,
+    /// Config directory path
+    pub config_path: String,
+    /// Data directory path
+    pub data_path: String,
+    /// Operating system name
+    pub os_name: String,
+}
+
+/// Get default paths based on the current operating system
+#[tauri::command]
+pub fn get_default_paths() -> Result<DefaultPaths, String> {
+    #[cfg(target_os = "windows")]
+    {
+        // Windows: %APPDATA%\skill-desktop\
+        let app_data = dirs::config_dir()
+            .ok_or_else(|| "Unable to determine AppData directory".to_string())?;
+        
+        let base_path = app_data.join("skill-desktop");
+        let skill_path = base_path.join("skills");
+        
+        Ok(DefaultPaths {
+            skill_library_path: skill_path.to_string_lossy().to_string(),
+            config_path: base_path.join("config").to_string_lossy().to_string(),
+            data_path: base_path.join("data").to_string_lossy().to_string(),
+            os_name: "windows".to_string(),
+        })
+    }
+    
+    #[cfg(target_os = "macos")]
+    {
+        // macOS: ~/.config/skill-desktop/ (following Claude Code, OpenCode conventions)
+        let home_dir = dirs::home_dir()
+            .ok_or_else(|| "Unable to determine home directory".to_string())?;
+        let config_base = home_dir.join(".config").join("skill-desktop");
+        let skill_path = config_base.join("skills");
+        
+        Ok(DefaultPaths {
+            skill_library_path: skill_path.to_string_lossy().to_string(),
+            config_path: config_base.join("config").to_string_lossy().to_string(),
+            data_path: config_base.join("data").to_string_lossy().to_string(),
+            os_name: "macos".to_string(),
+        })
+    }
+    
+    #[cfg(target_os = "linux")]
+    {
+        // Linux: ~/.config/skill-desktop/ (XDG Base Directory Specification)
+        let home_dir = dirs::home_dir()
+            .ok_or_else(|| "Unable to determine home directory".to_string())?;
+        let config_base = dirs::config_dir()
+            .unwrap_or_else(|| home_dir.join(".config"))
+            .join("skill-desktop");
+        let skill_path = config_base.join("skills");
+        
+        Ok(DefaultPaths {
+            skill_library_path: skill_path.to_string_lossy().to_string(),
+            config_path: config_base.join("config").to_string_lossy().to_string(),
+            data_path: config_base.join("data").to_string_lossy().to_string(),
+            os_name: "linux".to_string(),
+        })
+    }
+    
+    #[cfg(not(any(target_os = "windows", target_os = "macos", target_os = "linux")))]
+    {
+        // Fallback for other platforms
+        let home_dir = dirs::home_dir()
+            .ok_or_else(|| "Unable to determine home directory".to_string())?;
+        let config_base = home_dir.join(".config").join("skill-desktop");
+        let skill_path = config_base.join("skills");
+        
+        Ok(DefaultPaths {
+            skill_library_path: skill_path.to_string_lossy().to_string(),
+            config_path: config_base.join("config").to_string_lossy().to_string(),
+            data_path: config_base.join("data").to_string_lossy().to_string(),
+            os_name: "unknown".to_string(),
+        })
+    }
+}
+
+/// Ensure the default skill directory exists and return the path
+#[tauri::command]
+pub fn ensure_default_skill_path() -> Result<String, String> {
+    let paths = get_default_paths()?;
+    let skill_path = PathBuf::from(&paths.skill_library_path);
+    
+    if !skill_path.exists() {
+        std::fs::create_dir_all(&skill_path)
+            .map_err(|e| format!("Failed to create skill directory: {}", e))?;
+    }
+    
+    Ok(paths.skill_library_path)
+}
+
 /// State for library path
 pub struct LibraryState {
     pub path: std::sync::Mutex<Option<PathBuf>>,
