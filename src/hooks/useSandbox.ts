@@ -44,7 +44,7 @@ export function useSkillScripts(skillHash: string | null) {
     queryKey: sandboxKeys.scripts(skillHash || ""),
     queryFn: async () => {
       if (!skillHash) return [];
-      return await invoke<string[]>("get_skill_scripts", { skillHash });
+      return await invoke<string[]>("get_skill_scripts", { skill_hash: skillHash });
     },
     enabled: !!skillHash,
   });
@@ -67,10 +67,10 @@ export function useExecuteScript() {
       envVars?: Record<string, string>;
     }) => {
       return await invoke<ExecutionResult>("execute_skill_script", {
-        skillHash,
-        scriptPath,
+        skill_hash: skillHash,
+        script_path: scriptPath,
         args,
-        envVars,
+        env_vars: envVars,
       });
     },
   });

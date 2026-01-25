@@ -221,6 +221,7 @@ fn default_version() -> String {
 // ========== AI Coding Tools Configuration Types ==========
 
 /// Supported AI coding tools
+#[allow(dead_code)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum AIToolType {
