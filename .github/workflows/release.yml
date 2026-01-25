@@ -36,10 +36,18 @@ jobs:
             name: linux-intel
 
     runs-on: ${{ matrix.platform }}
-    
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+
+      - name: Get version from tag
+        id: get_version
+        shell: bash
+        run: |
+          VERSION=${GITHUB_REF_NAME#v}
+          echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+          echo "Version: $VERSION"
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -68,6 +76,22 @@ jobs:
         if: matrix.platform == 'windows-latest' && matrix.target == 'aarch64-pc-windows-msvc'
         run: |
           rustup target add aarch64-pc-windows-msvc
+
+      - name: Update version in config files
+        shell: bash
+        run: |
+          VERSION=${{ steps.get_version.outputs.VERSION }}
+          # Update package.json
+          if [[ "$RUNNER_OS" == "Windows" ]]; then
+            sed -i "s/\"version\": \"[^\"]*\"/\"version\": \"$VERSION\"/" package.json
+            sed -i "s/\"version\": \"[^\"]*\"/\"version\": \"$VERSION\"/" src-tauri/tauri.conf.json
+            sed -i "s/^version = \"[^\"]*\"/version = \"$VERSION\"/" src-tauri/Cargo.toml
+          else
+            sed -i '' "s/\"version\": \"[^\"]*\"/\"version\": \"$VERSION\"/" package.json
+            sed -i '' "s/\"version\": \"[^\"]*\"/\"version\": \"$VERSION\"/" src-tauri/tauri.conf.json
+            sed -i '' "s/^version = \"[^\"]*\"/version = \"$VERSION\"/" src-tauri/Cargo.toml
+          fi
+          echo "Updated version to $VERSION"
 
       - name: Setup pnpm cache
         uses: actions/cache@v4
@@ -102,19 +126,19 @@ jobs:
           tagName: ${{ github.ref_name }}
           releaseName: 'Skill Desktop ${{ github.ref_name }}'
           releaseBody: |
-            ## What's Changed
-            
-            See the [CHANGELOG](https://github.com/${{ github.repository }}/blob/main/CHANGELOG.md) for details.
-            
             ## Downloads
-            
+
             | Platform | Architecture | Download |
             |----------|--------------|----------|
-            | macOS | Intel (x64) | `.dmg` |
-            | macOS | Apple Silicon (ARM64) | `.dmg` |
-            | Windows | Intel (x64) | `.msi` / `.exe` |
-            | Windows | ARM64 | `.msi` / `.exe` |
-            | Linux | Intel (x64) | `.deb` / `.AppImage` |
+            | macOS | Apple Silicon (ARM64) | [Skill.Desktop_${{ steps.get_version.outputs.VERSION }}_aarch64.dmg](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/Skill.Desktop_${{ steps.get_version.outputs.VERSION }}_aarch64.dmg) |
+            | macOS | Intel (x64) | [Skill.Desktop_${{ steps.get_version.outputs.VERSION }}_x64.dmg](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/Skill.Desktop_${{ steps.get_version.outputs.VERSION }}_x64.dmg) |
+            | Windows | Intel (x64) | [Skill.Desktop_${{ steps.get_version.outputs.VERSION }}_x64-setup.exe](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/Skill.Desktop_${{ steps.get_version.outputs.VERSION }}_x64-setup.exe) |
+            | Windows | ARM64 | [Skill.Desktop_${{ steps.get_version.outputs.VERSION }}_arm64-setup.exe](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/Skill.Desktop_${{ steps.get_version.outputs.VERSION }}_arm64-setup.exe) |
+            | Linux | Intel (x64) | [skill-desktop_${{ steps.get_version.outputs.VERSION }}_amd64.deb](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/skill-desktop_${{ steps.get_version.outputs.VERSION }}_amd64.deb) / [skill-desktop_${{ steps.get_version.outputs.VERSION }}_amd64.AppImage](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/skill-desktop_${{ steps.get_version.outputs.VERSION }}_amd64.AppImage) |
+
+            ## What's Changed
+
+            See the [CHANGELOG](https://github.com/${{ github.repository }}/blob/main/CHANGELOG.md) for details.
           releaseDraft: true
           prerelease: false
           args: --target ${{ matrix.target }}
