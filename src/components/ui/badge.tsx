@@ -9,6 +9,7 @@ const badgeVariants = cva(
       variant: {
         default: "bg-bg-tertiary text-text-primary",
         secondary: "bg-bg-elevated text-text-secondary",
+        outline: "border border-border-default text-text-secondary bg-transparent",
         low: "bg-permission-low/15 text-permission-low border border-permission-low/50",
         medium: "bg-permission-medium/15 text-permission-medium border border-permission-medium/50",
         high: "bg-permission-high/15 text-permission-high border border-permission-high/50",

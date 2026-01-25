@@ -3,10 +3,7 @@ import { useTranslation } from "react-i18next";
 import Editor, { OnMount } from "@monaco-editor/react";
 import { 
   Dialog, 
-  DialogContent, 
-  DialogHeader, 
-  DialogTitle, 
-  DialogFooter 
+  DialogContent
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";

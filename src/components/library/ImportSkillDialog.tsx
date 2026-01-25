@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Badge } from "@/components/ui/badge";
 import {
   usePreviewSkillFromUrl,
   useImportSkillFromUrl,
@@ -27,7 +28,6 @@ import {
 } from "@/hooks";
 import { useSettingsStore } from "@/stores";
 import {
-  SourceButton,
   UrlImportPanel,
   GitHubImportPanel,
   McpImportPanel,
@@ -516,10 +516,18 @@ export function ImportSkillDialog({ open, onOpenChange }: ImportSkillDialogProps
     }
   }, [importedIds, importingIds, handleImportExample]);
 
+  const sources = [
+    { id: "examples", icon: BookOpen, label: t("library.exampleSkills") },
+    { id: "url", icon: Link, label: t("hub.source.url") },
+    { id: "github", icon: Github, label: t("hub.source.github") },
+    { id: "mcp", icon: Server, label: t("hub.source.mcp") },
+    { id: "registry", icon: Globe, label: t("hub.source.registry") },
+  ] as const;
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[900px] h-[600px] flex flex-col p-0">
-        <DialogHeader className="px-6 pt-6 pb-4 border-b border-border-default">
+      <DialogContent className="sm:max-w-[900px] h-[600px] flex flex-col p-0 gap-0 overflow-hidden">
+        <DialogHeader className="px-6 py-4 border-b border-border-default bg-bg-secondary/50">
           <DialogTitle>{t("hub.title")}</DialogTitle>
           <DialogDescription>
             {t("hub.warnings.verifySource")}
@@ -527,226 +535,209 @@ export function ImportSkillDialog({ open, onOpenChange }: ImportSkillDialogProps
         </DialogHeader>
 
         <div className="flex flex-1 overflow-hidden">
-          {/* Left panel - Source selection and import options */}
-          <div className="w-[360px] border-r border-border-default bg-bg-secondary flex flex-col">
-            {/* Source selection */}
-            <div className="grid grid-cols-5 gap-1.5 p-3 border-b border-border-default">
-              <SourceButton
-                icon={<BookOpen className="h-4 w-4" />}
-                label={t("library.exampleSkills")}
-                description={t("exampleSkills.description")}
-                selected={importSource === "examples"}
-                onClick={() => setImportSource("examples")}
-              />
-              <SourceButton
-                icon={<Link className="h-4 w-4" />}
-                label={t("hub.source.url")}
-                description={t("hub.source.urlDesc")}
-                selected={importSource === "url"}
-                onClick={() => setImportSource("url")}
-              />
-              <SourceButton
-                icon={<Github className="h-4 w-4" />}
-                label={t("hub.source.github")}
-                description={t("hub.source.githubDesc")}
-                selected={importSource === "github"}
-                onClick={() => setImportSource("github")}
-              />
-              <SourceButton
-                icon={<Server className="h-4 w-4" />}
-                label={t("hub.source.mcp")}
-                description={t("hub.source.mcpDesc")}
-                selected={importSource === "mcp"}
-                onClick={() => setImportSource("mcp")}
-              />
-              <SourceButton
-                icon={<Globe className="h-4 w-4" />}
-                label={t("hub.source.registry")}
-                description={t("hub.source.registryDesc")}
-                selected={importSource === "registry"}
-                onClick={() => setImportSource("registry")}
-              />
-            </div>
-
-            {/* Import content based on source */}
-            <ScrollArea className="flex-1 p-3">
-              {/* Example skills */}
-              {importSource === "examples" && (
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between text-xs text-text-muted mb-3">
-                    <a
-                      href="https://github.com/anthropics/skills"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center gap-1 hover:text-text-primary"
-                    >
-                      anthropics/skills
-                      <ExternalLink className="w-3 h-3" />
-                    </a>
-                    <span>{importedIds.size}/{EXAMPLE_SKILLS.length}</span>
-                  </div>
-                  
-                  {EXAMPLE_SKILLS.map((skill) => {
-                    const isImporting = importingIds.has(skill.id);
-                    const isImported = importedIds.has(skill.id);
-                    const error = exampleErrors[skill.id];
-
-                    return (
-                      <div
-                        key={skill.id}
-                        className={`flex items-start gap-2 p-2 rounded-md border transition-colors ${
-                          isImported
-                            ? "bg-accent-green/10 border-accent-green/30"
-                            : "bg-bg-tertiary border-border-muted hover:border-border-default"
-                        }`}
-                      >
-                        <div className={`p-1.5 rounded ${
-                          isImported 
-                            ? "bg-accent-green/20 text-accent-green"
-                            : "bg-bg-elevated text-text-muted"
-                        }`}>
-                          {isImported ? <Check className="w-4 h-4" /> : skill.icon}
-                        </div>
-                        
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-1.5">
-                            <span className="text-xs font-medium text-text-primary truncate">{skill.name}</span>
-                            <span className="text-[10px] px-1 py-0.5 rounded bg-bg-elevated text-text-muted">
-                              {skill.license}
-                            </span>
-                          </div>
-                          <p className="text-[11px] text-text-muted mt-0.5 line-clamp-1">
-                            {skill.description}
-                          </p>
-                          {error && (
-                            <div className="flex items-center gap-1 mt-1 text-[10px] text-accent-red">
-                              <AlertCircle className="w-3 h-3" />
-                              {error}
-                            </div>
-                          )}
-                        </div>
-
-                        <Button
-                          size="sm"
-                          variant={isImported ? "ghost" : "secondary"}
-                          disabled={isImporting || isImported}
-                          onClick={() => handleImportExample(skill)}
-                          className="h-7 px-2 text-xs shrink-0"
-                        >
-                          {isImporting ? (
-                            <Loader2 className="w-3 h-3 animate-spin" />
-                          ) : isImported ? (
-                            <Check className="w-3 h-3" />
-                          ) : (
-                            t("common.import")
-                          )}
-                        </Button>
-                      </div>
-                    );
-                  })}
-
+          {/* 1. Source Sidebar */}
+          <div className="w-[200px] border-r border-border-default bg-bg-secondary flex flex-col">
+            <div className="p-2 space-y-1">
+              {sources.map((source) => {
+                const Icon = source.icon;
+                const isActive = importSource === source.id;
+                return (
                   <Button
-                    className="w-full mt-3"
-                    onClick={handleImportAllExamples}
-                    disabled={importedIds.size === EXAMPLE_SKILLS.length || importingIds.size > 0}
+                    key={source.id}
+                    variant={isActive ? "secondary" : "ghost"}
+                    className={`w-full justify-start gap-3 h-10 ${isActive ? "bg-bg-tertiary shadow-sm" : "hover:bg-bg-tertiary/50"}`}
+                    onClick={() => setImportSource(source.id)}
                   >
-                    {importingIds.size > 0 ? (
-                      <>
-                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                        {t("exampleSkills.importing")}
-                      </>
-                    ) : (
-                      t("exampleSkills.importAll")
-                    )}
+                    <Icon className={`w-4 h-4 ${isActive ? "text-primary" : "text-text-muted"}`} />
+                    <span className={isActive ? "text-text-primary font-medium" : "text-text-secondary"}>
+                      {source.label}
+                    </span>
                   </Button>
-                </div>
-              )}
+                );
+              })}
+            </div>
+          </div>
 
-              {/* URL import */}
-              {importSource === "url" && (
-                <UrlImportPanel
-                  url={url}
-                  onUrlChange={setUrl}
-                  libraryPath={libraryPath}
-                  isPending={previewMutation.isPending}
-                  isError={previewMutation.isError}
-                  error={previewMutation.error}
-                  onPreview={handlePreview}
-                />
-              )}
+          {/* 2. Configuration Area */}
+          <div className="w-[340px] border-r border-border-default flex flex-col bg-bg-primary">
+            <ScrollArea className="flex-1">
+              <div className="p-4">
+                {importSource === "examples" && (
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-sm font-medium">{t("library.exampleSkills")}</h3>
+                      <a
+                        href="https://github.com/anthropics/skills"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-xs text-text-muted hover:text-text-primary flex items-center gap-1"
+                      >
+                        anthropics/skills
+                        <ExternalLink className="w-3 h-3" />
+                      </a>
+                    </div>
+                    
+                    <div className="space-y-2">
+                      {EXAMPLE_SKILLS.map((skill) => {
+                        const isImporting = importingIds.has(skill.id);
+                        const isImported = importedIds.has(skill.id);
+                        const error = exampleErrors[skill.id];
 
-              {/* GitHub import */}
-              {importSource === "github" && (
-                <GitHubImportPanel
-                  githubUrl={githubUrl}
-                  onGithubUrlChange={setGithubUrl}
-                  libraryPath={libraryPath}
-                  onConnect={handleGithubConnect}
-                  browsingEnabled={browsingEnabled}
-                  githubOwner={githubOwner}
-                  githubRepo={githubRepo}
-                  githubPath={githubPath}
-                  pathHistory={pathHistory}
-                  onNavigateBack={handleNavigateBack}
-                  onNavigateToPath={handleNavigateToPath}
-                  githubFiles={githubFiles}
-                  isLoadingGithub={isLoadingGithub}
-                  githubError={githubError}
-                  selectedFiles={selectedFiles}
-                  onToggleFileSelection={handleToggleFileSelection}
-                  onPreviewFile={handlePreviewGithubFile}
-                  onImportSelected={handleImportSelectedFiles}
-                  onImportDirectory={handleImportDirectory}
-                  isImportingFiles={importGithubMutation.isPending}
-                  isImportingDirectory={importDirectoryMutation.isPending}
-                  importDirectoryResult={importDirectoryMutation.isSuccess ? importDirectoryMutation.data : null}
-                />
-              )}
+                        return (
+                          <div
+                            key={skill.id}
+                            className={`group relative rounded-lg border p-3 transition-all ${
+                              isImported
+                                ? "bg-accent-green/5 border-accent-green/20"
+                                : "bg-bg-secondary/50 border-border-muted hover:border-border-default hover:bg-bg-secondary"
+                            }`}
+                          >
+                            <div className="flex items-start gap-3">
+                              <div className={`p-2 rounded-md ${
+                                isImported 
+                                  ? "bg-accent-green/10 text-accent-green"
+                                  : "bg-bg-elevated text-text-muted"
+                              }`}>
+                                {isImported ? <Check className="w-4 h-4" /> : skill.icon}
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2 mb-1">
+                                  <span className="text-sm font-medium truncate">{skill.name}</span>
+                                  <Badge variant="outline" className="text-[10px] h-4 px-1 py-0">{skill.license}</Badge>
+                                </div>
+                                <p className="text-xs text-text-muted line-clamp-2 leading-relaxed">
+                                  {skill.description}
+                                </p>
+                              </div>
+                            </div>
+                            
+                            <div className="mt-3 flex items-center justify-end gap-2">
+                              {error && (
+                                <span className="text-[10px] text-destructive flex items-center gap-1">
+                                  <AlertCircle className="w-3 h-3" />
+                                  Import failed
+                                </span>
+                              )}
+                              <Button
+                                size="sm"
+                                variant={isImported ? "outline" : "default"}
+                                className={`h-7 text-xs ${isImported ? "text-accent-green border-accent-green/30 hover:bg-accent-green/5" : ""}`}
+                                onClick={() => handleImportExample(skill)}
+                                disabled={isImporting || isImported}
+                              >
+                                {isImporting ? (
+                                  <Loader2 className="w-3 h-3 animate-spin mr-1" />
+                                ) : isImported ? (
+                                  <Check className="w-3 h-3 mr-1" />
+                                ) : null}
+                                {isImporting ? "Importing..." : isImported ? "Imported" : "Import"}
+                              </Button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
 
-              {/* MCP import */}
-              {importSource === "mcp" && (
-                <McpImportPanel
-                  mcpUrl={mcpUrl}
-                  onMcpUrlChange={setMcpUrl}
-                  libraryPath={libraryPath}
-                  onConnect={handleConnectMcp}
-                  isConnecting={connectMcpMutation.isPending}
-                  connectError={connectMcpMutation.error}
-                  mcpConnected={mcpConnected}
-                  mcpTools={mcpTools}
-                  selectedMcpTools={selectedMcpTools}
-                  onToggleToolSelection={handleToggleMcpToolSelection}
-                  onPreviewTool={handlePreviewMcpTool}
-                  onImportSelected={handleImportSelectedMcpTools}
-                  isImporting={importMcpToolMutation.isPending}
-                />
-              )}
+                    <Button
+                      className="w-full"
+                      variant="secondary"
+                      onClick={handleImportAllExamples}
+                      disabled={importedIds.size === EXAMPLE_SKILLS.length || importingIds.size > 0}
+                    >
+                      {importingIds.size > 0 ? (
+                        <>
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                          {t("exampleSkills.importing")}
+                        </>
+                      ) : (
+                        t("exampleSkills.importAll")
+                      )}
+                    </Button>
+                  </div>
+                )}
 
-              {/* Registry import */}
-              {importSource === "registry" && (
-                <RegistryImportPanel
-                  libraryPath={libraryPath}
-                  selectedRegistry={selectedRegistry}
-                  onRegistryChange={setSelectedRegistry}
-                  registrySearch={registrySearch}
-                  onSearchChange={setRegistrySearch}
-                  registryServers={registryServers}
-                  isLoadingFeatured={isLoadingFeatured}
-                  isSearching={isSearching}
-                  selectedRegistryEntries={selectedRegistryEntries}
-                  onToggleSelection={handleToggleRegistrySelection}
-                  onPreviewEntry={handlePreviewRegistryEntry}
-                  onImportSelected={handleImportSelectedRegistryEntries}
-                  isImporting={importRegistryMutation.isPending}
-                  importError={importRegistryMutation.error}
-                />
-              )}
+                {importSource === "url" && (
+                  <UrlImportPanel
+                    url={url}
+                    onUrlChange={setUrl}
+                    libraryPath={libraryPath}
+                    isPending={previewMutation.isPending}
+                    isError={previewMutation.isError}
+                    error={previewMutation.error}
+                    onPreview={handlePreview}
+                  />
+                )}
+
+                {importSource === "github" && (
+                  <GitHubImportPanel
+                    githubUrl={githubUrl}
+                    onGithubUrlChange={setGithubUrl}
+                    libraryPath={libraryPath}
+                    onConnect={handleGithubConnect}
+                    browsingEnabled={browsingEnabled}
+                    githubOwner={githubOwner}
+                    githubRepo={githubRepo}
+                    githubPath={githubPath}
+                    pathHistory={pathHistory}
+                    onNavigateBack={handleNavigateBack}
+                    onNavigateToPath={handleNavigateToPath}
+                    githubFiles={githubFiles}
+                    isLoadingGithub={isLoadingGithub}
+                    githubError={githubError}
+                    selectedFiles={selectedFiles}
+                    onToggleFileSelection={handleToggleFileSelection}
+                    onPreviewFile={handlePreviewGithubFile}
+                    onImportSelected={handleImportSelectedFiles}
+                    onImportDirectory={handleImportDirectory}
+                    isImportingFiles={importGithubMutation.isPending}
+                    isImportingDirectory={importDirectoryMutation.isPending}
+                    importDirectoryResult={importDirectoryMutation.isSuccess ? importDirectoryMutation.data : null}
+                  />
+                )}
+
+                {importSource === "mcp" && (
+                  <McpImportPanel
+                    mcpUrl={mcpUrl}
+                    onMcpUrlChange={setMcpUrl}
+                    libraryPath={libraryPath}
+                    onConnect={handleConnectMcp}
+                    isConnecting={connectMcpMutation.isPending}
+                    connectError={connectMcpMutation.error}
+                    mcpConnected={mcpConnected}
+                    mcpTools={mcpTools}
+                    selectedMcpTools={selectedMcpTools}
+                    onToggleToolSelection={handleToggleMcpToolSelection}
+                    onPreviewTool={handlePreviewMcpTool}
+                    onImportSelected={handleImportSelectedMcpTools}
+                    isImporting={importMcpToolMutation.isPending}
+                  />
+                )}
+
+                {importSource === "registry" && (
+                  <RegistryImportPanel
+                    libraryPath={libraryPath}
+                    selectedRegistry={selectedRegistry}
+                    onRegistryChange={setSelectedRegistry}
+                    registrySearch={registrySearch}
+                    onSearchChange={setRegistrySearch}
+                    registryServers={registryServers}
+                    isLoadingFeatured={isLoadingFeatured}
+                    isSearching={isSearching}
+                    selectedRegistryEntries={selectedRegistryEntries}
+                    onToggleSelection={handleToggleRegistrySelection}
+                    onPreviewEntry={handlePreviewRegistryEntry}
+                    onImportSelected={handleImportSelectedRegistryEntries}
+                    isImporting={importRegistryMutation.isPending}
+                    importError={importRegistryMutation.error}
+                  />
+                )}
+              </div>
             </ScrollArea>
           </div>
 
-          {/* Right panel - Preview */}
-          <div className="flex-1 p-4 overflow-auto">
-            {importSource !== "examples" && (
+          {/* 3. Preview Area */}
+          <div className="flex-1 flex flex-col bg-bg-tertiary/30 overflow-hidden">
+            {importSource !== "examples" ? (
               <SkillPreviewPanel
                 preview={preview}
                 onClearPreview={clearPreview}
@@ -755,11 +746,15 @@ export function ImportSkillDialog({ open, onOpenChange }: ImportSkillDialogProps
                 importError={registryPreview ? importRegistryMutation.error : importMutation.error}
                 onImport={registryPreview ? handleImportRegistryEntry : handleImport}
               />
-            )}
-            {importSource === "examples" && !preview && (
-              <div className="flex flex-col items-center justify-center h-full text-center text-text-muted">
-                <BookOpen className="h-12 w-12 mb-4 opacity-50" />
-                <p className="text-sm">{t("exampleSkills.description")}</p>
+            ) : (
+              <div className="flex flex-col items-center justify-center h-full text-center text-text-muted p-8">
+                <div className="w-16 h-16 rounded-2xl bg-bg-elevated flex items-center justify-center mb-4">
+                  <BookOpen className="h-8 w-8 opacity-50" />
+                </div>
+                <h3 className="text-lg font-medium text-text-primary mb-2">Example Skills</h3>
+                <p className="text-sm max-w-[280px]">
+                  Select an example skill from the list to preview its details and import it into your library.
+                </p>
               </div>
             )}
           </div>

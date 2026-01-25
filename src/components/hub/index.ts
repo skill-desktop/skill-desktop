@@ -1,5 +1,4 @@
 export * from "./types";
-export { SourceButton } from "./SourceButton";
 export { UrlImportPanel } from "./UrlImportPanel";
 export { GitHubImportPanel } from "./GitHubImportPanel";
 export { McpImportPanel } from "./McpImportPanel";

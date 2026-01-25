@@ -3,9 +3,9 @@ import { useTranslation } from "react-i18next";
 import { Trash2, X, Loader2, Shield, ShieldAlert, Filter, Folder, FolderPlus, Download, Plus, Import, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 import { invoke } from "@tauri-apps/api/core";
 import { useAppStore, useSettingsStore } from "@/stores";
-import { useSkills, useSearchSkills, useDeleteSkillsBatch, useQuarantinedSkills, useSetSkillQuarantine, useSpaces, useSetBulkSkillVisibility, useExportSkillsBatch, useExportSkillsBatchJson } from "@/hooks";
+import { useSkills, useSearchSkills, useDeleteSkillsBatch, useQuarantinedSkills, useSetSkillQuarantine, useSpaces, useSetBulkSkillVisibility, useExportSkillsBatch, useExportSkillsBatchJson, useSetSkillCategory } from "@/hooks";
 import { SkillList, SkillDetail, CreateSkillDialog, ImportSkillDialog } from "@/components/library";
-import { Skeleton, Button, Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, ScrollArea, DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator } from "@/components/ui";
+import { Skeleton, Button, Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, ScrollArea, DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, Input } from "@/components/ui";
 import type { Skill } from "@/types";
 
 type FilterMode = "all" | "quarantined" | "safe";
@@ -28,6 +28,11 @@ export const LibraryView: React.FC = () => {
   const [showAddToSpaceDialog, setShowAddToSpaceDialog] = React.useState(false);
   const [showCreateSkillDialog, setShowCreateSkillDialog] = React.useState(false);
   const [showImportSkillDialog, setShowImportSkillDialog] = React.useState(false);
+  
+  // Category state
+  const [showNewCategoryDialog, setShowNewCategoryDialog] = React.useState(false);
+  const [newCategoryName, setNewCategoryName] = React.useState("");
+  const [pendingSkillHash, setPendingSkillHash] = React.useState<string | null>(null);
 
   // Fetch skills from backend
   const { data: allSkills = [], isLoading, error } = useSkills();
@@ -39,6 +44,7 @@ export const LibraryView: React.FC = () => {
   const exportBatchMutation = useExportSkillsBatch();
   const exportBatchJsonMutation = useExportSkillsBatchJson();
   const [showExportDialog, setShowExportDialog] = React.useState(false);
+  const setSkillCategoryMutation = useSetSkillCategory();
   
   // Create a set for faster lookup
   const quarantinedSet = React.useMemo(() => new Set(quarantinedHashes), [quarantinedHashes]);
@@ -138,8 +144,7 @@ export const LibraryView: React.FC = () => {
     if (selectedHashes.size === 0) return;
     
     try {
-      const result = await deleteSkillsBatchMutation.mutateAsync(Array.from(selectedHashes));
-      console.log("Batch delete result:", result);
+      await deleteSkillsBatchMutation.mutateAsync(Array.from(selectedHashes));
       setShowDeleteConfirm(false);
       cancelSelectionMode();
       // Clear selection if the selected skill was deleted
@@ -226,6 +231,39 @@ export const LibraryView: React.FC = () => {
       console.error("Failed to export skills:", error);
     }
   };
+
+  // Category handlers
+  const handleMoveToCategory = async (skillHash: string, category: string) => {
+    try {
+      await setSkillCategoryMutation.mutateAsync({ hash: skillHash, category });
+    } catch (error) {
+      console.error("Failed to move skill to category:", error);
+    }
+  };
+
+  const handleCreateCategory = async () => {
+    if (!newCategoryName.trim()) return;
+    
+    // If there's a pending skill to move, move it to the new category
+    if (pendingSkillHash) {
+      try {
+        await setSkillCategoryMutation.mutateAsync({ hash: pendingSkillHash, category: newCategoryName.trim() });
+      } catch (error) {
+        console.error("Failed to move skill to new category:", error);
+      }
+    }
+    
+    setShowNewCategoryDialog(false);
+    setNewCategoryName("");
+    setPendingSkillHash(null);
+  };
+
+  // Handler for opening new category dialog with a pending skill
+  const handleAddCategoryWithSkill = (skillHash?: string) => {
+    setPendingSkillHash(skillHash || null);
+    setShowNewCategoryDialog(true);
+  };
+
 
   // Show empty state if no library path is set
   if (!libraryPath) {
@@ -432,6 +470,8 @@ export const LibraryView: React.FC = () => {
               onToggleSelection={toggleSelection}
               onEnterSelectionMode={() => setSelectionMode(true)}
               quarantinedHashes={quarantinedSet}
+              onMoveToCategory={handleMoveToCategory}
+              onAddCategory={handleAddCategoryWithSkill}
             />
           </div>
 
@@ -599,6 +639,37 @@ export const LibraryView: React.FC = () => {
               onClick={() => setShowExportDialog(false)}
             >
               {t("common.cancel")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Create Category Dialog */}
+      <Dialog open={showNewCategoryDialog} onOpenChange={setShowNewCategoryDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{t("library.newCategory")}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">{t("library.categoryName")}</label>
+              <Input
+                value={newCategoryName}
+                onChange={(e) => setNewCategoryName(e.target.value)}
+                placeholder="My Category"
+                autoFocus
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") handleCreateCategory();
+                }}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="secondary" onClick={() => setShowNewCategoryDialog(false)}>
+              {t("common.cancel")}
+            </Button>
+            <Button onClick={handleCreateCategory} disabled={!newCategoryName.trim()}>
+              {t("common.create")}
             </Button>
           </DialogFooter>
         </DialogContent>

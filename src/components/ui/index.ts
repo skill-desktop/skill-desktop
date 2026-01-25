@@ -8,4 +8,5 @@ export * from "./input";
 export * from "./scroll-area";
 export * from "./skeleton";
 export * from "./switch";
+export * from "./separator";
 export * from "./markdown";

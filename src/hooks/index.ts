@@ -13,6 +13,7 @@ export {
   useRecentSkillHistory,
   useCheckSkillUpdate,
   useCheckAllSkillUpdates,
+  useSetSkillCategory,
   skillKeys,
   type BatchDeleteResult,
   type SkillHistoryEntry,

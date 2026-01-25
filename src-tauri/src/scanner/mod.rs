@@ -218,6 +218,7 @@ pub fn create_skill_from_directory(
         risk_analysis,
         created_at: now.clone(),
         updated_at: now,
+        category: None,
     })
 }
 

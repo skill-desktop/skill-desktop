@@ -207,8 +207,11 @@ pub async fn get_library_path(library_state: State<'_, LibraryState>) -> Result<
 
 /// Rescan library directory
 #[tauri::command]
-pub async fn rescan_library(library_state: State<'_, LibraryState>) -> Result<usize, String> {
-    let skills = get_all_skills(library_state).await?;
+pub async fn rescan_library(
+    library_state: State<'_, LibraryState>,
+    db_state: State<'_, DatabaseState>,
+) -> Result<usize, String> {
+    let skills = get_all_skills(library_state, db_state).await?;
     Ok(skills.len())
 }
 
@@ -467,7 +470,12 @@ pub async fn delete_skill(
     hash: String,
     library_state: State<'_, LibraryState>,
 ) -> Result<(), String> {
-    let all_skills = get_all_skills(library_state).await?;
+    let library_path = {
+        let guard = library_state.path.lock().map_err(|e| e.to_string())?;
+        guard.clone().ok_or("Library path not set")?
+    };
+    
+    let all_skills = get_all_skills_internal(&library_path)?;
 
     let skill = all_skills
         .into_iter()
@@ -483,7 +491,12 @@ pub async fn delete_skills_batch(
     hashes: Vec<String>,
     library_state: State<'_, LibraryState>,
 ) -> Result<BatchDeleteResult, String> {
-    let all_skills = get_all_skills(library_state).await?;
+    let library_path = {
+        let guard = library_state.path.lock().map_err(|e| e.to_string())?;
+        guard.clone().ok_or("Library path not set")?
+    };
+    
+    let all_skills = get_all_skills_internal(&library_path)?;
     
     let mut deleted = 0;
     let mut failed: Vec<(String, String)> = Vec::new();

@@ -92,6 +92,12 @@
       "description": "选择一个空间来添加 {{count}} 个技能",
       "noSpaces": "暂无可用空间。请先创建一个空间。"
     },
+    "newCategory": "新建分类",
+    "moveToCategory": "移动到分类",
+    "categoryName": "分类名称",
+    "category": {
+      "default": "未分类"
+    },
     "export": {
       "title": "导出技能",
       "description": "将 {{count}} 个技能导出到文件",

@@ -349,10 +349,19 @@ impl Database {
 
     pub fn set_skill_category(&self, skill_hash: &str, category: &str) -> Result<(), String> {
         let conn = self.conn.lock().map_err(|e| e.to_string())?;
-        conn.execute(
-            "INSERT OR REPLACE INTO skill_categories (skill_hash, category, updated_at) VALUES (?, ?, datetime('now'))",
-            rusqlite::params![skill_hash, category],
-        ).map_err(|e| e.to_string())?;
+        
+        // If category is empty, remove the record (move to default/uncategorized)
+        if category.is_empty() {
+            conn.execute(
+                "DELETE FROM skill_categories WHERE skill_hash = ?",
+                rusqlite::params![skill_hash],
+            ).map_err(|e| e.to_string())?;
+        } else {
+            conn.execute(
+                "INSERT OR REPLACE INTO skill_categories (skill_hash, category, updated_at) VALUES (?, ?, datetime('now'))",
+                rusqlite::params![skill_hash, category],
+            ).map_err(|e| e.to_string())?;
+        }
         Ok(())
     }
 }

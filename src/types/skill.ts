@@ -128,6 +128,8 @@ export interface Skill {
   createdAt: string;
   /** Last update timestamp */
   updatedAt: string;
+  /** Category (optional) */
+  category?: string;
 }
 
 // Permission level type (for backward compatibility)

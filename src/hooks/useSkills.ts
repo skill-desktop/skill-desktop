@@ -20,6 +20,21 @@ export function useSkills() {
   });
 }
 
+// ========== Category Hooks ==========
+
+export function useSetSkillCategory() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ hash, category }: { hash: string; category: string }) => {
+      await invoke("set_skill_category", { hash, category });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: skillKeys.all });
+    },
+  });
+}
+
 export function useSearchSkills(query: string) {
   return useQuery({
     queryKey: skillKeys.search(query),

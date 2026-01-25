@@ -92,6 +92,12 @@
       "description": "Select a space to add {{count}} skill(s) to",
       "noSpaces": "No spaces available. Create a space first."
     },
+    "newCategory": "New Category",
+    "moveToCategory": "Move to Category",
+    "categoryName": "Category Name",
+    "category": {
+      "default": "Uncategorized"
+    },
     "export": {
       "title": "Export Skills",
       "description": "Export {{count}} skill(s) to a file",
