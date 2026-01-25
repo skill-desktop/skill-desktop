@@ -2809,6 +2809,182 @@ pub struct SkillUpdateInfo {
     pub error: Option<String>,
 }
 
+// ========== LLM Commands ==========
+
+/// LLM provider type
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum LLMProviderType {
+    OpenaiCompatible,
+    Anthropic,
+    OpenaiResponses,
+}
+
+/// Test LLM connection request
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub struct LLMTestRequest {
+    pub provider_type: LLMProviderType,
+    pub base_url: String,
+    pub api_key: String,
+    pub model: String,
+}
+
+/// Test LLM connection result
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub struct LLMTestResult {
+    pub success: bool,
+    pub message: String,
+}
+
+/// Test LLM provider connection
+#[tauri::command]
+pub async fn test_llm_connection(request: LLMTestRequest) -> Result<LLMTestResult, String> {
+    let client = reqwest::Client::new();
+    
+    let result = match request.provider_type {
+        LLMProviderType::OpenaiCompatible => {
+            test_openai_compatible(&client, &request).await
+        }
+        LLMProviderType::Anthropic => {
+            test_anthropic(&client, &request).await
+        }
+        LLMProviderType::OpenaiResponses => {
+            test_openai_responses(&client, &request).await
+        }
+    };
+    
+    Ok(result)
+}
+
+async fn test_openai_compatible(client: &reqwest::Client, request: &LLMTestRequest) -> LLMTestResult {
+    let url = format!("{}/chat/completions", request.base_url);
+    
+    let body = serde_json::json!({
+        "model": request.model,
+        "max_tokens": 10,
+        "messages": [{"role": "user", "content": "Hello"}]
+    });
+    
+    match client
+        .post(&url)
+        .header("Content-Type", "application/json")
+        .header("Authorization", format!("Bearer {}", request.api_key))
+        .json(&body)
+        .send()
+        .await
+    {
+        Ok(response) => {
+            if response.status().is_success() {
+                LLMTestResult {
+                    success: true,
+                    message: "Connection successful!".to_string(),
+                }
+            } else {
+                let error_msg = response.text().await.unwrap_or_else(|_| "Unknown error".to_string());
+                // Try to parse error message from JSON
+                let msg = serde_json::from_str::<serde_json::Value>(&error_msg)
+                    .ok()
+                    .and_then(|v| v.get("error")?.get("message")?.as_str().map(String::from))
+                    .unwrap_or(error_msg);
+                LLMTestResult {
+                    success: false,
+                    message: msg,
+                }
+            }
+        }
+        Err(e) => LLMTestResult {
+            success: false,
+            message: format!("Connection failed: {}", e),
+        },
+    }
+}
+
+async fn test_anthropic(client: &reqwest::Client, request: &LLMTestRequest) -> LLMTestResult {
+    let url = format!("{}/v1/messages", request.base_url);
+    
+    let body = serde_json::json!({
+        "model": request.model,
+        "max_tokens": 10,
+        "messages": [{"role": "user", "content": "Hello"}]
+    });
+    
+    match client
+        .post(&url)
+        .header("Content-Type", "application/json")
+        .header("x-api-key", &request.api_key)
+        .header("anthropic-version", "2023-06-01")
+        .json(&body)
+        .send()
+        .await
+    {
+        Ok(response) => {
+            if response.status().is_success() {
+                LLMTestResult {
+                    success: true,
+                    message: "Connection successful!".to_string(),
+                }
+            } else {
+                let error_msg = response.text().await.unwrap_or_else(|_| "Unknown error".to_string());
+                let msg = serde_json::from_str::<serde_json::Value>(&error_msg)
+                    .ok()
+                    .and_then(|v| v.get("error")?.get("message")?.as_str().map(String::from))
+                    .unwrap_or(error_msg);
+                LLMTestResult {
+                    success: false,
+                    message: msg,
+                }
+            }
+        }
+        Err(e) => LLMTestResult {
+            success: false,
+            message: format!("Connection failed: {}", e),
+        },
+    }
+}
+
+async fn test_openai_responses(client: &reqwest::Client, request: &LLMTestRequest) -> LLMTestResult {
+    let url = format!("{}/responses", request.base_url);
+    
+    let body = serde_json::json!({
+        "model": request.model,
+        "input": "Hello"
+    });
+    
+    match client
+        .post(&url)
+        .header("Content-Type", "application/json")
+        .header("Authorization", format!("Bearer {}", request.api_key))
+        .json(&body)
+        .send()
+        .await
+    {
+        Ok(response) => {
+            if response.status().is_success() {
+                LLMTestResult {
+                    success: true,
+                    message: "Connection successful!".to_string(),
+                }
+            } else {
+                let error_msg = response.text().await.unwrap_or_else(|_| "Unknown error".to_string());
+                let msg = serde_json::from_str::<serde_json::Value>(&error_msg)
+                    .ok()
+                    .and_then(|v| v.get("error")?.get("message")?.as_str().map(String::from))
+                    .unwrap_or(error_msg);
+                LLMTestResult {
+                    success: false,
+                    message: msg,
+                }
+            }
+        }
+        Err(e) => LLMTestResult {
+            success: false,
+            message: format!("Connection failed: {}", e),
+        },
+    }
+}
+
 // ========== File Save Commands ==========
 
 /// Save content to a file (with file dialog)

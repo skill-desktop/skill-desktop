@@ -101,3 +101,12 @@ export {
   appSettingsKeys,
   type AppSettings,
 } from "./useAppSettings";
+
+// LLM hooks
+export {
+  useLLM,
+  useChatCompletion,
+  useStreamingChat,
+  useConversation,
+  useTestLLMConnection,
+} from "./useLLM";

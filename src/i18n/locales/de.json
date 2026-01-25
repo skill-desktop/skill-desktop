@@ -275,6 +275,27 @@
       "confirmDangerous": "Gefährliche Befehle bestätigen",
       "confirmDangerousDesc": "Bestätigung vor Ausführung von Shell-Befehlen anzeigen"
     },
+    "llm": {
+      "title": "LLM-Anbieter",
+      "description": "LLM-API-Anbieter für Skill-Debugging und -Tests konfigurieren",
+      "quickAdd": "Schnell hinzufügen",
+      "custom": "Benutzerdefiniert",
+      "addProvider": "Anbieter hinzufügen",
+      "configuredProviders": "Konfigurierte Anbieter",
+      "noProviders": "Keine Anbieter konfiguriert. Fügen Sie einen hinzu, um zu beginnen.",
+      "providerName": "Anbietername",
+      "providerType": "Anbietertyp",
+      "baseUrl": "Base URL",
+      "apiKey": "API-Schlüssel",
+      "defaultModel": "Standardmodell",
+      "availableModels": "Verfügbare Modelle (kommagetrennt)",
+      "default": "Standard",
+      "setAsDefault": "Als Standard festlegen",
+      "testConnection": "Verbindung testen",
+      "testSuccess": "Verbindung erfolgreich!",
+      "testFailed": "Verbindung fehlgeschlagen",
+      "confirmDelete": "Möchten Sie diesen Anbieter wirklich löschen?"
+    },
     "about": {
       "title": "Über",
       "checkUpdates": "Nach Updates suchen",

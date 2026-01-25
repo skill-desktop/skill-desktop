@@ -275,6 +275,27 @@
       "confirmDangerous": "確認危險命令",
       "confirmDangerousDesc": "執行 Shell 命令前顯示確認對話框"
     },
+    "llm": {
+      "title": "LLM 提供商",
+      "description": "配置 LLM API 提供商，用於技能除錯和測試",
+      "quickAdd": "快速新增",
+      "custom": "自訂",
+      "addProvider": "新增提供商",
+      "configuredProviders": "已配置的提供商",
+      "noProviders": "暫無配置的提供商。新增一個開始使用。",
+      "providerName": "提供商名稱",
+      "providerType": "提供商類型",
+      "baseUrl": "Base URL",
+      "apiKey": "API Key",
+      "defaultModel": "預設模型",
+      "availableModels": "可用模型（逗號分隔）",
+      "default": "預設",
+      "setAsDefault": "設為預設",
+      "testConnection": "測試連線",
+      "testSuccess": "連線成功！",
+      "testFailed": "連線失敗",
+      "confirmDelete": "確定要刪除這個提供商嗎？"
+    },
     "about": {
       "title": "關於",
       "checkUpdates": "檢查更新",

@@ -300,6 +300,27 @@
       "confirmDangerous": "危険なコマンドを確認",
       "confirmDangerousDesc": "シェルコマンド実行前に確認を表示"
     },
+    "llm": {
+      "title": "LLMプロバイダー",
+      "description": "スキルのデバッグとテスト用のLLM APIプロバイダーを設定",
+      "quickAdd": "クイック追加",
+      "custom": "カスタム",
+      "addProvider": "プロバイダーを追加",
+      "configuredProviders": "設定済みプロバイダー",
+      "noProviders": "プロバイダーが設定されていません。追加して開始してください。",
+      "providerName": "プロバイダー名",
+      "providerType": "プロバイダータイプ",
+      "baseUrl": "Base URL",
+      "apiKey": "APIキー",
+      "defaultModel": "デフォルトモデル",
+      "availableModels": "利用可能なモデル（カンマ区切り）",
+      "default": "デフォルト",
+      "setAsDefault": "デフォルトに設定",
+      "testConnection": "接続テスト",
+      "testSuccess": "接続成功！",
+      "testFailed": "接続失敗",
+      "confirmDelete": "このプロバイダーを削除しますか？"
+    },
     "about": {
       "title": "について",
       "checkUpdates": "アップデートを確認",

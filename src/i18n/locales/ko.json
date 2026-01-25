@@ -275,6 +275,27 @@
       "confirmDangerous": "위험한 명령 확인",
       "confirmDangerousDesc": "셸 명령 실행 전 확인 표시"
     },
+    "llm": {
+      "title": "LLM 제공자",
+      "description": "스킬 디버깅 및 테스트를 위한 LLM API 제공자 구성",
+      "quickAdd": "빠른 추가",
+      "custom": "사용자 정의",
+      "addProvider": "제공자 추가",
+      "configuredProviders": "구성된 제공자",
+      "noProviders": "구성된 제공자가 없습니다. 추가하여 시작하세요.",
+      "providerName": "제공자 이름",
+      "providerType": "제공자 유형",
+      "baseUrl": "Base URL",
+      "apiKey": "API 키",
+      "defaultModel": "기본 모델",
+      "availableModels": "사용 가능한 모델 (쉼표로 구분)",
+      "default": "기본",
+      "setAsDefault": "기본으로 설정",
+      "testConnection": "연결 테스트",
+      "testSuccess": "연결 성공!",
+      "testFailed": "연결 실패",
+      "confirmDelete": "이 제공자를 삭제하시겠습니까?"
+    },
     "about": {
       "title": "정보",
       "checkUpdates": "업데이트 확인",

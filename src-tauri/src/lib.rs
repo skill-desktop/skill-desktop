@@ -142,6 +142,8 @@ pub fn run() {
             commands::check_all_skill_updates,
             // File save commands
             commands::save_file_with_dialog,
+            // LLM commands
+            commands::test_llm_connection,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -1,12 +1,29 @@
-import React from "react";
+import React, { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { FolderOpen, ExternalLink, RefreshCw, Check, Loader2 } from "lucide-react";
+import {
+  FolderOpen,
+  ExternalLink,
+  RefreshCw,
+  Check,
+  Loader2,
+  Palette,
+  Library,
+  Shield,
+  Info,
+  Bot,
+} from "lucide-react";
 import { invoke } from "@tauri-apps/api/core";
 import { Button, Input, Switch, ScrollArea } from "@/components/ui";
 import { LanguageDropdown } from "@/components/language";
 import { useSettingsStore } from "@/stores";
-import { useSetLibraryPath, useLibraryPath, useRescanLibrary, useUpdateAppSetting } from "@/hooks";
+import {
+  useSetLibraryPath,
+  useLibraryPath,
+  useRescanLibrary,
+  useUpdateAppSetting,
+} from "@/hooks";
 import type { SupportedLanguage } from "@/i18n";
+import { LLMSettingsPanel } from "@/components/settings/LLMSettingsPanel";
 
 // Constants for external links
 const DOCUMENTATION_URL = "https://github.com/anthropics/skill-desktop#readme";
@@ -41,8 +58,26 @@ async function openFolderDialog(): Promise<string | null> {
   }
 }
 
+// Settings menu items
+type SettingsSection = "appearance" | "library" | "security" | "llm" | "about";
+
+interface MenuItem {
+  id: SettingsSection;
+  icon: React.ReactNode;
+  labelKey: string;
+}
+
+const menuItems: MenuItem[] = [
+  { id: "appearance", icon: <Palette className="h-4 w-4" />, labelKey: "settings.appearance.title" },
+  { id: "library", icon: <Library className="h-4 w-4" />, labelKey: "settings.library.title" },
+  { id: "security", icon: <Shield className="h-4 w-4" />, labelKey: "settings.security.title" },
+  { id: "llm", icon: <Bot className="h-4 w-4" />, labelKey: "settings.llm.title" },
+  { id: "about", icon: <Info className="h-4 w-4" />, labelKey: "settings.about.title" },
+];
+
 export const SettingsView: React.FC = () => {
   const { t } = useTranslation();
+  const [activeSection, setActiveSection] = useState<SettingsSection>("appearance");
   const {
     libraryPath,
     setLibraryPath,
@@ -140,142 +175,185 @@ export const SettingsView: React.FC = () => {
     await openUrl(REPORT_ISSUE_URL);
   };
 
-  return (
-    <ScrollArea className="h-full">
-      <div className="max-w-2xl mx-auto p-6 space-y-8">
-        {/* Appearance */}
-        <Section title={t("settings.appearance.title")}>
-          <SettingRow
-            label={t("settings.appearance.theme")}
-            description={t("settings.appearance.themeDesc")}
-          >
-            <select
-              value={theme}
-              onChange={(e) =>
-                setTheme(e.target.value as "dark" | "light" | "system")
-              }
-              className="h-9 rounded-md border border-border-default bg-bg-secondary px-3 text-sm text-text-primary focus:border-accent-blue focus:outline-none"
+  // Render content based on active section
+  const renderContent = () => {
+    switch (activeSection) {
+      case "appearance":
+        return (
+          <Section title={t("settings.appearance.title")}>
+            <SettingRow
+              label={t("settings.appearance.theme")}
+              description={t("settings.appearance.themeDesc")}
             >
-              <option value="dark">{t("settings.appearance.dark")}</option>
-              <option value="light">{t("settings.appearance.light")}</option>
-              <option value="system">{t("settings.appearance.system")}</option>
-            </select>
-          </SettingRow>
+              <select
+                value={theme}
+                onChange={(e) =>
+                  setTheme(e.target.value as "dark" | "light" | "system")
+                }
+                className="h-9 rounded-md border border-border-default bg-bg-secondary px-3 text-sm text-text-primary focus:border-accent-blue focus:outline-none"
+              >
+                <option value="dark">{t("settings.appearance.dark")}</option>
+                <option value="light">{t("settings.appearance.light")}</option>
+                <option value="system">{t("settings.appearance.system")}</option>
+              </select>
+            </SettingRow>
 
-          <SettingRow
-            label={t("settings.appearance.language")}
-            description={t("settings.appearance.languageDesc")}
-          >
-            <LanguageDropdown
-              value={language}
-              onChange={handleLanguageChange}
-            />
-          </SettingRow>
-        </Section>
-
-        {/* Library Settings */}
-        <Section title={t("settings.library.title")}>
-          <SettingRow
-            label={t("settings.library.directory")}
-            description={t("settings.library.directoryDesc")}
-          >
-            <div className="flex items-center gap-2">
-              <Input
-                value={libraryPath}
-                onChange={(e) => handlePathChange(e.target.value)}
-                onBlur={handlePathBlur}
-                placeholder="~/SkillLibrary"
-                className="w-80"
+            <SettingRow
+              label={t("settings.appearance.language")}
+              description={t("settings.appearance.languageDesc")}
+            >
+              <LanguageDropdown
+                value={language}
+                onChange={handleLanguageChange}
               />
+            </SettingRow>
+          </Section>
+        );
+
+      case "library":
+        return (
+          <Section title={t("settings.library.title")}>
+            <SettingRow
+              label={t("settings.library.directory")}
+              description={t("settings.library.directoryDesc")}
+            >
+              <div className="flex items-center gap-2">
+                <Input
+                  value={libraryPath}
+                  onChange={(e) => handlePathChange(e.target.value)}
+                  onBlur={handlePathBlur}
+                  placeholder="~/SkillLibrary"
+                  className="w-80"
+                />
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={handleSelectFolder}
+                  disabled={setLibraryPathMutation.isPending}
+                >
+                  {setLibraryPathMutation.isPending ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <FolderOpen className="h-4 w-4" />
+                  )}
+                </Button>
+              </div>
+            </SettingRow>
+
+            <SettingRow
+              label={t("settings.library.rescan")}
+              description={t("settings.library.rescanDesc")}
+            >
               <Button
                 variant="secondary"
                 size="sm"
-                onClick={handleSelectFolder}
-                disabled={setLibraryPathMutation.isPending}
+                onClick={handleRescan}
+                disabled={rescanMutation.isPending || !libraryPath}
               >
-                {setLibraryPathMutation.isPending ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
+                {rescanMutation.isPending ? (
+                  <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+                ) : rescanMutation.isSuccess ? (
+                  <Check className="h-3.5 w-3.5 mr-1.5" />
                 ) : (
-                  <FolderOpen className="h-4 w-4" />
+                  <RefreshCw className="h-3.5 w-3.5 mr-1.5" />
                 )}
+                {rescanMutation.isPending
+                  ? t("settings.library.scanning")
+                  : rescanMutation.isSuccess
+                  ? t("settings.library.foundSkills", { count: rescanMutation.data })
+                  : t("settings.library.rescanNow")}
+              </Button>
+            </SettingRow>
+
+            <SettingRow
+              label={t("settings.library.autoSync")}
+              description={t("settings.library.autoSyncDesc")}
+            >
+              <Switch checked={autoSync} onCheckedChange={setAutoSync} />
+            </SettingRow>
+          </Section>
+        );
+
+      case "security":
+        return (
+          <Section title={t("settings.security.title")}>
+            <SettingRow
+              label={t("settings.security.confirmDangerous")}
+              description={t("settings.security.confirmDangerousDesc")}
+            >
+              <Switch
+                checked={confirmDangerousCommands}
+                onCheckedChange={setConfirmDangerousCommands}
+              />
+            </SettingRow>
+          </Section>
+        );
+
+      case "llm":
+        return <LLMSettingsPanel />;
+
+      case "about":
+        return (
+          <Section title={t("settings.about.title")}>
+            <div className="space-y-2 text-sm">
+              <p className="text-text-primary">
+                {t("app.name")} <span className="text-text-muted">v0.1.0</span>
+              </p>
+              <p className="text-text-secondary">{t("app.description")}</p>
+            </div>
+
+            <div className="flex items-center gap-2 mt-4">
+              <Button variant="secondary" size="sm" onClick={handleCheckUpdates}>
+                <RefreshCw className="h-3.5 w-3.5 mr-1.5" />
+                {t("settings.about.checkUpdates")}
+              </Button>
+              <Button variant="secondary" size="sm" onClick={handleOpenDocumentation}>
+                <ExternalLink className="h-3.5 w-3.5 mr-1.5" />
+                {t("settings.about.documentation")}
+              </Button>
+              <Button variant="secondary" size="sm" onClick={handleReportIssue}>
+                <ExternalLink className="h-3.5 w-3.5 mr-1.5" />
+                {t("settings.about.reportIssue")}
               </Button>
             </div>
-          </SettingRow>
+          </Section>
+        );
 
-          <SettingRow
-            label={t("settings.library.rescan")}
-            description={t("settings.library.rescanDesc")}
-          >
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={handleRescan}
-              disabled={rescanMutation.isPending || !libraryPath}
+      default:
+        return null;
+    }
+  };
+
+  return (
+    <div className="flex h-full">
+      {/* Left sidebar menu */}
+      <div className="w-56 border-r border-border-default bg-bg-secondary/50 p-4">
+        <h2 className="text-sm font-semibold text-text-primary mb-4 px-2">
+          {t("settings.title")}
+        </h2>
+        <nav className="space-y-1">
+          {menuItems.map((item) => (
+            <button
+              key={item.id}
+              onClick={() => setActiveSection(item.id)}
+              className={`w-full flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors ${
+                activeSection === item.id
+                  ? "bg-accent-blue/10 text-accent-blue"
+                  : "text-text-secondary hover:bg-bg-tertiary hover:text-text-primary"
+              }`}
             >
-              {rescanMutation.isPending ? (
-                <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
-              ) : rescanMutation.isSuccess ? (
-                <Check className="h-3.5 w-3.5 mr-1.5" />
-              ) : (
-                <RefreshCw className="h-3.5 w-3.5 mr-1.5" />
-              )}
-              {rescanMutation.isPending
-                ? t("settings.library.scanning")
-                : rescanMutation.isSuccess
-                ? t("settings.library.foundSkills", { count: rescanMutation.data })
-                : t("settings.library.rescanNow")}
-            </Button>
-          </SettingRow>
-
-          <SettingRow
-            label={t("settings.library.autoSync")}
-            description={t("settings.library.autoSyncDesc")}
-          >
-            <Switch checked={autoSync} onCheckedChange={setAutoSync} />
-          </SettingRow>
-        </Section>
-
-        {/* Security */}
-        <Section title={t("settings.security.title")}>
-          <SettingRow
-            label={t("settings.security.confirmDangerous")}
-            description={t("settings.security.confirmDangerousDesc")}
-          >
-            <Switch
-              checked={confirmDangerousCommands}
-              onCheckedChange={setConfirmDangerousCommands}
-            />
-          </SettingRow>
-        </Section>
-
-        {/* About */}
-        <Section title={t("settings.about.title")}>
-          <div className="space-y-2 text-sm">
-            <p className="text-text-primary">
-              {t("app.name")} <span className="text-text-muted">v0.1.0</span>
-            </p>
-            <p className="text-text-secondary">
-              {t("app.description")}
-            </p>
-          </div>
-
-          <div className="flex items-center gap-2 mt-4">
-            <Button variant="secondary" size="sm" onClick={handleCheckUpdates}>
-              <RefreshCw className="h-3.5 w-3.5 mr-1.5" />
-              {t("settings.about.checkUpdates")}
-            </Button>
-            <Button variant="secondary" size="sm" onClick={handleOpenDocumentation}>
-              <ExternalLink className="h-3.5 w-3.5 mr-1.5" />
-              {t("settings.about.documentation")}
-            </Button>
-            <Button variant="secondary" size="sm" onClick={handleReportIssue}>
-              <ExternalLink className="h-3.5 w-3.5 mr-1.5" />
-              {t("settings.about.reportIssue")}
-            </Button>
-          </div>
-        </Section>
+              {item.icon}
+              <span>{t(item.labelKey)}</span>
+            </button>
+          ))}
+        </nav>
       </div>
-    </ScrollArea>
+
+      {/* Right content area */}
+      <ScrollArea className="flex-1">
+        <div className="max-w-2xl p-6">{renderContent()}</div>
+      </ScrollArea>
+    </div>
   );
 };
 
@@ -284,8 +362,8 @@ const Section: React.FC<{ title: string; children: React.ReactNode }> = ({
   children,
 }) => (
   <div>
-    <h2 className="text-sm font-semibold text-text-primary mb-4">{title}</h2>
-    <div className="space-y-4">{children}</div>
+    <h2 className="text-lg font-semibold text-text-primary mb-6">{title}</h2>
+    <div className="space-y-6">{children}</div>
   </div>
 );
 
@@ -300,13 +378,13 @@ const SettingRow: React.FC<SettingRowProps> = ({
   description,
   children,
 }) => (
-  <div className="flex items-center justify-between py-2">
-    <div>
-      <p className="text-sm text-text-primary">{label}</p>
+  <div className="flex items-center justify-between py-3 border-b border-border-default last:border-b-0">
+    <div className="flex-1 mr-4">
+      <p className="text-sm font-medium text-text-primary">{label}</p>
       {description && (
-        <p className="text-xs text-text-muted mt-0.5">{description}</p>
+        <p className="text-xs text-text-muted mt-1">{description}</p>
       )}
     </div>
-    {children}
+    <div className="flex-shrink-0">{children}</div>
   </div>
 );

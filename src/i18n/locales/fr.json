@@ -275,6 +275,27 @@
       "confirmDangerous": "Confirmer les commandes dangereuses",
       "confirmDangerousDesc": "Afficher une confirmation avant d'exécuter des commandes shell"
     },
+    "llm": {
+      "title": "Fournisseurs LLM",
+      "description": "Configurer les fournisseurs d'API LLM pour le débogage et les tests de compétences",
+      "quickAdd": "Ajout rapide",
+      "custom": "Personnalisé",
+      "addProvider": "Ajouter un fournisseur",
+      "configuredProviders": "Fournisseurs configurés",
+      "noProviders": "Aucun fournisseur configuré. Ajoutez-en un pour commencer.",
+      "providerName": "Nom du fournisseur",
+      "providerType": "Type de fournisseur",
+      "baseUrl": "URL de base",
+      "apiKey": "Clé API",
+      "defaultModel": "Modèle par défaut",
+      "availableModels": "Modèles disponibles (séparés par des virgules)",
+      "default": "Par défaut",
+      "setAsDefault": "Définir par défaut",
+      "testConnection": "Tester la connexion",
+      "testSuccess": "Connexion réussie !",
+      "testFailed": "Échec de la connexion",
+      "confirmDelete": "Êtes-vous sûr de vouloir supprimer ce fournisseur ?"
+    },
     "about": {
       "title": "À propos",
       "checkUpdates": "Vérifier les mises à jour",

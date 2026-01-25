@@ -300,6 +300,27 @@
       "confirmDangerous": "确认危险命令",
       "confirmDangerousDesc": "执行 Shell 命令前显示确认对话框"
     },
+    "llm": {
+      "title": "LLM 提供商",
+      "description": "配置 LLM API 提供商，用于技能调试和测试",
+      "quickAdd": "快速添加",
+      "custom": "自定义",
+      "addProvider": "添加提供商",
+      "configuredProviders": "已配置的提供商",
+      "noProviders": "暂无配置的提供商。添加一个开始使用。",
+      "providerName": "提供商名称",
+      "providerType": "提供商类型",
+      "baseUrl": "Base URL",
+      "apiKey": "API Key",
+      "defaultModel": "默认模型",
+      "availableModels": "可用模型（逗号分隔）",
+      "default": "默认",
+      "setAsDefault": "设为默认",
+      "testConnection": "测试连接",
+      "testSuccess": "连接成功！",
+      "testFailed": "连接失败",
+      "confirmDelete": "确定要删除这个提供商吗？"
+    },
     "about": {
       "title": "关于",
       "checkUpdates": "检查更新",

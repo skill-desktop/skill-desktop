@@ -1,5 +1,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import type { LLMProviderConfig, LLMSettings } from "@/types/llm";
+import { DEFAULT_LLM_SETTINGS } from "@/types/llm";
 
 // Define supported language type locally to avoid circular dependency
 type SupportedLanguage = "en" | "zh-CN" | "zh-TW" | "ja" | "ko" | "de" | "fr" | "es" | "pt" | "ru";
@@ -32,11 +34,19 @@ interface SettingsState {
   // 视图模式
   viewMode: "grid" | "list";
   setViewMode: (mode: "grid" | "list") => void;
+
+  // LLM 设置
+  llmSettings: LLMSettings;
+  setLLMSettings: (settings: LLMSettings) => void;
+  addLLMProvider: (provider: LLMProviderConfig) => void;
+  updateLLMProvider: (id: string, updates: Partial<LLMProviderConfig>) => void;
+  removeLLMProvider: (id: string) => void;
+  setDefaultLLMProvider: (id: string | null) => void;
 }
 
 export const useSettingsStore = create<SettingsState>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       libraryPath: "",
       setLibraryPath: (path) => set({ libraryPath: path }),
 
@@ -58,6 +68,64 @@ export const useSettingsStore = create<SettingsState>()(
 
       viewMode: "grid",
       setViewMode: (mode) => set({ viewMode: mode }),
+
+      // LLM Settings
+      llmSettings: DEFAULT_LLM_SETTINGS,
+      setLLMSettings: (settings) => set({ llmSettings: settings }),
+      
+      addLLMProvider: (provider) => {
+        const { llmSettings } = get();
+        const newProviders = [...llmSettings.providers, provider];
+        // 如果是第一个提供商，设为默认
+        const defaultId = llmSettings.default_provider_id || (newProviders.length === 1 ? provider.id : null);
+        set({
+          llmSettings: {
+            ...llmSettings,
+            providers: newProviders,
+            default_provider_id: defaultId,
+          },
+        });
+      },
+      
+      updateLLMProvider: (id, updates) => {
+        const { llmSettings } = get();
+        const now = new Date().toISOString();
+        set({
+          llmSettings: {
+            ...llmSettings,
+            providers: llmSettings.providers.map((p) =>
+              p.id === id ? { ...p, ...updates, updated_at: now } : p
+            ),
+          },
+        });
+      },
+      
+      removeLLMProvider: (id) => {
+        const { llmSettings } = get();
+        const newProviders = llmSettings.providers.filter((p) => p.id !== id);
+        // 如果删除的是默认提供商，重新选择一个
+        let newDefaultId = llmSettings.default_provider_id;
+        if (newDefaultId === id) {
+          newDefaultId = newProviders.length > 0 ? newProviders[0].id : null;
+        }
+        set({
+          llmSettings: {
+            ...llmSettings,
+            providers: newProviders,
+            default_provider_id: newDefaultId,
+          },
+        });
+      },
+      
+      setDefaultLLMProvider: (id) => {
+        const { llmSettings } = get();
+        set({
+          llmSettings: {
+            ...llmSettings,
+            default_provider_id: id,
+          },
+        });
+      },
     }),
     {
       name: "skill-desktop-settings",
