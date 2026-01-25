@@ -11,6 +11,37 @@ pub struct Parameter {
     pub default: Option<serde_json::Value>,
 }
 
+/// Resource file in a skill directory
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SkillResource {
+    /// File name
+    pub name: String,
+    /// Relative path within the skill directory
+    pub path: String,
+    /// Resource type: "script", "reference", "asset", or "other"
+    pub resource_type: String,
+    /// File size in bytes
+    pub size: u64,
+    /// File extension
+    pub extension: Option<String>,
+}
+
+/// Skill directory structure following Agent Skills specification
+/// Reference: https://agentskills.io/specification
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SkillResources {
+    /// Scripts - Executable code (Python/Bash/etc.)
+    pub scripts: Vec<SkillResource>,
+    /// References - Documentation intended to be loaded into context
+    pub references: Vec<SkillResource>,
+    /// Assets - Files used in output (templates, icons, fonts, etc.)
+    pub assets: Vec<SkillResource>,
+    /// Other files in the skill directory (LICENSE.txt, etc.)
+    pub other: Vec<SkillResource>,
+}
+
 /// Risk level for detected patterns
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
@@ -50,25 +81,69 @@ pub struct RiskAnalysis {
     pub file_extension: Option<String>,
 }
 
+/// Skill struct following Agent Skills Specification
+/// Reference: https://agentskills.io/specification
+/// 
+/// A skill is a directory containing:
+/// - SKILL.md (required) - Main skill file with YAML frontmatter and instructions
+/// - scripts/ (optional) - Executable code (Python/Bash/etc.)
+/// - references/ (optional) - Documentation to be loaded into context
+/// - assets/ (optional) - Files used in output (templates, icons, fonts, etc.)
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Skill {
+    // ========== Internal identifiers ==========
+    /// SHA-256 hash of SKILL.md contents
     pub hash: String,
+    /// Filename (always "SKILL.md" for standard skills)
     pub filename: String,
+    /// Full local path to the SKILL.md file
     pub local_path: String,
+    /// Directory path containing the skill
+    pub skill_dir: String,
+    /// Source URL if imported from remote
     #[serde(default)]
     pub source_url: Option<String>,
+    
+    // ========== Required fields per Agent Skills spec ==========
+    /// Skill name (1-64 chars, lowercase alphanumeric and hyphens)
+    /// Must match directory name exactly
     pub name: String,
-    pub version: String,
+    /// Description of what the skill does and when to use it (1-1024 chars)
+    /// Primary triggering mechanism for the skill
     pub description: String,
+    
+    // ========== Optional fields per Agent Skills spec ==========
+    /// License information (e.g., "MIT", "Complete terms in LICENSE.txt")
+    #[serde(default)]
+    pub license: Option<String>,
+    /// Allowed tools for this skill
+    #[serde(default)]
+    pub allowed_tools: Vec<String>,
+    
+    // ========== Extended fields (internal use) ==========
+    /// Version string
+    pub version: String,
+    /// Author name
     #[serde(default)]
     pub author: Option<String>,
+    /// Tags for categorization
     #[serde(default)]
     pub tags: Vec<String>,
+    /// Required permissions
     #[serde(default)]
     pub permissions: Vec<String>,
+    /// Input parameters
     #[serde(default)]
     pub parameters: Vec<Parameter>,
+    
+    // ========== Skill resources ==========
+    /// Bundled resources (scripts, references, assets)
+    #[serde(default)]
+    pub resources: SkillResources,
+    
+    // ========== Internal state fields ==========
+    /// Whether this skill was downloaded from a remote source
     #[serde(default)]
     pub is_downloaded: bool,
     /// Whether this skill is quarantined (unstable/sensitive)
@@ -77,7 +152,9 @@ pub struct Skill {
     /// Risk analysis result from code scanning
     #[serde(default)]
     pub risk_analysis: Option<RiskAnalysis>,
+    /// Creation timestamp
     pub created_at: String,
+    /// Last update timestamp
     pub updated_at: String,
 }
 
@@ -95,20 +172,44 @@ pub struct Space {
     pub updated_at: String,
 }
 
-/// Metadata parsed from skill file front matter
+/// Metadata parsed from SKILL.md front matter
+/// Based on Agent Skills Specification: https://agentskills.io/specification
+/// 
+/// Allowed frontmatter properties: name, description, license, allowed-tools, metadata
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SkillMetadata {
+    /// Required: Skill name (1-64 chars, lowercase alphanumeric and hyphens)
+    /// Must match directory name exactly
     pub name: String,
-    #[serde(default = "default_version")]
-    pub version: String,
+    /// Required: Description of what the skill does and when to use it (1-1024 chars)
+    /// This is the primary triggering mechanism - include both what the skill does
+    /// and specific triggers/contexts for when to use it
     #[serde(default)]
     pub description: String,
+    /// Optional: License information (e.g., "MIT", "Apache-2.0", "Complete terms in LICENSE.txt")
+    #[serde(default)]
+    pub license: Option<String>,
+    /// Optional: Allowed tools for this skill
+    #[serde(default, rename = "allowed-tools")]
+    pub allowed_tools: Vec<String>,
+    /// Optional: Additional metadata
+    #[serde(default)]
+    pub metadata: Option<serde_json::Value>,
+    
+    // ========== Extended fields (not in official spec, for internal use) ==========
+    /// Optional: Version string (internal use)
+    #[serde(default = "default_version")]
+    pub version: String,
+    /// Optional: Author name (internal use)
     #[serde(default)]
     pub author: Option<String>,
+    /// Optional: Tags for categorization (internal use)
     #[serde(default)]
     pub tags: Vec<String>,
+    /// Optional: Required permissions (internal use)
     #[serde(default)]
     pub permissions: Vec<String>,
+    /// Optional: Input parameters (internal use)
     #[serde(default)]
     pub parameters: Vec<Parameter>,
 }

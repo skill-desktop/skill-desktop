@@ -147,6 +147,12 @@ pub fn run() {
             // Default paths commands
             commands::get_default_paths,
             commands::ensure_default_skill_path,
+            // Skill creation commands
+            commands::create_skill,
+            commands::validate_skill_name_cmd,
+            commands::validate_skill_description_cmd,
+            commands::get_skill_resource_content,
+            commands::open_skill_directory,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

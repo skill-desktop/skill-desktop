@@ -113,3 +113,12 @@ export {
   useConversation,
   useTestLLMConnection,
 } from "./useLLM";
+
+// Skill creation hooks
+export {
+  useCreateSkill,
+  useValidateSkillName,
+  useValidateSkillDescription,
+  useGetSkillResourceContent,
+  useOpenSkillDirectory,
+} from "./useSkillCreation";

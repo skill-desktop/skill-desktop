@@ -37,7 +37,8 @@
     "default": "Default",
     "clone": "Clone",
     "create": "Create",
-    "saveChanges": "Save Changes"
+    "saveChanges": "Save Changes",
+    "creating": "Creating..."
   },
   "app": {
     "name": "Skill Desktop",
@@ -401,5 +402,33 @@
     "highRiskWarning": "High-Risk Permission Warning",
     "highRiskDescription": "This skill requires high-risk permissions (shell_exec). Are you sure you want to execute it?",
     "confirmExecute": "Execute Anyway"
+  },
+  "createSkill": {
+    "title": "Create New Skill",
+    "nameLabel": "Skill Name",
+    "nameHint": "Use lowercase letters, numbers, and hyphens only (e.g., my-awesome-skill)",
+    "nameRequired": "Skill name is required",
+    "nameTooLong": "Skill name must be 64 characters or less",
+    "nameInvalidChars": "Skill name can only contain lowercase letters, numbers, and hyphens",
+    "nameInvalidHyphens": "Skill name cannot start/end with hyphen or contain consecutive hyphens",
+    "nameInvalid": "Invalid skill name format",
+    "descriptionLabel": "Description",
+    "descriptionPlaceholder": "Describe what this skill does and when to use it. This is the primary trigger for the skill.",
+    "descriptionHint": "Include both what the skill does and when Claude should use it",
+    "descriptionRequired": "Description is required",
+    "descriptionTooLong": "Description must be 1024 characters or less",
+    "descriptionInvalidChars": "Description cannot contain angle brackets (< or >)",
+    "descriptionInvalid": "Invalid description format",
+    "licenseLabel": "License (optional)",
+    "licenseHint": "e.g., MIT, Apache-2.0, or 'Complete terms in LICENSE.txt'",
+    "resourcesLabel": "Include Resource Directories",
+    "scriptsHint": "Executable code (Python, Bash, etc.)",
+    "referencesHint": "Documentation to load into context",
+    "assetsHint": "Templates, images, fonts, etc.",
+    "create": "Create Skill",
+    "successTitle": "Skill Created!",
+    "successMessage": "Your skill \"{{name}}\" has been created successfully.",
+    "openDirectory": "Open Directory",
+    "error": "Failed to create skill"
   }
 }

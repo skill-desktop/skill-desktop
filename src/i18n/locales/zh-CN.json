@@ -37,7 +37,8 @@
     "default": "默认",
     "clone": "克隆",
     "create": "创建",
-    "saveChanges": "保存更改"
+    "saveChanges": "保存更改",
+    "creating": "创建中..."
   },
   "app": {
     "name": "Skill Desktop",
@@ -401,5 +402,33 @@
     "highRiskWarning": "高风险权限警告",
     "highRiskDescription": "此技能需要高风险权限（shell_exec）。确定要执行吗？",
     "confirmExecute": "仍然执行"
+  },
+  "createSkill": {
+    "title": "创建新技能",
+    "nameLabel": "技能名称",
+    "nameHint": "仅使用小写字母、数字和连字符（如 my-awesome-skill）",
+    "nameRequired": "技能名称不能为空",
+    "nameTooLong": "技能名称不能超过 64 个字符",
+    "nameInvalidChars": "技能名称只能包含小写字母、数字和连字符",
+    "nameInvalidHyphens": "技能名称不能以连字符开头或结尾，也不能包含连续的连字符",
+    "nameInvalid": "技能名称格式无效",
+    "descriptionLabel": "描述",
+    "descriptionPlaceholder": "描述这个技能的功能以及何时使用它。这是技能的主要触发条件。",
+    "descriptionHint": "包括技能的功能和 Claude 应该何时使用它",
+    "descriptionRequired": "描述不能为空",
+    "descriptionTooLong": "描述不能超过 1024 个字符",
+    "descriptionInvalidChars": "描述不能包含尖括号（< 或 >）",
+    "descriptionInvalid": "描述格式无效",
+    "licenseLabel": "许可证（可选）",
+    "licenseHint": "如 MIT、Apache-2.0 或 'Complete terms in LICENSE.txt'",
+    "resourcesLabel": "包含资源目录",
+    "scriptsHint": "可执行代码（Python、Bash 等）",
+    "referencesHint": "加载到上下文的文档",
+    "assetsHint": "模板、图片、字体等",
+    "create": "创建技能",
+    "successTitle": "技能已创建！",
+    "successMessage": "您的技能 \"{{name}}\" 已成功创建。",
+    "openDirectory": "打开目录",
+    "error": "创建技能失败"
   }
 }

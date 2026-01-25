@@ -3,7 +3,7 @@ use std::process::Command;
 use tauri::{AppHandle, Manager, State};
 use walkdir::WalkDir;
 
-use crate::scanner::{calculate_file_hash, create_skill_from_file, is_skill_file, parse_skill_file};
+use crate::scanner::{create_skill_from_directory, is_skill_file};
 use crate::space::{sync_space_links, SyncResult};
 use crate::types::{Skill, SkillMetadata, Space};
 use crate::{DatabaseState, WatcherState};
@@ -116,6 +116,7 @@ pub struct LibraryState {
 }
 
 /// Get all skills from the library directory
+/// Scans for skill directories containing SKILL.md files
 #[tauri::command]
 pub async fn get_all_skills(library_state: State<'_, LibraryState>) -> Result<Vec<Skill>, String> {
     let library_path = {
@@ -132,7 +133,9 @@ pub async fn get_all_skills(library_state: State<'_, LibraryState>) -> Result<Ve
     }
 
     let mut skills = Vec::new();
+    let mut visited_dirs = std::collections::HashSet::new();
 
+    // Walk through the library directory looking for skill directories
     for entry in WalkDir::new(&library_path)
         .follow_links(true)
         .into_iter()
@@ -140,30 +143,27 @@ pub async fn get_all_skills(library_state: State<'_, LibraryState>) -> Result<Ve
     {
         let path = entry.path();
 
-        if !path.is_file() || !is_skill_file(path) {
-            continue;
+        // Check if this is a SKILL.md file
+        if path.is_file() && is_skill_file(path) {
+            // Get the parent directory (skill directory)
+            if let Some(skill_dir) = path.parent() {
+                // Skip if we've already processed this directory
+                let dir_str = skill_dir.to_string_lossy().to_string();
+                if visited_dirs.contains(&dir_str) {
+                    continue;
+                }
+                visited_dirs.insert(dir_str);
+                
+                // Create skill from directory
+                match create_skill_from_directory(skill_dir, None) {
+                    Ok(skill) => skills.push(skill),
+                    Err(e) => {
+                        tracing::warn!("Failed to parse skill directory {:?}: {}", skill_dir, e);
+                        continue;
+                    }
+                }
+            }
         }
-
-        // Calculate hash
-        let hash = match calculate_file_hash(path) {
-            Ok(h) => h,
-            Err(e) => {
-                tracing::warn!("Failed to calculate hash for {:?}: {}", path, e);
-                continue;
-            }
-        };
-
-        // Parse metadata
-        let metadata = match parse_skill_file(path) {
-            Ok(m) => m,
-            Err(e) => {
-                tracing::warn!("Failed to parse skill file {:?}: {}", path, e);
-                continue;
-            }
-        };
-
-        let skill = create_skill_from_file(path, hash, metadata, None);
-        skills.push(skill);
     }
 
     Ok(skills)
@@ -749,6 +749,7 @@ fn analyze_content_risk(content: &str, extension: Option<&str>) -> Option<crate:
 }
 
 /// Import skill from URL to library
+/// Creates a skill directory with SKILL.md file
 #[tauri::command]
 pub async fn import_skill_from_url(
     url: String,
@@ -778,26 +779,22 @@ pub async fn import_skill_from_url(
     let metadata = crate::scanner::parse_front_matter(&content)
         .ok_or("Failed to parse skill metadata")?;
 
-    // Generate filename from skill name
-    let filename = format!("{}.md", metadata.name.replace(" ", "-").to_lowercase());
-    let file_path = library_path.join(&filename);
-
-    // Check if file already exists
-    if file_path.exists() {
-        return Err(format!("A skill with filename '{}' already exists", filename));
+    // Create skill directory
+    let skill_dir = library_path.join(&metadata.name);
+    if skill_dir.exists() {
+        return Err(format!("A skill with name '{}' already exists", metadata.name));
     }
+    
+    std::fs::create_dir_all(&skill_dir)
+        .map_err(|e| format!("Failed to create skill directory: {}", e))?;
 
-    // Write file
-    std::fs::write(&file_path, &content)
-        .map_err(|e| format!("Failed to write file: {}", e))?;
+    // Write SKILL.md file
+    let skill_md_path = skill_dir.join("SKILL.md");
+    std::fs::write(&skill_md_path, &content)
+        .map_err(|e| format!("Failed to write SKILL.md: {}", e))?;
 
-    // Calculate hash and create skill
-    let hash = calculate_file_hash(&file_path)
-        .map_err(|e| format!("Failed to calculate hash: {}", e))?;
-
-    let skill = create_skill_from_file(&file_path, hash, metadata, Some(url));
-
-    Ok(skill)
+    // Create skill from directory
+    create_skill_from_directory(&skill_dir, Some(url))
 }
 
 #[derive(Debug, Clone, serde::Serialize)]
@@ -1011,13 +1008,16 @@ pub async fn export_mcp_config(
 }
 
 /// Helper function to get all skills without State
+/// Helper function to get all skills without State
 fn get_all_skills_internal(library_path: &PathBuf) -> Result<Vec<Skill>, String> {
     if !library_path.exists() {
         return Ok(vec![]);
     }
 
     let mut skills = Vec::new();
+    let mut visited_dirs = std::collections::HashSet::new();
 
+    // Walk through the library directory looking for skill directories
     for entry in WalkDir::new(library_path)
         .follow_links(true)
         .into_iter()
@@ -1025,28 +1025,27 @@ fn get_all_skills_internal(library_path: &PathBuf) -> Result<Vec<Skill>, String>
     {
         let path = entry.path();
 
-        if !path.is_file() || !is_skill_file(path) {
-            continue;
+        // Check if this is a SKILL.md file
+        if path.is_file() && is_skill_file(path) {
+            // Get the parent directory (skill directory)
+            if let Some(skill_dir) = path.parent() {
+                // Skip if we've already processed this directory
+                let dir_str = skill_dir.to_string_lossy().to_string();
+                if visited_dirs.contains(&dir_str) {
+                    continue;
+                }
+                visited_dirs.insert(dir_str);
+                
+                // Create skill from directory
+                match create_skill_from_directory(skill_dir, None) {
+                    Ok(skill) => skills.push(skill),
+                    Err(e) => {
+                        tracing::warn!("Failed to parse skill directory {:?}: {}", skill_dir, e);
+                        continue;
+                    }
+                }
+            }
         }
-
-        let hash = match calculate_file_hash(path) {
-            Ok(h) => h,
-            Err(e) => {
-                tracing::warn!("Failed to calculate hash for {:?}: {}", path, e);
-                continue;
-            }
-        };
-
-        let metadata = match parse_skill_file(path) {
-            Ok(m) => m,
-            Err(e) => {
-                tracing::warn!("Failed to parse skill file {:?}: {}", path, e);
-                continue;
-            }
-        };
-
-        let skill = create_skill_from_file(path, hash, metadata, None);
-        skills.push(skill);
     }
 
     Ok(skills)
@@ -1299,6 +1298,8 @@ pub async fn preview_github_skill(
 }
 
 /// Import a skill from GitHub to library
+/// If path points to a SKILL.md file, imports the entire skill directory
+/// If path points to a directory containing SKILL.md, imports all files
 #[tauri::command]
 pub async fn import_github_skill(
     owner: String,
@@ -1315,59 +1316,143 @@ pub async fn import_github_skill(
         guard.clone().ok_or("Library path not set")?
     };
     
-    // Get raw content URL
+    // Determine if we're importing a SKILL.md file or a directory
+    let is_skill_md = path.ends_with("SKILL.md");
+    let skill_dir_path = if is_skill_md {
+        // Get parent directory path
+        std::path::Path::new(&path)
+            .parent()
+            .map(|p| p.to_string_lossy().to_string())
+            .unwrap_or_default()
+    } else {
+        path.clone()
+    };
+    
+    // First, fetch the SKILL.md content to get the skill name
+    let skill_md_path = if is_skill_md {
+        path.clone()
+    } else {
+        format!("{}/SKILL.md", path.trim_end_matches('/'))
+    };
+    
     let raw_url = format!(
         "https://raw.githubusercontent.com/{}/{}/{}/{}",
-        owner, repo, branch, path
+        owner, repo, branch, skill_md_path
     );
     
-    // Fetch content
     let response = reqwest::get(&raw_url)
         .await
-        .map_err(|e| format!("Failed to fetch file: {}", e))?;
+        .map_err(|e| format!("Failed to fetch SKILL.md: {}", e))?;
     
     if !response.status().is_success() {
-        return Err(format!("Failed to fetch file: HTTP {}", response.status()));
+        return Err(format!("Failed to fetch SKILL.md: HTTP {}", response.status()));
     }
     
-    let content = response
+    let skill_md_content = response
         .text()
         .await
         .map_err(|e| format!("Failed to read response: {}", e))?;
     
-    // Parse metadata
-    let metadata = crate::scanner::parse_front_matter(&content)
+    // Parse metadata to get skill name
+    let metadata = crate::scanner::parse_front_matter(&skill_md_content)
         .ok_or("Failed to parse skill metadata")?;
     
-    // Generate filename from path or skill name
-    let filename = std::path::Path::new(&path)
-        .file_name()
-        .map(|s| s.to_string_lossy().to_string())
-        .unwrap_or_else(|| format!("{}.md", metadata.name.replace(" ", "-").to_lowercase()));
-    
-    let file_path = library_path.join(&filename);
-    
-    // Check if file already exists
-    if file_path.exists() {
-        return Err(format!("A skill with filename '{}' already exists", filename));
+    // Create local skill directory
+    let local_skill_dir = library_path.join(&metadata.name);
+    if local_skill_dir.exists() {
+        return Err(format!("A skill with name '{}' already exists", metadata.name));
     }
     
-    // Write file
-    std::fs::write(&file_path, &content)
-        .map_err(|e| format!("Failed to write file: {}", e))?;
+    std::fs::create_dir_all(&local_skill_dir)
+        .map_err(|e| format!("Failed to create skill directory: {}", e))?;
     
-    // Calculate hash and create skill
-    let hash = calculate_file_hash(&file_path)
-        .map_err(|e| format!("Failed to calculate hash: {}", e))?;
+    // Write SKILL.md
+    let local_skill_md = local_skill_dir.join("SKILL.md");
+    std::fs::write(&local_skill_md, &skill_md_content)
+        .map_err(|e| format!("Failed to write SKILL.md: {}", e))?;
+    
+    // Try to import additional files from the skill directory
+    let _ = import_github_skill_resources(
+        &owner, &repo, &branch, &skill_dir_path, &local_skill_dir
+    ).await;
     
     let source_url = format!(
-        "https://github.com/{}/{}/blob/{}/{}",
-        owner, repo, branch, path
+        "https://github.com/{}/{}/tree/{}/{}",
+        owner, repo, branch, skill_dir_path
     );
     
-    let skill = create_skill_from_file(&file_path, hash, metadata, Some(source_url));
+    create_skill_from_directory(&local_skill_dir, Some(source_url))
+}
+
+/// Helper function to import additional resources from a GitHub skill directory
+async fn import_github_skill_resources(
+    owner: &str,
+    repo: &str,
+    branch: &str,
+    github_path: &str,
+    local_dir: &std::path::Path,
+) -> Result<(), String> {
+    let client = reqwest::Client::new();
     
-    Ok(skill)
+    // Browse the directory
+    let url = format!(
+        "https://api.github.com/repos/{}/{}/contents/{}?ref={}",
+        owner, repo, github_path, branch
+    );
+    
+    let response = client
+        .get(&url)
+        .header("User-Agent", "Skill-Desktop/0.1.0")
+        .header("Accept", "application/vnd.github.v3+json")
+        .send()
+        .await
+        .map_err(|e| format!("Failed to fetch GitHub API: {}", e))?;
+    
+    if !response.status().is_success() {
+        return Ok(()); // Silently fail for additional resources
+    }
+    
+    let entries: Vec<serde_json::Value> = response
+        .json()
+        .await
+        .map_err(|e| format!("Failed to parse response: {}", e))?;
+    
+    for entry in entries {
+        let name = entry["name"].as_str().unwrap_or("");
+        let entry_type = entry["type"].as_str().unwrap_or("");
+        let entry_path = entry["path"].as_str().unwrap_or("");
+        
+        // Skip SKILL.md (already imported)
+        if name == "SKILL.md" {
+            continue;
+        }
+        
+        if entry_type == "dir" {
+            // Create local directory and recurse
+            let local_subdir = local_dir.join(name);
+            let _ = std::fs::create_dir_all(&local_subdir);
+            let _ = Box::pin(import_github_skill_resources(
+                owner, repo, branch, entry_path, &local_subdir
+            )).await;
+        } else if entry_type == "file" {
+            // Download file
+            let raw_url = format!(
+                "https://raw.githubusercontent.com/{}/{}/{}/{}",
+                owner, repo, branch, entry_path
+            );
+            
+            if let Ok(resp) = reqwest::get(&raw_url).await {
+                if resp.status().is_success() {
+                    if let Ok(content) = resp.bytes().await {
+                        let local_file = local_dir.join(name);
+                        let _ = std::fs::write(&local_file, &content);
+                    }
+                }
+            }
+        }
+    }
+    
+    Ok(())
 }
 
 /// Import multiple skills from a GitHub directory
@@ -1616,29 +1701,24 @@ pub async fn import_mcp_tool_as_skill(
         &parameters,
     );
     
-    // Generate filename
-    let filename = format!("{}.md", tool_name.replace(" ", "-").to_lowercase());
-    let file_path = library_path.join(&filename);
+    // Generate skill name (lowercase, hyphens)
+    let skill_name = tool_name.replace(" ", "-").to_lowercase();
     
-    // Check if file already exists
-    if file_path.exists() {
-        return Err(format!("A skill with filename '{}' already exists", filename));
+    // Create skill directory
+    let skill_dir = library_path.join(&skill_name);
+    if skill_dir.exists() {
+        return Err(format!("A skill with name '{}' already exists", skill_name));
     }
     
-    // Write file
-    std::fs::write(&file_path, &skill_content)
-        .map_err(|e| format!("Failed to write file: {}", e))?;
+    std::fs::create_dir_all(&skill_dir)
+        .map_err(|e| format!("Failed to create skill directory: {}", e))?;
     
-    // Calculate hash and create skill
-    let hash = calculate_file_hash(&file_path)
-        .map_err(|e| format!("Failed to calculate hash: {}", e))?;
+    // Write SKILL.md
+    let skill_md_path = skill_dir.join("SKILL.md");
+    std::fs::write(&skill_md_path, &skill_content)
+        .map_err(|e| format!("Failed to write SKILL.md: {}", e))?;
     
-    let metadata = crate::scanner::parse_front_matter(&skill_content)
-        .ok_or("Failed to parse generated skill metadata")?;
-    
-    let skill = create_skill_from_file(&file_path, hash, metadata, Some(server_url));
-    
-    Ok(skill)
+    create_skill_from_directory(&skill_dir, Some(server_url))
 }
 
 /// Parse JSON Schema to parameter list
@@ -2468,30 +2548,25 @@ pub async fn import_mcp_registry_server(
     // Generate skill content
     let skill_content = generate_registry_skill_content(&entry);
     
-    // Generate filename
-    let filename = format!("{}.md", entry.name.replace(" ", "-").to_lowercase());
-    let file_path = library_path.join(&filename);
+    // Generate skill name (lowercase, hyphens)
+    let skill_name = entry.name.replace(" ", "-").to_lowercase();
     
-    // Check if file already exists
-    if file_path.exists() {
-        return Err(format!("A skill with filename '{}' already exists", filename));
+    // Create skill directory
+    let skill_dir = library_path.join(&skill_name);
+    if skill_dir.exists() {
+        return Err(format!("A skill with name '{}' already exists", skill_name));
     }
     
-    // Write file
-    std::fs::write(&file_path, &skill_content)
-        .map_err(|e| format!("Failed to write file: {}", e))?;
+    std::fs::create_dir_all(&skill_dir)
+        .map_err(|e| format!("Failed to create skill directory: {}", e))?;
     
-    // Calculate hash and create skill
-    let hash = calculate_file_hash(&file_path)
-        .map_err(|e| format!("Failed to calculate hash: {}", e))?;
-    
-    let metadata = crate::scanner::parse_front_matter(&skill_content)
-        .ok_or("Failed to parse generated skill metadata")?;
+    // Write SKILL.md
+    let skill_md_path = skill_dir.join("SKILL.md");
+    std::fs::write(&skill_md_path, &skill_content)
+        .map_err(|e| format!("Failed to write SKILL.md: {}", e))?;
     
     let source_url = entry.repository.or(entry.homepage);
-    let skill = create_skill_from_file(&file_path, hash, metadata, source_url);
-    
-    Ok(skill)
+    create_skill_from_directory(&skill_dir, source_url)
 }
 
 /// Generate skill content from registry entry
@@ -3122,4 +3197,377 @@ pub async fn save_file_with_dialog(
         }
         None => Ok(None),
     }
+}
+
+// ========== Skill Creation Commands ==========
+
+/// Request to create a new skill
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CreateSkillRequest {
+    /// Skill name (1-64 chars, lowercase alphanumeric and hyphens)
+    pub name: String,
+    /// Description of what the skill does and when to use it (1-1024 chars)
+    pub description: String,
+    /// Optional license information
+    pub license: Option<String>,
+    /// Whether to create scripts directory
+    pub include_scripts: bool,
+    /// Whether to create references directory
+    pub include_references: bool,
+    /// Whether to create assets directory
+    pub include_assets: bool,
+}
+
+/// Result of skill creation
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CreateSkillResult {
+    /// The created skill
+    pub skill: Skill,
+    /// Path to the created skill directory
+    pub skill_dir: String,
+}
+
+/// Validate skill name according to Agent Skills spec
+fn validate_skill_name(name: &str) -> Result<(), String> {
+    // Check length (1-64 characters)
+    if name.is_empty() {
+        return Err("Skill name cannot be empty".to_string());
+    }
+    if name.len() > 64 {
+        return Err(format!("Skill name is too long ({} characters). Maximum is 64 characters.", name.len()));
+    }
+    
+    // Check format (lowercase alphanumeric and hyphens only)
+    if !name.chars().all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-') {
+        return Err("Skill name must contain only lowercase letters, digits, and hyphens".to_string());
+    }
+    
+    // Check for invalid hyphen usage
+    if name.starts_with('-') || name.ends_with('-') {
+        return Err("Skill name cannot start or end with a hyphen".to_string());
+    }
+    if name.contains("--") {
+        return Err("Skill name cannot contain consecutive hyphens".to_string());
+    }
+    
+    Ok(())
+}
+
+/// Validate skill description according to Agent Skills spec
+fn validate_skill_description(description: &str) -> Result<(), String> {
+    // Check length (1-1024 characters)
+    if description.is_empty() {
+        return Err("Skill description cannot be empty".to_string());
+    }
+    if description.len() > 1024 {
+        return Err(format!("Skill description is too long ({} characters). Maximum is 1024 characters.", description.len()));
+    }
+    
+    // Check for angle brackets
+    if description.contains('<') || description.contains('>') {
+        return Err("Skill description cannot contain angle brackets (< or >)".to_string());
+    }
+    
+    Ok(())
+}
+
+/// Generate SKILL.md content from template
+fn generate_skill_md_content(name: &str, description: &str, license: Option<&str>) -> String {
+    let title = name.split('-')
+        .map(|word| {
+            let mut chars = word.chars();
+            match chars.next() {
+                None => String::new(),
+                Some(first) => first.to_uppercase().collect::<String>() + chars.as_str(),
+            }
+        })
+        .collect::<Vec<_>>()
+        .join(" ");
+    
+    let license_line = license
+        .map(|l| format!("\nlicense: {}", l))
+        .unwrap_or_default();
+    
+    format!(r#"---
+name: {}
+description: {}{}
+---
+
+# {}
+
+## Overview
+
+[TODO: 1-2 sentences explaining what this skill enables]
+
+## Workflow
+
+[TODO: Describe the workflow or process this skill provides]
+
+## Resources
+
+This skill may include the following resource directories:
+
+### scripts/
+Executable code (Python/Bash/etc.) that can be run directly to perform specific operations.
+
+### references/
+Documentation and reference material intended to be loaded into context to inform Claude's process and thinking.
+
+### assets/
+Files not intended to be loaded into context, but rather used within the output Claude produces.
+
+---
+
+**Delete any unneeded directories.** Not every skill requires all three types of resources.
+"#, name, description, license_line, title)
+}
+
+/// Generate example script content
+fn generate_example_script(name: &str) -> String {
+    format!(r#"#!/usr/bin/env python3
+"""
+Example helper script for {}
+
+This is a placeholder script that can be executed directly.
+Replace with actual implementation or delete if not needed.
+"""
+
+def main():
+    print("This is an example script for {}")
+    # TODO: Add actual script logic here
+
+if __name__ == "__main__":
+    main()
+"#, name, name)
+}
+
+/// Generate example reference content
+fn generate_example_reference(title: &str) -> String {
+    format!(r#"# Reference Documentation for {}
+
+This is a placeholder for detailed reference documentation.
+Replace with actual reference content or delete if not needed.
+
+## When Reference Docs Are Useful
+
+Reference docs are ideal for:
+- Comprehensive API documentation
+- Detailed workflow guides
+- Complex multi-step processes
+- Information too lengthy for main SKILL.md
+
+## Structure Suggestions
+
+### API Reference Example
+- Overview
+- Authentication
+- Endpoints with examples
+- Error codes
+
+### Workflow Guide Example
+- Prerequisites
+- Step-by-step instructions
+- Common patterns
+- Troubleshooting
+"#, title)
+}
+
+/// Generate example asset placeholder
+fn generate_example_asset() -> String {
+    r#"# Example Asset File
+
+This placeholder represents where asset files would be stored.
+Replace with actual asset files (templates, images, fonts, etc.) or delete if not needed.
+
+Asset files are NOT intended to be loaded into context, but rather used within
+the output Claude produces.
+
+## Common Asset Types
+
+- Templates: .pptx, .docx, boilerplate directories
+- Images: .png, .jpg, .svg, .gif
+- Fonts: .ttf, .otf, .woff, .woff2
+- Boilerplate code: Project directories, starter files
+- Data files: .csv, .json, .xml, .yaml
+
+Note: This is a text placeholder. Actual assets can be any file type.
+"#.to_string()
+}
+
+/// Create a new skill with the standard directory structure
+#[tauri::command]
+pub async fn create_skill(
+    request: CreateSkillRequest,
+    library_state: State<'_, LibraryState>,
+) -> Result<CreateSkillResult, String> {
+    // Validate inputs
+    validate_skill_name(&request.name)?;
+    validate_skill_description(&request.description)?;
+    
+    // Get library path
+    let library_path = {
+        let guard = library_state.path.lock().map_err(|e| e.to_string())?;
+        guard.clone().ok_or("Library path not set")?
+    };
+    
+    // Create skill directory
+    let skill_dir = library_path.join(&request.name);
+    if skill_dir.exists() {
+        return Err(format!("A skill with name '{}' already exists", request.name));
+    }
+    
+    std::fs::create_dir_all(&skill_dir)
+        .map_err(|e| format!("Failed to create skill directory: {}", e))?;
+    
+    // Generate and write SKILL.md
+    let skill_md_content = generate_skill_md_content(
+        &request.name,
+        &request.description,
+        request.license.as_deref(),
+    );
+    let skill_md_path = skill_dir.join("SKILL.md");
+    std::fs::write(&skill_md_path, &skill_md_content)
+        .map_err(|e| format!("Failed to write SKILL.md: {}", e))?;
+    
+    // Create title for display
+    let title = request.name.split('-')
+        .map(|word| {
+            let mut chars = word.chars();
+            match chars.next() {
+                None => String::new(),
+                Some(first) => first.to_uppercase().collect::<String>() + chars.as_str(),
+            }
+        })
+        .collect::<Vec<_>>()
+        .join(" ");
+    
+    // Create optional directories with example files
+    if request.include_scripts {
+        let scripts_dir = skill_dir.join("scripts");
+        std::fs::create_dir_all(&scripts_dir)
+            .map_err(|e| format!("Failed to create scripts directory: {}", e))?;
+        
+        let example_script = scripts_dir.join("example.py");
+        std::fs::write(&example_script, generate_example_script(&request.name))
+            .map_err(|e| format!("Failed to write example script: {}", e))?;
+        
+        // Make script executable on Unix
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            let mut perms = std::fs::metadata(&example_script)
+                .map_err(|e| e.to_string())?
+                .permissions();
+            perms.set_mode(0o755);
+            std::fs::set_permissions(&example_script, perms)
+                .map_err(|e| format!("Failed to set script permissions: {}", e))?;
+        }
+    }
+    
+    if request.include_references {
+        let references_dir = skill_dir.join("references");
+        std::fs::create_dir_all(&references_dir)
+            .map_err(|e| format!("Failed to create references directory: {}", e))?;
+        
+        let example_reference = references_dir.join("api_reference.md");
+        std::fs::write(&example_reference, generate_example_reference(&title))
+            .map_err(|e| format!("Failed to write example reference: {}", e))?;
+    }
+    
+    if request.include_assets {
+        let assets_dir = skill_dir.join("assets");
+        std::fs::create_dir_all(&assets_dir)
+            .map_err(|e| format!("Failed to create assets directory: {}", e))?;
+        
+        let example_asset = assets_dir.join("example_asset.txt");
+        std::fs::write(&example_asset, generate_example_asset())
+            .map_err(|e| format!("Failed to write example asset: {}", e))?;
+    }
+    
+    // Create skill from directory
+    let skill = create_skill_from_directory(&skill_dir, None)?;
+    
+    Ok(CreateSkillResult {
+        skill,
+        skill_dir: skill_dir.to_string_lossy().to_string(),
+    })
+}
+
+/// Validate a skill name without creating it
+#[tauri::command]
+pub async fn validate_skill_name_cmd(name: String) -> Result<(), String> {
+    validate_skill_name(&name)
+}
+
+/// Validate a skill description without creating it
+#[tauri::command]
+pub async fn validate_skill_description_cmd(description: String) -> Result<(), String> {
+    validate_skill_description(&description)
+}
+
+/// Get skill resource content by path
+#[tauri::command]
+pub async fn get_skill_resource_content(
+    skill_hash: String,
+    resource_path: String,
+    library_state: State<'_, LibraryState>,
+) -> Result<String, String> {
+    let library_path = {
+        let guard = library_state.path.lock().map_err(|e| e.to_string())?;
+        guard.clone().ok_or("Library path not set")?
+    };
+    
+    let all_skills = get_all_skills_internal(&library_path)?;
+    
+    let skill = all_skills
+        .into_iter()
+        .find(|s| s.hash == skill_hash)
+        .ok_or("Skill not found")?;
+    
+    let full_path = PathBuf::from(&skill.skill_dir).join(&resource_path);
+    
+    if !full_path.exists() {
+        return Err(format!("Resource not found: {}", resource_path));
+    }
+    
+    std::fs::read_to_string(&full_path)
+        .map_err(|e| format!("Failed to read resource: {}", e))
+}
+
+/// Open skill directory in system file manager
+#[tauri::command]
+pub async fn open_skill_directory(skill_dir: String) -> Result<(), String> {
+    let path = PathBuf::from(&skill_dir);
+    
+    if !path.exists() {
+        return Err("Skill directory not found".to_string());
+    }
+    
+    #[cfg(target_os = "macos")]
+    {
+        Command::new("open")
+            .arg(&path)
+            .spawn()
+            .map_err(|e| e.to_string())?;
+    }
+    
+    #[cfg(target_os = "windows")]
+    {
+        Command::new("explorer")
+            .arg(&path)
+            .spawn()
+            .map_err(|e| e.to_string())?;
+    }
+    
+    #[cfg(target_os = "linux")]
+    {
+        Command::new("xdg-open")
+            .arg(&path)
+            .spawn()
+            .map_err(|e| e.to_string())?;
+    }
+    
+    Ok(())
 }
