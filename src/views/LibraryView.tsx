@@ -1,10 +1,10 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
-import { Trash2, X, Loader2, Shield, ShieldAlert, Filter, Folder, FolderPlus, Download } from "lucide-react";
+import { Trash2, X, Loader2, Shield, ShieldAlert, Filter, Folder, FolderPlus, Download, Plus, BookOpen } from "lucide-react";
 import { invoke } from "@tauri-apps/api/core";
 import { useAppStore, useSettingsStore } from "@/stores";
 import { useSkills, useSearchSkills, useDeleteSkillsBatch, useQuarantinedSkills, useSetSkillQuarantine, useSpaces, useSetBulkSkillVisibility, useExportSkillsBatch, useExportSkillsBatchJson } from "@/hooks";
-import { SkillList, SkillDetail } from "@/components/library";
+import { SkillList, SkillDetail, CreateSkillDialog, ExampleSkillsDialog } from "@/components/library";
 import { Skeleton, Button, Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, ScrollArea } from "@/components/ui";
 import type { Skill } from "@/types";
 
@@ -22,6 +22,8 @@ export const LibraryView: React.FC = () => {
   const [filterMode, setFilterMode] = React.useState<FilterMode>("all");
   const [showQuarantineConfirm, setShowQuarantineConfirm] = React.useState(false);
   const [showAddToSpaceDialog, setShowAddToSpaceDialog] = React.useState(false);
+  const [showCreateSkillDialog, setShowCreateSkillDialog] = React.useState(false);
+  const [showExampleSkillsDialog, setShowExampleSkillsDialog] = React.useState(false);
 
   // Fetch skills from backend
   const { data: allSkills = [], isLoading, error } = useSkills();
@@ -264,6 +266,23 @@ export const LibraryView: React.FC = () => {
                   {t("library.filter.quarantine")} ({quarantinedCount})
                 </Button>
               </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowExampleSkillsDialog(true)}
+              >
+                <BookOpen className="h-3.5 w-3.5 mr-1.5" />
+                {t("library.exampleSkills")}
+              </Button>
+              <Button
+                size="sm"
+                onClick={() => setShowCreateSkillDialog(true)}
+              >
+                <Plus className="h-3.5 w-3.5 mr-1.5" />
+                {t("library.createSkill")}
+              </Button>
             </div>
           </div>
         )}
@@ -508,6 +527,18 @@ export const LibraryView: React.FC = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Create Skill Dialog */}
+      <CreateSkillDialog
+        open={showCreateSkillDialog}
+        onOpenChange={setShowCreateSkillDialog}
+      />
+
+      {/* Example Skills Dialog */}
+      <ExampleSkillsDialog
+        open={showExampleSkillsDialog}
+        onOpenChange={setShowExampleSkillsDialog}
+      />
     </>
   );
 };

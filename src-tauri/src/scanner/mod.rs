@@ -20,6 +20,7 @@ pub fn calculate_file_hash(path: &Path) -> Result<String, std::io::Error> {
 }
 
 /// Check if a directory is a skill directory (contains SKILL.md)
+#[allow(dead_code)]
 pub fn is_skill_directory(path: &Path) -> bool {
     path.is_dir() && path.join("SKILL.md").exists()
 }
