@@ -70,7 +70,8 @@ export const RiskAnalysisSection: React.FC<RiskAnalysisSectionProps> = ({ riskAn
   const { t } = useTranslation();
   
   const hasRisks = riskAnalysis.detectedRisks.length > 0;
-  const isExecutable = riskAnalysis.isExecutableCode;
+  // Markdown files are not executable code, even if detected as such
+  const isExecutable = riskAnalysis.isExecutableCode && riskAnalysis.fileExtension !== "md";
   
   // Group risks by level
   const highRisks = riskAnalysis.detectedRisks.filter(r => r.level === "high");

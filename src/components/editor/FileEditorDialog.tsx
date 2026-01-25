@@ -9,8 +9,9 @@ import {
   DialogFooter 
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { useReadTextFile, useSaveTextFile } from "@/hooks/useFileOperations";
-import { Loader2, Save } from "lucide-react";
+import { Loader2, Save, FileCode2, Terminal, FileText, FileJson, File, X } from "lucide-react";
 import { useSettingsStore } from "@/stores/settingsStore";
 
 // Get language from file extension
@@ -52,6 +53,34 @@ function getLanguageFromPath(filePath: string): string {
     'txt': 'plaintext',
   };
   return languageMap[ext || ''] || 'plaintext';
+}
+
+// Get icon based on language/extension
+function getFileIcon(language: string) {
+  switch (language) {
+    case 'python':
+    case 'javascript':
+    case 'typescript':
+    case 'rust':
+    case 'go':
+    case 'c':
+    case 'cpp':
+    case 'java':
+      return <FileCode2 className="w-4 h-4 text-blue-500" />;
+    case 'shell':
+      return <Terminal className="w-4 h-4 text-green-500" />;
+    case 'json':
+    case 'yaml':
+    case 'xml':
+    case 'toml':
+    case 'ini':
+      return <FileJson className="w-4 h-4 text-orange-500" />;
+    case 'markdown':
+    case 'plaintext':
+      return <FileText className="w-4 h-4 text-gray-500" />;
+    default:
+      return <File className="w-4 h-4 text-gray-500" />;
+  }
 }
 
 interface FileEditorDialogProps {
@@ -98,6 +127,7 @@ export function FileEditorDialog({
 
   // Detect language from file path
   const detectedLanguage = language !== "markdown" ? language : getLanguageFromPath(filePath);
+  const fileName = title || filePath.split('/').pop() || "Untitled";
 
   const handleSave = async () => {
     if (!filePath) return;
@@ -112,7 +142,6 @@ export function FileEditorDialog({
 
   const handleClose = () => {
     if (isModified) {
-      // Could show a confirmation dialog here
       if (!confirm(t("common.unsavedChanges", "You have unsaved changes. Are you sure you want to close?"))) {
         return;
       }
@@ -125,24 +154,53 @@ export function FileEditorDialog({
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="max-w-4xl h-[80vh] flex flex-col p-0 gap-0">
-        <DialogHeader className="px-4 py-3 border-b">
-          <DialogTitle className="flex items-center justify-between text-base">
-            <span className="truncate flex-1" title={filePath}>
-              {title || filePath.split('/').pop()}
-            </span>
-            {isModified && (
-              <span className="text-xs text-muted-foreground ml-2 px-2 py-0.5 rounded-full bg-accent/50">
-                Modified
-              </span>
-            )}
-          </DialogTitle>
-        </DialogHeader>
+      <DialogContent className="max-w-5xl h-[85vh] flex flex-col p-0 gap-0 overflow-hidden border-none shadow-2xl bg-bg-secondary">
+        {/* Header */}
+        <div className="flex items-center justify-between px-4 py-3 border-b border-border-default bg-bg-secondary">
+          <div className="flex items-center gap-3 overflow-hidden">
+            <div className="flex items-center justify-center w-8 h-8 rounded-md bg-bg-tertiary border border-border-muted shrink-0">
+              {getFileIcon(detectedLanguage)}
+            </div>
+            <div className="flex flex-col min-w-0">
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-medium text-text-primary truncate" title={filePath}>
+                  {fileName}
+                </span>
+                {isModified && (
+                  <span className="w-2 h-2 rounded-full bg-accent-yellow animate-pulse shrink-0" title="Unsaved changes" />
+                )}
+              </div>
+              <div className="flex items-center gap-2 text-xs text-text-muted">
+                <Badge variant="outline" className="h-4 px-1 py-0 text-[10px] font-normal border-border-muted text-text-secondary rounded-sm">
+                  {detectedLanguage}
+                </Badge>
+                <span className="truncate opacity-60 direction-rtl" title={filePath}>
+                  {filePath}
+                </span>
+              </div>
+            </div>
+          </div>
+          
+          <div className="flex items-center gap-2 shrink-0 ml-4">
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              onClick={handleClose}
+              className="h-8 w-8 text-text-muted hover:text-text-primary"
+            >
+              <X className="w-4 h-4" />
+            </Button>
+          </div>
+        </div>
 
-        <div className="flex-1 min-h-0 bg-[#1e1e1e] relative">
+        {/* Editor Area */}
+        <div className="flex-1 min-h-0 relative bg-[#1e1e1e]">
           {readTextFile.isPending ? (
-            <div className="absolute inset-0 flex items-center justify-center bg-background/50 z-10">
-              <Loader2 className="w-8 h-8 animate-spin text-primary" />
+            <div className="absolute inset-0 flex items-center justify-center bg-bg-secondary/50 z-10 backdrop-blur-sm">
+              <div className="flex flex-col items-center gap-2">
+                <Loader2 className="w-8 h-8 animate-spin text-accent-blue" />
+                <span className="text-sm text-text-muted">Loading file...</span>
+              </div>
             </div>
           ) : (
             <Editor
@@ -158,37 +216,59 @@ export function FileEditorDialog({
               options={{
                 minimap: { enabled: true },
                 scrollBeyondLastLine: false,
-                fontSize: 14,
+                fontSize: 13,
+                fontFamily: "'JetBrains Mono', 'Fira Code', Consolas, monospace",
+                fontLigatures: true,
                 wordWrap: "on",
+                padding: { top: 16, bottom: 16 },
+                lineNumbers: "on",
+                renderLineHighlight: "all",
+                smoothScrolling: true,
+                cursorBlinking: "smooth",
+                cursorSmoothCaretAnimation: "on",
               }}
             />
           )}
         </div>
 
-        <DialogFooter className="px-4 py-3 border-t bg-muted/20">
-          <div className="flex w-full justify-between items-center">
-             <div className="text-xs text-muted-foreground truncate max-w-[50%]">
-                {filePath}
-             </div>
-             <div className="flex gap-2">
-                <Button variant="outline" size="sm" onClick={handleClose}>
-                  {t("common.close", "Close")}
-                </Button>
-                <Button 
-                  size="sm" 
-                  onClick={handleSave} 
-                  disabled={!isModified || saveTextFile.isPending}
-                >
-                  {saveTextFile.isPending ? (
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  ) : (
-                    <Save className="w-4 h-4 mr-2" />
-                  )}
-                  {t("common.save", "Save")}
-                </Button>
-             </div>
+        {/* Footer */}
+        <div className="flex items-center justify-between px-4 py-3 border-t border-border-default bg-bg-tertiary">
+          <div className="flex items-center gap-4 text-xs text-text-muted">
+            <div className="flex items-center gap-1.5">
+              <span className={`w-2 h-2 rounded-full ${isModified ? 'bg-accent-yellow' : 'bg-accent-green'}`} />
+              <span>{isModified ? "Unsaved" : "Saved"}</span>
+            </div>
+            {content.length > 0 && (
+              <div className="hidden sm:block">
+                {content.split('\n').length} lines
+              </div>
+            )}
           </div>
-        </DialogFooter>
+          
+          <div className="flex items-center gap-2">
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              onClick={handleClose}
+              className="text-text-secondary hover:text-text-primary"
+            >
+              {t("common.close", "Close")}
+            </Button>
+            <Button 
+              size="sm" 
+              onClick={handleSave} 
+              disabled={!isModified || saveTextFile.isPending}
+              className={isModified ? "bg-accent-blue hover:bg-accent-blue/90 text-white" : ""}
+            >
+              {saveTextFile.isPending ? (
+                <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
+              ) : (
+                <Save className="w-3.5 h-3.5 mr-1.5" />
+              )}
+              {t("common.save", "Save")}
+            </Button>
+          </div>
+        </div>
       </DialogContent>
     </Dialog>
   );
