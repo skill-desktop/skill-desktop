@@ -68,6 +68,7 @@
     "failedToLoad": "加载技能失败",
     "createSkill": "创建技能",
     "importSkill": "导入技能",
+    "exampleSkills": "示例",
     "filter": {
       "all": "全部",
       "safe": "安全",

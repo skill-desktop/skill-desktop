@@ -94,7 +94,8 @@
       "markAsSafe": "安全としてマーク"
     },
     "createSkill": "スキルを作成",
-    "importSkill": "スキルをインポート"
+    "importSkill": "スキルをインポート",
+    "exampleSkills": "サンプル"
   },
   "skillCard": {
     "by": "作成者",

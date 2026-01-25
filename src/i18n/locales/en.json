@@ -68,6 +68,7 @@
     "failedToLoad": "Failed to load skills",
     "createSkill": "Create Skill",
     "importSkill": "Import Skill",
+    "exampleSkills": "Examples",
     "filter": {
       "all": "All",
       "safe": "Safe",

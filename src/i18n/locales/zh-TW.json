@@ -81,7 +81,8 @@
       "markAsSafe": "標記為安全"
     },
     "createSkill": "創建技能",
-    "importSkill": "導入技能"
+    "importSkill": "導入技能",
+    "exampleSkills": "範例"
   },
   "skillCard": {
     "by": "作者",
