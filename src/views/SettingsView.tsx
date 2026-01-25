@@ -11,6 +11,7 @@ import {
   Shield,
   Info,
   Bot,
+  Terminal,
 } from "lucide-react";
 import { invoke } from "@tauri-apps/api/core";
 import { Button, Input, Switch, ScrollArea } from "@/components/ui";
@@ -25,7 +26,7 @@ import {
   useEnsureDefaultSkillPath,
 } from "@/hooks";
 import type { SupportedLanguage } from "@/i18n";
-import { LLMSettingsPanel } from "@/components/settings/LLMSettingsPanel";
+import { LLMSettingsPanel, CLISettingsPanel } from "@/components/settings";
 
 // Constants for external links
 const DOCUMENTATION_URL = "https://github.com/anthropics/skill-desktop#readme";
@@ -61,7 +62,7 @@ async function openFolderDialog(): Promise<string | null> {
 }
 
 // Settings menu items
-type SettingsSection = "appearance" | "library" | "security" | "llm" | "about";
+type SettingsSection = "appearance" | "library" | "security" | "llm" | "cli" | "about";
 
 interface MenuItem {
   id: SettingsSection;
@@ -74,6 +75,7 @@ const menuItems: MenuItem[] = [
   { id: "library", icon: <Library className="h-4 w-4" />, labelKey: "settings.library.title" },
   { id: "security", icon: <Shield className="h-4 w-4" />, labelKey: "settings.security.title" },
   { id: "llm", icon: <Bot className="h-4 w-4" />, labelKey: "settings.llm.title" },
+  { id: "cli", icon: <Terminal className="h-4 w-4" />, labelKey: "settings.cli.title" },
   { id: "about", icon: <Info className="h-4 w-4" />, labelKey: "settings.about.title" },
 ];
 
@@ -322,6 +324,9 @@ export const SettingsView: React.FC = () => {
 
       case "llm":
         return <LLMSettingsPanel />;
+
+      case "cli":
+        return <CLISettingsPanel />;
 
       case "about":
         return (

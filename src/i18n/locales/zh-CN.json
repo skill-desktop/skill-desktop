@@ -41,7 +41,8 @@
     "creating": "创建中...",
     "unsavedChanges": "有未保存的更改",
     "docs": "文档",
-    "browse": "浏览"
+    "browse": "浏览",
+    "optional": "可选"
   },
   "app": {
     "name": "Skill Desktop",
@@ -328,6 +329,35 @@
       "testSuccess": "连接成功！",
       "testFailed": "连接失败",
       "confirmDelete": "确定要删除这个提供商吗？"
+    },
+    "cli": {
+      "title": "CLI 工具",
+      "description": "配置 AI 编程 CLI 工具的 API Key 和 Base URL，如 Claude Code、Gemini CLI、Codex 和 OpenCode",
+      "quickAdd": "快速添加",
+      "custom": "自定义",
+      "addTool": "添加 CLI 工具",
+      "configuredTools": "已配置的工具",
+      "noTools": "暂无配置的 CLI 工具。添加一个开始使用。",
+      "toolName": "工具名称",
+      "toolType": "工具类型",
+      "baseUrl": "Base URL",
+      "apiKey": "API Key",
+      "defaultModel": "默认模型",
+      "envVarConfig": "环境变量配置",
+      "apiKeyEnvVar": "API Key 环境变量",
+      "baseUrlEnvVar": "Base URL 环境变量",
+      "envVarsPreview": "环境变量预览",
+      "copyEnvVars": "复制环境变量",
+      "applyToShell": "应用到 Shell",
+      "applySuccess": "环境变量应用成功",
+      "copiedToClipboard": "已复制到剪贴板",
+      "exportAll": "导出所有配置",
+      "exportAllDesc": "将所有启用的 CLI 工具配置导出为 Shell 导出命令",
+      "exportShellConfig": "复制 Shell 配置",
+      "confirmDelete": "确定要删除这个 CLI 工具配置吗？",
+      "writeToShellConfig": "写入 Shell 配置",
+      "writeToShellConfigDesc": "自动将环境变量添加到你的 Shell 配置文件",
+      "shellConfigPath": "Shell 配置路径"
     },
     "about": {
       "title": "关于",

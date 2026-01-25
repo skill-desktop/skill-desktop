@@ -34,13 +34,29 @@ pub fn run() {
         .setup(|app| {
             // Get app data directory
             let app_data_dir = app.path().app_data_dir().expect("Failed to get app data dir");
-            
+
             // Initialize database
             let db = Database::new(&app_data_dir).expect("Failed to initialize database");
-            
-            // Load library path from database
+
+            // Load library path from database, or use default path as fallback
             let library_path = db.get_setting("library_path").ok().flatten();
-            
+
+            // If no library path is set, use the default path (app_data_dir/data/skills)
+            let library_path = library_path.or_else(|| {
+                let default_path = app_data_dir.join("data").join("skills");
+                // Create the default directory if it doesn't exist
+                if let Err(e) = std::fs::create_dir_all(&default_path) {
+                    tracing::error!("Failed to create default skill directory: {}", e);
+                    return None;
+                }
+                let path_str = default_path.to_string_lossy().to_string();
+                // Save the default path to database
+                if let Err(e) = db.set_setting("library_path", &path_str) {
+                    tracing::error!("Failed to save default library path to database: {}", e);
+                }
+                Some(path_str)
+            });
+
             // Load spaces from database
             let spaces = db.get_all_spaces().unwrap_or_default();
             
@@ -171,6 +187,15 @@ pub fn run() {
             commands::save_project_config,
             commands::create_project_config,
             commands::delete_project_config,
+            // CLI configuration commands
+            commands::apply_cli_env_vars,
+            commands::get_shell_config_path,
+            commands::write_cli_to_shell_config,
+            commands::remove_cli_from_shell_config,
+            commands::generate_gemini_config,
+            commands::write_gemini_config,
+            commands::generate_opencode_cli_config,
+            commands::write_opencode_cli_config,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

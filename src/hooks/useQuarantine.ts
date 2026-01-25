@@ -22,7 +22,8 @@ export function useSetSkillQuarantine() {
 
   return useMutation({
     mutationFn: async ({ hash, isQuarantined }: { hash: string; isQuarantined: boolean }) => {
-      await invoke("set_skill_quarantine", { hash, isQuarantined });
+      // Note: Tauri expects snake_case parameter names
+      await invoke("set_skill_quarantine", { hash, is_quarantined: isQuarantined });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: quarantineKeys.all });

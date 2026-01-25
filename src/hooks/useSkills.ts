@@ -91,7 +91,8 @@ export function useDeleteSkillsBatch() {
 export function useExportSkillsBatch() {
   return useMutation({
     mutationFn: async (skillHashes: string[]) => {
-      return await invoke<string>("export_skills_batch", { skillHashes });
+      // Note: Tauri expects snake_case parameter names
+      return await invoke<string>("export_skills_batch", { skill_hashes: skillHashes });
     },
   });
 }
@@ -99,7 +100,8 @@ export function useExportSkillsBatch() {
 export function useExportSkillsBatchJson() {
   return useMutation({
     mutationFn: async (skillHashes: string[]) => {
-      return await invoke<string>("export_skills_batch_json", { skillHashes });
+      // Note: Tauri expects snake_case parameter names
+      return await invoke<string>("export_skills_batch_json", { skill_hashes: skillHashes });
     },
   });
 }
@@ -131,12 +133,13 @@ export function useRecordSkillChange() {
       contentHash: string;
       changeType: string;
     }) => {
+      // Note: Tauri expects snake_case parameter names
       await invoke("record_skill_change", {
-        skillHash,
-        skillName,
+        skill_hash: skillHash,
+        skill_name: skillName,
         version,
-        contentHash,
-        changeType,
+        content_hash: contentHash,
+        change_type: changeType,
       });
     },
   });
@@ -147,7 +150,8 @@ export function useSkillHistory(skillHash: string | null) {
     queryKey: ["skill-history", skillHash],
     queryFn: async () => {
       if (!skillHash) return [];
-      return await invoke<SkillHistoryEntry[]>("get_skill_history", { skillHash });
+      // Note: Tauri expects snake_case parameter names
+      return await invoke<SkillHistoryEntry[]>("get_skill_history", { skill_hash: skillHash });
     },
     enabled: !!skillHash,
   });
@@ -188,9 +192,10 @@ export function useCheckSkillUpdate() {
       sourceUrl: string;
       currentHash: string;
     }) => {
+      // Note: Tauri expects snake_case parameter names
       return await invoke<UpdateCheckResult>("check_skill_update", {
-        sourceUrl,
-        currentHash,
+        source_url: sourceUrl,
+        current_hash: currentHash,
       });
     },
   });

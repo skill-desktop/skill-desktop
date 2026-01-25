@@ -6,7 +6,7 @@ import { useTranslation } from "react-i18next";
 import { MainLayout } from "@/components/layout";
 import { LanguageSelector } from "@/components/language";
 import { useAppStore, useSettingsStore } from "@/stores";
-import { useFileWatcher, useLoadAppSettings, useSaveAppSettings } from "@/hooks";
+import { useFileWatcher, useLoadAppSettings, useSaveAppSettings, useLibraryPath } from "@/hooks";
 import {
   LibraryView,
   SpacesView,
@@ -29,12 +29,15 @@ const queryClient = new QueryClient({
 function AppContent() {
   const { t } = useTranslation();
   const { currentView, setCurrentView, setSearchQuery } = useAppStore();
-  const { setLanguage, setSetupCompleted } = useSettingsStore();
-  
+  const { setLanguage, setSetupCompleted, setLibraryPath, libraryPath } = useSettingsStore();
+
   // Load app settings from Tauri backend
   const { data: appSettings, isLoading: isLoadingSettings } = useLoadAppSettings();
   const saveAppSettingsMutation = useSaveAppSettings();
-  
+
+  // Load library path from backend (includes default path fallback)
+  const { data: backendLibraryPath } = useLibraryPath();
+
   // State for language selector dialog
   const [showLanguageSelector, setShowLanguageSelector] = React.useState(false);
   const [isInitialized, setIsInitialized] = React.useState(false);
@@ -42,10 +45,17 @@ function AppContent() {
   // Enable file watcher for auto-refresh
   useFileWatcher();
 
+  // Sync library path from backend to frontend store
+  React.useEffect(() => {
+    if (backendLibraryPath && backendLibraryPath !== libraryPath) {
+      setLibraryPath(backendLibraryPath);
+    }
+  }, [backendLibraryPath, libraryPath, setLibraryPath]);
+
   // Initialize language and check if first launch
   React.useEffect(() => {
     if (isLoadingSettings || isInitialized) return;
-    
+
     const initializeApp = async () => {
       if (appSettings) {
         // App settings loaded from backend
@@ -72,7 +82,7 @@ function AppContent() {
       }
       setIsInitialized(true);
     };
-    
+
     initializeApp();
   }, [appSettings, isLoadingSettings, isInitialized, setLanguage, setSetupCompleted]);
 

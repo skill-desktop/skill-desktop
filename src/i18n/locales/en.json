@@ -41,7 +41,8 @@
     "creating": "Creating...",
     "unsavedChanges": "Unsaved changes",
     "docs": "Docs",
-    "browse": "Browse"
+    "browse": "Browse",
+    "optional": "optional"
   },
   "app": {
     "name": "Skill Desktop",
@@ -328,6 +329,35 @@
       "testSuccess": "Connection successful!",
       "testFailed": "Connection failed",
       "confirmDelete": "Are you sure you want to delete this provider?"
+    },
+    "cli": {
+      "title": "CLI Tools",
+      "description": "Configure API keys and base URLs for AI coding CLI tools like Claude Code, Gemini CLI, Codex, and OpenCode",
+      "quickAdd": "Quick Add",
+      "custom": "Custom",
+      "addTool": "Add CLI Tool",
+      "configuredTools": "Configured Tools",
+      "noTools": "No CLI tools configured. Add one to get started.",
+      "toolName": "Tool Name",
+      "toolType": "Tool Type",
+      "baseUrl": "Base URL",
+      "apiKey": "API Key",
+      "defaultModel": "Default Model",
+      "envVarConfig": "Environment Variable Configuration",
+      "apiKeyEnvVar": "API Key Env Var",
+      "baseUrlEnvVar": "Base URL Env Var",
+      "envVarsPreview": "Environment Variables Preview",
+      "copyEnvVars": "Copy Env Vars",
+      "applyToShell": "Apply to Shell",
+      "applySuccess": "Environment variables applied successfully",
+      "copiedToClipboard": "Copied to clipboard",
+      "exportAll": "Export All Configurations",
+      "exportAllDesc": "Export all enabled CLI tool configurations as shell export commands",
+      "exportShellConfig": "Copy Shell Config",
+      "confirmDelete": "Are you sure you want to delete this CLI tool configuration?",
+      "writeToShellConfig": "Write to Shell Config",
+      "writeToShellConfigDesc": "Automatically add environment variables to your shell configuration file",
+      "shellConfigPath": "Shell Config Path"
     },
     "about": {
       "title": "About",

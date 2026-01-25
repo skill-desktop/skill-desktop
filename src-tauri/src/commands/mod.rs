@@ -25,88 +25,51 @@ pub struct DefaultPaths {
     pub os_name: String,
 }
 
-/// Get default paths based on the current operating system
+/// Get default paths based on Tauri's app data directory
+/// The skill library is stored under {app_data_dir}/data/skills
 #[tauri::command]
-pub fn get_default_paths() -> Result<DefaultPaths, String> {
-    #[cfg(target_os = "windows")]
-    {
-        // Windows: %APPDATA%\skill-desktop\
-        let app_data = dirs::config_dir()
-            .ok_or_else(|| "Unable to determine AppData directory".to_string())?;
-        
-        let base_path = app_data.join("skill-desktop");
-        let skill_path = base_path.join("skills");
-        
-        Ok(DefaultPaths {
-            skill_library_path: skill_path.to_string_lossy().to_string(),
-            config_path: base_path.join("config").to_string_lossy().to_string(),
-            data_path: base_path.join("data").to_string_lossy().to_string(),
-            os_name: "windows".to_string(),
-        })
-    }
-    
-    #[cfg(target_os = "macos")]
-    {
-        // macOS: ~/.config/skill-desktop/ (following Claude Code, OpenCode conventions)
-        let home_dir = dirs::home_dir()
-            .ok_or_else(|| "Unable to determine home directory".to_string())?;
-        let config_base = home_dir.join(".config").join("skill-desktop");
-        let skill_path = config_base.join("skills");
-        
-        Ok(DefaultPaths {
-            skill_library_path: skill_path.to_string_lossy().to_string(),
-            config_path: config_base.join("config").to_string_lossy().to_string(),
-            data_path: config_base.join("data").to_string_lossy().to_string(),
-            os_name: "macos".to_string(),
-        })
-    }
-    
-    #[cfg(target_os = "linux")]
-    {
-        // Linux: ~/.config/skill-desktop/ (XDG Base Directory Specification)
-        let home_dir = dirs::home_dir()
-            .ok_or_else(|| "Unable to determine home directory".to_string())?;
-        let config_base = dirs::config_dir()
-            .unwrap_or_else(|| home_dir.join(".config"))
-            .join("skill-desktop");
-        let skill_path = config_base.join("skills");
-        
-        Ok(DefaultPaths {
-            skill_library_path: skill_path.to_string_lossy().to_string(),
-            config_path: config_base.join("config").to_string_lossy().to_string(),
-            data_path: config_base.join("data").to_string_lossy().to_string(),
-            os_name: "linux".to_string(),
-        })
-    }
-    
-    #[cfg(not(any(target_os = "windows", target_os = "macos", target_os = "linux")))]
-    {
-        // Fallback for other platforms
-        let home_dir = dirs::home_dir()
-            .ok_or_else(|| "Unable to determine home directory".to_string())?;
-        let config_base = home_dir.join(".config").join("skill-desktop");
-        let skill_path = config_base.join("skills");
-        
-        Ok(DefaultPaths {
-            skill_library_path: skill_path.to_string_lossy().to_string(),
-            config_path: config_base.join("config").to_string_lossy().to_string(),
-            data_path: config_base.join("data").to_string_lossy().to_string(),
-            os_name: "unknown".to_string(),
-        })
-    }
+pub fn get_default_paths(app_handle: AppHandle) -> Result<DefaultPaths, String> {
+    // Get Tauri's app data directory
+    let app_data_dir = app_handle
+        .path()
+        .app_data_dir()
+        .map_err(|e| format!("Failed to get app data directory: {}", e))?;
+
+    // Skill library is stored under {app_data_dir}/data/skills
+    let data_path = app_data_dir.join("data");
+    let skill_path = data_path.join("skills");
+    let config_path = app_data_dir.join("config");
+
+    // Determine OS name
+    let os_name = if cfg!(target_os = "windows") {
+        "windows"
+    } else if cfg!(target_os = "macos") {
+        "macos"
+    } else if cfg!(target_os = "linux") {
+        "linux"
+    } else {
+        "unknown"
+    };
+
+    Ok(DefaultPaths {
+        skill_library_path: skill_path.to_string_lossy().to_string(),
+        config_path: config_path.to_string_lossy().to_string(),
+        data_path: data_path.to_string_lossy().to_string(),
+        os_name: os_name.to_string(),
+    })
 }
 
 /// Ensure the default skill directory exists and return the path
 #[tauri::command]
-pub fn ensure_default_skill_path() -> Result<String, String> {
-    let paths = get_default_paths()?;
+pub fn ensure_default_skill_path(app_handle: AppHandle) -> Result<String, String> {
+    let paths = get_default_paths(app_handle)?;
     let skill_path = PathBuf::from(&paths.skill_library_path);
-    
+
     if !skill_path.exists() {
         std::fs::create_dir_all(&skill_path)
             .map_err(|e| format!("Failed to create skill directory: {}", e))?;
     }
-    
+
     Ok(paths.skill_library_path)
 }
 
@@ -4323,6 +4286,275 @@ pub async fn delete_project_config(config_path: String) -> Result<(), String> {
     if path.exists() {
         std::fs::remove_file(&path).map_err(|e| e.to_string())?;
     }
+    
+    Ok(())
+}
+
+// ========== CLI Configuration Commands ==========
+
+/// Apply CLI environment variables to shell config
+/// This generates shell export commands and optionally writes to shell config file
+#[tauri::command]
+pub async fn apply_cli_env_vars(
+    env_vars: std::collections::HashMap<String, String>,
+) -> Result<String, String> {
+    // Generate export commands
+    let mut exports = Vec::new();
+    for (key, value) in &env_vars {
+        exports.push(format!("export {}=\"{}\"", key, value));
+    }
+    
+    Ok(exports.join("\n"))
+}
+
+/// Get shell config file path based on current shell
+#[tauri::command]
+pub fn get_shell_config_path() -> Result<ShellConfigInfo, String> {
+    let home_dir = dirs::home_dir()
+        .ok_or_else(|| "Unable to determine home directory".to_string())?;
+    
+    // Detect shell from environment
+    let shell = std::env::var("SHELL").unwrap_or_default();
+    let shell_name = shell.rsplit('/').next().unwrap_or("bash");
+    
+    let (config_path, shell_type) = match shell_name {
+        "zsh" => (home_dir.join(".zshrc"), "zsh"),
+        "bash" => {
+            // Check for .bash_profile first (macOS), then .bashrc (Linux)
+            let bash_profile = home_dir.join(".bash_profile");
+            if bash_profile.exists() {
+                (bash_profile, "bash")
+            } else {
+                (home_dir.join(".bashrc"), "bash")
+            }
+        }
+        "fish" => (home_dir.join(".config/fish/config.fish"), "fish"),
+        _ => (home_dir.join(".profile"), "sh"),
+    };
+    
+    Ok(ShellConfigInfo {
+        shell_type: shell_type.to_string(),
+        config_path: config_path.to_string_lossy().to_string(),
+        exists: config_path.exists(),
+    })
+}
+
+#[derive(Debug, Clone, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ShellConfigInfo {
+    pub shell_type: String,
+    pub config_path: String,
+    pub exists: bool,
+}
+
+/// Write CLI environment variables to shell config file
+#[tauri::command]
+pub async fn write_cli_to_shell_config(
+    env_vars: std::collections::HashMap<String, String>,
+    tool_name: String,
+) -> Result<(), String> {
+    let shell_info = get_shell_config_path()?;
+    let config_path = PathBuf::from(&shell_info.config_path);
+    
+    // Read existing config
+    let existing_content = if config_path.exists() {
+        std::fs::read_to_string(&config_path).unwrap_or_default()
+    } else {
+        String::new()
+    };
+    
+    // Generate marker comments
+    let start_marker = format!("# >>> {} CLI config >>>", tool_name);
+    let end_marker = format!("# <<< {} CLI config <<<", tool_name);
+    
+    // Generate new config block
+    let mut new_block = vec![start_marker.clone()];
+    // Get current timestamp
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_secs())
+        .unwrap_or(0);
+    new_block.push(format!("# Generated by Skill Desktop (timestamp: {})", now));
+    for (key, value) in &env_vars {
+        if shell_info.shell_type == "fish" {
+            new_block.push(format!("set -gx {} \"{}\"", key, value));
+        } else {
+            new_block.push(format!("export {}=\"{}\"", key, value));
+        }
+    }
+    new_block.push(end_marker.clone());
+    
+    // Remove existing block if present
+    let mut new_content = String::new();
+    let mut skip_until_end = false;
+    
+    for line in existing_content.lines() {
+        if line.trim() == start_marker {
+            skip_until_end = true;
+            continue;
+        }
+        if line.trim() == end_marker {
+            skip_until_end = false;
+            continue;
+        }
+        if !skip_until_end {
+            new_content.push_str(line);
+            new_content.push('\n');
+        }
+    }
+    
+    // Append new block
+    if !new_content.ends_with('\n') && !new_content.is_empty() {
+        new_content.push('\n');
+    }
+    new_content.push('\n');
+    new_content.push_str(&new_block.join("\n"));
+    new_content.push('\n');
+    
+    // Write back to file
+    std::fs::write(&config_path, new_content).map_err(|e| e.to_string())?;
+    
+    Ok(())
+}
+
+/// Remove CLI config from shell config file
+#[tauri::command]
+pub async fn remove_cli_from_shell_config(tool_name: String) -> Result<(), String> {
+    let shell_info = get_shell_config_path()?;
+    let config_path = PathBuf::from(&shell_info.config_path);
+    
+    if !config_path.exists() {
+        return Ok(());
+    }
+    
+    let existing_content = std::fs::read_to_string(&config_path).map_err(|e| e.to_string())?;
+    
+    // Generate marker comments
+    let start_marker = format!("# >>> {} CLI config >>>", tool_name);
+    let end_marker = format!("# <<< {} CLI config <<<", tool_name);
+    
+    // Remove existing block
+    let mut new_content = String::new();
+    let mut skip_until_end = false;
+    let mut prev_was_empty = false;
+    
+    for line in existing_content.lines() {
+        if line.trim() == start_marker {
+            skip_until_end = true;
+            continue;
+        }
+        if line.trim() == end_marker {
+            skip_until_end = false;
+            continue;
+        }
+        if !skip_until_end {
+            // Avoid multiple consecutive empty lines
+            let is_empty = line.trim().is_empty();
+            if is_empty && prev_was_empty {
+                continue;
+            }
+            prev_was_empty = is_empty;
+            new_content.push_str(line);
+            new_content.push('\n');
+        }
+    }
+    
+    // Write back to file
+    std::fs::write(&config_path, new_content).map_err(|e| e.to_string())?;
+    
+    Ok(())
+}
+
+/// Generate Gemini CLI settings.json content
+#[tauri::command]
+pub fn generate_gemini_config(api_key: String, model: Option<String>) -> Result<String, String> {
+    let config = serde_json::json!({
+        "apiKey": api_key,
+        "model": model.unwrap_or_else(|| "gemini-2.0-flash".to_string()),
+    });
+    
+    serde_json::to_string_pretty(&config).map_err(|e| e.to_string())
+}
+
+/// Write Gemini CLI config to ~/.gemini/settings.json
+#[tauri::command]
+pub async fn write_gemini_config(api_key: String, model: Option<String>) -> Result<(), String> {
+    let home_dir = dirs::home_dir()
+        .ok_or_else(|| "Unable to determine home directory".to_string())?;
+    
+    let gemini_dir = home_dir.join(".gemini");
+    if !gemini_dir.exists() {
+        std::fs::create_dir_all(&gemini_dir).map_err(|e| e.to_string())?;
+    }
+    
+    let config_path = gemini_dir.join("settings.json");
+    let config_content = generate_gemini_config(api_key, model)?;
+    
+    std::fs::write(&config_path, config_content).map_err(|e| e.to_string())?;
+    
+    Ok(())
+}
+
+/// Generate OpenCode config JSON content
+#[tauri::command]
+pub fn generate_opencode_cli_config(
+    provider: String,
+    _api_key: String, // API key is stored in auth.json, not config
+    base_url: Option<String>,
+    model: Option<String>,
+) -> Result<String, String> {
+    let mut config = serde_json::json!({
+        "provider": provider,
+    });
+    
+    if let Some(url) = base_url {
+        config["baseURL"] = serde_json::Value::String(url);
+    }
+    
+    if let Some(m) = model {
+        config["model"] = serde_json::Value::String(m);
+    }
+    
+    // Note: API key should be stored in auth.json, not config
+    serde_json::to_string_pretty(&config).map_err(|e| e.to_string())
+}
+
+/// Write OpenCode config to ~/.config/opencode/opencode.json
+#[tauri::command]
+pub async fn write_opencode_cli_config(
+    provider: String,
+    base_url: Option<String>,
+    model: Option<String>,
+) -> Result<(), String> {
+    let home_dir = dirs::home_dir()
+        .ok_or_else(|| "Unable to determine home directory".to_string())?;
+    
+    let opencode_dir = home_dir.join(".config").join("opencode");
+    if !opencode_dir.exists() {
+        std::fs::create_dir_all(&opencode_dir).map_err(|e| e.to_string())?;
+    }
+    
+    let config_path = opencode_dir.join("opencode.json");
+    
+    // Read existing config if present
+    let mut config: serde_json::Value = if config_path.exists() {
+        let content = std::fs::read_to_string(&config_path).unwrap_or_default();
+        serde_json::from_str(&content).unwrap_or_else(|_| serde_json::json!({}))
+    } else {
+        serde_json::json!({})
+    };
+    
+    // Update config
+    config["provider"] = serde_json::Value::String(provider);
+    if let Some(url) = base_url {
+        config["baseURL"] = serde_json::Value::String(url);
+    }
+    if let Some(m) = model {
+        config["model"] = serde_json::Value::String(m);
+    }
+    
+    let config_content = serde_json::to_string_pretty(&config).map_err(|e| e.to_string())?;
+    std::fs::write(&config_path, config_content).map_err(|e| e.to_string())?;
     
     Ok(())
 }

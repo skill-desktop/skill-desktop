@@ -45,7 +45,12 @@ export function useCreateSpace() {
       activeDir: string;
       description?: string;
     }) => {
-      return await invoke<Space>("create_space", { name, activeDir, description });
+      // Note: Tauri expects snake_case parameter names
+      return await invoke<Space>("create_space", { 
+        name, 
+        active_dir: activeDir, 
+        description 
+      });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: spaceKeys.all });
@@ -68,7 +73,13 @@ export function useUpdateSpace() {
       activeDir?: string;
       description?: string;
     }) => {
-      return await invoke<Space>("update_space", { id, name, activeDir, description });
+      // Note: Tauri expects snake_case parameter names
+      return await invoke<Space>("update_space", { 
+        id, 
+        name, 
+        active_dir: activeDir, 
+        description 
+      });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: spaceKeys.all });
@@ -129,7 +140,12 @@ export function useSetSkillVisibility() {
       skillHash: string;
       isVisible: boolean;
     }) => {
-      await invoke("set_skill_visibility", { spaceId, skillHash, isVisible });
+      // Note: Tauri expects snake_case parameter names
+      await invoke("set_skill_visibility", { 
+        space_id: spaceId, 
+        skill_hash: skillHash, 
+        is_visible: isVisible 
+      });
     },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: spaceKeys.visibility(variables.spaceId) });
@@ -143,7 +159,8 @@ export function useVisibleSkills(spaceId: string | null) {
     queryKey: spaceKeys.visibleSkills(spaceId),
     queryFn: async () => {
       if (!spaceId) return [];
-      return await invoke<Skill[]>("get_visible_skills", { spaceId });
+      // Note: Tauri expects snake_case parameter names
+      return await invoke<Skill[]>("get_visible_skills", { space_id: spaceId });
     },
     enabled: !!spaceId,
   });
@@ -154,7 +171,8 @@ export function useSkillVisibilityMap(spaceId: string | null) {
     queryKey: spaceKeys.visibility(spaceId),
     queryFn: async () => {
       if (!spaceId) return {};
-      return await invoke<Record<string, boolean>>("get_skill_visibility_map", { spaceId });
+      // Note: Tauri expects snake_case parameter names
+      return await invoke<Record<string, boolean>>("get_skill_visibility_map", { space_id: spaceId });
     },
     enabled: !!spaceId,
   });
@@ -173,7 +191,12 @@ export function useSetBulkSkillVisibility() {
       skillHashes: string[];
       isVisible: boolean;
     }) => {
-      await invoke("set_bulk_skill_visibility", { spaceId, skillHashes, isVisible });
+      // Note: Tauri expects snake_case parameter names
+      await invoke("set_bulk_skill_visibility", { 
+        space_id: spaceId, 
+        skill_hashes: skillHashes, 
+        is_visible: isVisible 
+      });
     },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: spaceKeys.visibility(variables.spaceId) });
@@ -187,7 +210,8 @@ export function useInitSpaceVisibility() {
 
   return useMutation({
     mutationFn: async (spaceId: string) => {
-      await invoke("init_space_visibility", { spaceId });
+      // Note: Tauri expects snake_case parameter names
+      await invoke("init_space_visibility", { space_id: spaceId });
     },
     onSuccess: (_, spaceId) => {
       queryClient.invalidateQueries({ queryKey: spaceKeys.visibility(spaceId) });
@@ -201,7 +225,8 @@ export function useInitSpaceVisibility() {
 export function useExportClaudeConfig() {
   return useMutation({
     mutationFn: async (spaceId: string) => {
-      return await invoke<string>("export_claude_config", { spaceId });
+      // Note: Tauri expects snake_case parameter names
+      return await invoke<string>("export_claude_config", { space_id: spaceId });
     },
   });
 }
@@ -209,7 +234,8 @@ export function useExportClaudeConfig() {
 export function useExportGenericConfig() {
   return useMutation({
     mutationFn: async (spaceId: string) => {
-      return await invoke<string>("export_generic_config", { spaceId });
+      // Note: Tauri expects snake_case parameter names
+      return await invoke<string>("export_generic_config", { space_id: spaceId });
     },
   });
 }
@@ -217,7 +243,8 @@ export function useExportGenericConfig() {
 export function useExportMcpConfig() {
   return useMutation({
     mutationFn: async (spaceId: string) => {
-      return await invoke<string>("export_mcp_config", { spaceId });
+      // Note: Tauri expects snake_case parameter names
+      return await invoke<string>("export_mcp_config", { space_id: spaceId });
     },
   });
 }

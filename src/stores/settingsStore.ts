@@ -2,6 +2,8 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import type { LLMProviderConfig, LLMSettings } from "@/types/llm";
 import { DEFAULT_LLM_SETTINGS } from "@/types/llm";
+import type { CLIToolConfig, CLISettings } from "@/types/cli";
+import { DEFAULT_CLI_SETTINGS } from "@/types/cli";
 
 // Define supported language type locally to avoid circular dependency
 type SupportedLanguage = "en" | "zh-CN" | "zh-TW" | "ja" | "ko" | "de" | "fr" | "es" | "pt" | "ru";
@@ -42,6 +44,14 @@ interface SettingsState {
   updateLLMProvider: (id: string, updates: Partial<LLMProviderConfig>) => void;
   removeLLMProvider: (id: string) => void;
   setDefaultLLMProvider: (id: string | null) => void;
+
+  // CLI 工具设置
+  cliSettings: CLISettings;
+  setCLISettings: (settings: CLISettings) => void;
+  addCLITool: (tool: CLIToolConfig) => void;
+  updateCLITool: (id: string, updates: Partial<CLIToolConfig>) => void;
+  removeCLITool: (id: string) => void;
+  setAutoApplyEnv: (enabled: boolean) => void;
 }
 
 export const useSettingsStore = create<SettingsState>()(
@@ -123,6 +133,53 @@ export const useSettingsStore = create<SettingsState>()(
           llmSettings: {
             ...llmSettings,
             default_provider_id: id,
+          },
+        });
+      },
+
+      // CLI Settings
+      cliSettings: DEFAULT_CLI_SETTINGS,
+      setCLISettings: (settings) => set({ cliSettings: settings }),
+
+      addCLITool: (tool) => {
+        const { cliSettings } = get();
+        set({
+          cliSettings: {
+            ...cliSettings,
+            tools: [...cliSettings.tools, tool],
+          },
+        });
+      },
+
+      updateCLITool: (id, updates) => {
+        const { cliSettings } = get();
+        const now = new Date().toISOString();
+        set({
+          cliSettings: {
+            ...cliSettings,
+            tools: cliSettings.tools.map((t) =>
+              t.id === id ? { ...t, ...updates, updated_at: now } : t
+            ),
+          },
+        });
+      },
+
+      removeCLITool: (id) => {
+        const { cliSettings } = get();
+        set({
+          cliSettings: {
+            ...cliSettings,
+            tools: cliSettings.tools.filter((t) => t.id !== id),
+          },
+        });
+      },
+
+      setAutoApplyEnv: (enabled) => {
+        const { cliSettings } = get();
+        set({
+          cliSettings: {
+            ...cliSettings,
+            auto_apply_env: enabled,
           },
         });
       },
