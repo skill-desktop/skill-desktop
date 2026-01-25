@@ -1,8 +1,6 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
-import { Link, Github, Server, Download, AlertTriangle, Loader2, Check, X, Folder, FileText, ChevronRight, ArrowLeft, Globe, Search } from "lucide-react";
-import { cn } from "@/lib/utils";
-import { Button, Input, ScrollArea, Badge, Markdown } from "@/components/ui";
+import { Link, Github, Server, Globe } from "lucide-react";
 import {
   usePreviewSkillFromUrl,
   useImportSkillFromUrl,
@@ -19,42 +17,18 @@ import {
   type McpRegistry,
 } from "@/hooks";
 import { useSettingsStore } from "@/stores";
-import { getPermissionLevel } from "@/types";
-
-type ImportSource = "url" | "github" | "mcp" | "registry";
-
-interface PreviewData {
-  metadata: {
-    name: string;
-    version: string;
-    description: string;
-    author?: string;
-    tags: string[];
-    permissions: string[];
-    parameters: Array<{
-      name: string;
-      type: string;
-      required: boolean;
-      description: string;
-    }>;
-  };
-  content: string;
-  sourceUrl: string;
-}
-
-interface GitHubFileEntry {
-  name: string;
-  path: string;
-  fileType: string;
-  size?: number;
-  downloadUrl?: string;
-}
-
-interface McpTool {
-  name: string;
-  description: string;
-  inputSchema: Record<string, unknown>;
-}
+import {
+  SourceButton,
+  UrlImportPanel,
+  GitHubImportPanel,
+  McpImportPanel,
+  RegistryImportPanel,
+  SkillPreviewPanel,
+  type ImportSource,
+  type PreviewData,
+  type GitHubFileEntry,
+  type McpTool,
+} from "@/components/hub";
 
 export const HubView: React.FC = () => {
   const { t } = useTranslation();
@@ -90,10 +64,6 @@ export const HubView: React.FC = () => {
 
   // Parse GitHub URL
   const parseGithubUrl = (inputUrl: string) => {
-    // Supports formats:
-    // https://github.com/owner/repo
-    // https://github.com/owner/repo/tree/branch/path
-    // https://github.com/owner/repo/blob/branch/path
     const patterns = [
       /github\.com\/([^\/]+)\/([^\/]+)(?:\/(?:tree|blob)\/([^\/]+)(?:\/(.*))?)?/,
       /github\.com\/([^\/]+)\/([^\/]+)/,
@@ -163,7 +133,6 @@ export const HubView: React.FC = () => {
     if (selectedFiles.size === 0) return;
 
     let successCount = 0;
-    let errorCount = 0;
 
     for (const filePath of selectedFiles) {
       try {
@@ -176,16 +145,13 @@ export const HubView: React.FC = () => {
         successCount++;
       } catch (error) {
         console.error(`Failed to import ${filePath}:`, error);
-        errorCount++;
       }
     }
 
     if (successCount > 0) {
       setImportSuccess(true);
       setSelectedFiles(new Set());
-      setTimeout(() => {
-        setImportSuccess(false);
-      }, 2000);
+      setTimeout(() => setImportSuccess(false), 2000);
     }
   };
 
@@ -199,9 +165,7 @@ export const HubView: React.FC = () => {
       });
       if (result.imported > 0) {
         setImportSuccess(true);
-        setTimeout(() => {
-          setImportSuccess(false);
-        }, 2000);
+        setTimeout(() => setImportSuccess(false), 2000);
       }
     } catch (error) {
       console.error("Failed to import directory:", error);
@@ -241,7 +205,6 @@ export const HubView: React.FC = () => {
 
   const handlePreviewRegistryEntry = (entry: McpRegistryEntry) => {
     setRegistryPreview(entry);
-    // Also set the main preview
     setPreview({
       metadata: {
         name: entry.name,
@@ -277,9 +240,7 @@ export const HubView: React.FC = () => {
     if (successCount > 0) {
       setImportSuccess(true);
       setSelectedRegistryEntries(new Set());
-      setTimeout(() => {
-        setImportSuccess(false);
-      }, 2000);
+      setTimeout(() => setImportSuccess(false), 2000);
     }
   };
 
@@ -348,14 +309,11 @@ export const HubView: React.FC = () => {
     if (successCount > 0) {
       setImportSuccess(true);
       setSelectedMcpTools(new Set());
-      setTimeout(() => {
-        setImportSuccess(false);
-      }, 2000);
+      setTimeout(() => setImportSuccess(false), 2000);
     }
   };
 
   const handlePreviewMcpTool = (tool: McpTool) => {
-    // Create a preview-like structure for MCP tools
     setPreview({
       metadata: {
         name: tool.name,
@@ -365,12 +323,12 @@ export const HubView: React.FC = () => {
         tags: ["mcp", "imported"],
         permissions: ["network"],
         parameters: Object.entries(
-          (tool.inputSchema as any)?.properties || {}
-        ).map(([name, prop]: [string, any]) => ({
+          (tool.inputSchema as Record<string, unknown>)?.properties || {}
+        ).map(([name, prop]: [string, unknown]) => ({
           name,
-          type: prop.type || "string",
-          required: ((tool.inputSchema as any)?.required || []).includes(name),
-          description: prop.description || "",
+          type: (prop as Record<string, unknown>)?.type as string || "string",
+          required: ((tool.inputSchema as Record<string, unknown>)?.required as string[] || []).includes(name),
+          description: (prop as Record<string, unknown>)?.description as string || "",
         })),
       },
       content: `# ${tool.name}\n\n${tool.description}\n\n## Input Schema\n\n\`\`\`json\n${JSON.stringify(tool.inputSchema, null, 2)}\n\`\`\``,
@@ -397,7 +355,6 @@ export const HubView: React.FC = () => {
     try {
       await importMutation.mutateAsync(preview.sourceUrl);
       setImportSuccess(true);
-      // Reset after a delay
       setTimeout(() => {
         setPreview(null);
         setUrl("");
@@ -458,656 +415,98 @@ export const HubView: React.FC = () => {
           />
         </div>
 
-        {/* URL input */}
+        {/* URL import */}
         {importSource === "url" && (
-          <div className="space-y-3">
-            <div>
-              <label className="text-xs text-text-muted mb-1.5 block">
-                {t("hub.url.label")}
-              </label>
-              <Input
-                placeholder={t("hub.url.placeholder")}
-                value={url}
-                onChange={(e) => setUrl(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && handlePreview()}
-              />
-            </div>
-
-            {!libraryPath && (
-              <div className="flex items-start gap-2 text-xs text-accent-yellow">
-                <AlertTriangle className="h-3.5 w-3.5 shrink-0 mt-0.5" />
-                <span>{t("hub.warnings.setLibraryPath")}</span>
-              </div>
-            )}
-
-            <div className="flex items-start gap-2 text-xs text-text-muted">
-              <AlertTriangle className="h-3.5 w-3.5 shrink-0 mt-0.5" />
-              <span>{t("hub.warnings.verifySource")}</span>
-            </div>
-
-            <Button
-              className="w-full"
-              disabled={!url || !libraryPath || previewMutation.isPending}
-              onClick={handlePreview}
-            >
-              {previewMutation.isPending ? (
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-              ) : (
-                <Download className="h-4 w-4 mr-2" />
-              )}
-              {t("hub.url.previewContent")}
-            </Button>
-
-            {previewMutation.isError && (
-              <div className="text-xs text-accent-red">
-                {String(previewMutation.error)}
-              </div>
-            )}
-          </div>
+          <UrlImportPanel
+            url={url}
+            onUrlChange={setUrl}
+            libraryPath={libraryPath}
+            isPending={previewMutation.isPending}
+            isError={previewMutation.isError}
+            error={previewMutation.error}
+            onPreview={handlePreview}
+          />
         )}
 
+        {/* GitHub import */}
         {importSource === "github" && (
-          <div className="space-y-3">
-            <div>
-              <label className="text-xs text-text-muted mb-1.5 block">
-                {t("hub.github.repoUrl")}
-              </label>
-              <Input
-                placeholder={t("hub.github.repoUrlPlaceholder")}
-                value={githubUrl}
-                onChange={(e) => setGithubUrl(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && handleGithubConnect()}
-              />
-            </div>
-
-            {!libraryPath && (
-              <div className="flex items-start gap-2 text-xs text-accent-yellow">
-                <AlertTriangle className="h-3.5 w-3.5 shrink-0 mt-0.5" />
-                <span>{t("hub.warnings.setLibraryPath")}</span>
-              </div>
-            )}
-
-            <Button
-              className="w-full"
-              disabled={!githubUrl || !libraryPath}
-              onClick={handleGithubConnect}
-            >
-              <Github className="h-4 w-4 mr-2" />
-              {t("hub.github.connectToRepo")}
-            </Button>
-
-            {/* File browser */}
-            {browsingEnabled && (
-              <div className="mt-4">
-                <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center gap-2">
-                    {pathHistory.length > 0 && (
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-6 w-6"
-                        onClick={handleNavigateBack}
-                      >
-                        <ArrowLeft className="h-3.5 w-3.5" />
-                      </Button>
-                    )}
-                    <span className="text-xs text-text-muted">
-                      {githubOwner}/{githubRepo}/{githubPath || ""}
-                    </span>
-                  </div>
-                </div>
-
-                {isLoadingGithub ? (
-                  <div className="flex items-center justify-center py-8">
-                    <Loader2 className="h-6 w-6 animate-spin text-text-muted" />
-                  </div>
-                ) : githubError ? (
-                  <div className="text-xs text-accent-red py-4">
-                    {String(githubError)}
-                  </div>
-                ) : (
-                  <ScrollArea className="h-48 rounded-md border border-border-default">
-                    <div className="divide-y divide-border-muted">
-                      {githubFiles.map((file) => (
-                        <div
-                          key={file.path}
-                          className={cn(
-                            "flex items-center gap-2 px-3 py-2 text-xs hover:bg-bg-tertiary cursor-pointer",
-                            selectedFiles.has(file.path) && "bg-accent-blue/10"
-                          )}
-                        >
-                          {file.fileType === "dir" ? (
-                            <button
-                              className="flex items-center gap-2 flex-1"
-                              onClick={() => handleNavigateToPath(file.path)}
-                            >
-                              <Folder className="h-3.5 w-3.5 text-accent-yellow" />
-                              <span className="text-text-primary">{file.name}</span>
-                              <ChevronRight className="h-3.5 w-3.5 text-text-muted ml-auto" />
-                            </button>
-                          ) : (
-                            <>
-                              {file.name.endsWith(".md") && (
-                                <input
-                                  type="checkbox"
-                                  checked={selectedFiles.has(file.path)}
-                                  onChange={() => handleToggleFileSelection(file.path)}
-                                  className="h-3.5 w-3.5"
-                                />
-                              )}
-                              <button
-                                className="flex items-center gap-2 flex-1"
-                                onClick={() => handlePreviewGithubFile(file)}
-                                disabled={!file.name.endsWith(".md")}
-                              >
-                                <FileText className={cn(
-                                  "h-3.5 w-3.5",
-                                  file.name.endsWith(".md") ? "text-accent-blue" : "text-text-muted"
-                                )} />
-                                <span className={cn(
-                                  file.name.endsWith(".md") ? "text-text-primary" : "text-text-muted"
-                                )}>
-                                  {file.name}
-                                </span>
-                              </button>
-                            </>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  </ScrollArea>
-                )}
-
-                {/* Import actions */}
-                <div className="flex items-center gap-2 mt-3">
-                  <Button
-                    variant="secondary"
-                    size="sm"
-                    className="flex-1"
-                    onClick={handleImportSelectedFiles}
-                    disabled={selectedFiles.size === 0 || importGithubMutation.isPending}
-                  >
-                    {importGithubMutation.isPending ? (
-                      <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
-                    ) : (
-                      <Download className="h-3.5 w-3.5 mr-1.5" />
-                    )}
-                    {t("hub.github.importSelected")} ({selectedFiles.size})
-                  </Button>
-                  <Button
-                    variant="secondary"
-                    size="sm"
-                    onClick={handleImportDirectory}
-                    disabled={importDirectoryMutation.isPending}
-                  >
-                    {importDirectoryMutation.isPending ? (
-                      <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
-                    ) : (
-                      <Folder className="h-3.5 w-3.5 mr-1.5" />
-                    )}
-                    {t("hub.github.importAll")}
-                  </Button>
-                </div>
-
-                {importDirectoryMutation.isSuccess && importDirectoryMutation.data && (
-                  <div className="text-xs text-accent-green mt-2">
-                    {t("hub.github.importedSkills", { count: importDirectoryMutation.data.imported })}
-                    {importDirectoryMutation.data.skipped > 0 && `, ${t("hub.github.skippedSkills", { count: importDirectoryMutation.data.skipped })}`}
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
+          <GitHubImportPanel
+            githubUrl={githubUrl}
+            onGithubUrlChange={setGithubUrl}
+            libraryPath={libraryPath}
+            onConnect={handleGithubConnect}
+            browsingEnabled={browsingEnabled}
+            githubOwner={githubOwner}
+            githubRepo={githubRepo}
+            githubPath={githubPath}
+            pathHistory={pathHistory}
+            onNavigateBack={handleNavigateBack}
+            onNavigateToPath={handleNavigateToPath}
+            githubFiles={githubFiles}
+            isLoadingGithub={isLoadingGithub}
+            githubError={githubError}
+            selectedFiles={selectedFiles}
+            onToggleFileSelection={handleToggleFileSelection}
+            onPreviewFile={handlePreviewGithubFile}
+            onImportSelected={handleImportSelectedFiles}
+            onImportDirectory={handleImportDirectory}
+            isImportingFiles={importGithubMutation.isPending}
+            isImportingDirectory={importDirectoryMutation.isPending}
+            importDirectoryResult={importDirectoryMutation.isSuccess ? importDirectoryMutation.data : null}
+          />
         )}
 
+        {/* MCP import */}
         {importSource === "mcp" && (
-          <div className="space-y-3">
-            <div>
-              <label className="text-xs text-text-muted mb-1.5 block">
-                {t("hub.mcp.serverUrl")}
-              </label>
-              <Input
-                placeholder={t("hub.mcp.serverUrlPlaceholder")}
-                value={mcpUrl}
-                onChange={(e) => setMcpUrl(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && handleConnectMcp()}
-              />
-            </div>
-
-            {!libraryPath && (
-              <div className="flex items-start gap-2 text-xs text-accent-yellow">
-                <AlertTriangle className="h-3.5 w-3.5 shrink-0 mt-0.5" />
-                <span>{t("hub.warnings.setLibraryPath")}</span>
-              </div>
-            )}
-
-            <Button
-              className="w-full"
-              disabled={!mcpUrl || !libraryPath || connectMcpMutation.isPending}
-              onClick={handleConnectMcp}
-            >
-              {connectMcpMutation.isPending ? (
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-              ) : (
-                <Server className="h-4 w-4 mr-2" />
-              )}
-              {t("hub.mcp.connectToServer")}
-            </Button>
-
-            {connectMcpMutation.isError && (
-              <div className="text-xs text-accent-red">
-                {String(connectMcpMutation.error)}
-              </div>
-            )}
-
-            {/* Tools list */}
-            {mcpConnected && (
-              <div className="mt-4">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-xs text-text-muted">
-                    {t("hub.mcp.toolsAvailable", { count: mcpTools.length })}
-                  </span>
-                  {mcpTools.length > 0 && (
-                    <Check className="h-4 w-4 text-accent-green" />
-                  )}
-                </div>
-
-                {mcpTools.length > 0 ? (
-                  <>
-                    <ScrollArea className="h-48 rounded-md border border-border-default">
-                      <div className="divide-y divide-border-muted">
-                        {mcpTools.map((tool) => (
-                          <div
-                            key={tool.name}
-                            className={cn(
-                              "flex items-center gap-2 px-3 py-2 text-xs hover:bg-bg-tertiary cursor-pointer",
-                              selectedMcpTools.has(tool.name) && "bg-accent-blue/10"
-                            )}
-                          >
-                            <input
-                              type="checkbox"
-                              checked={selectedMcpTools.has(tool.name)}
-                              onChange={() => handleToggleMcpToolSelection(tool.name)}
-                              className="h-3.5 w-3.5"
-                            />
-                            <button
-                              className="flex-1 text-left"
-                              onClick={() => handlePreviewMcpTool(tool)}
-                            >
-                              <div className="text-text-primary font-medium">
-                                {tool.name}
-                              </div>
-                              <div className="text-text-muted truncate">
-                                {tool.description}
-                              </div>
-                            </button>
-                          </div>
-                        ))}
-                      </div>
-                    </ScrollArea>
-
-                    <Button
-                      variant="secondary"
-                      size="sm"
-                      className="w-full mt-3"
-                      onClick={handleImportSelectedMcpTools}
-                      disabled={selectedMcpTools.size === 0 || importMcpToolMutation.isPending}
-                    >
-                      {importMcpToolMutation.isPending ? (
-                        <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
-                      ) : (
-                        <Download className="h-3.5 w-3.5 mr-1.5" />
-                      )}
-                      {t("hub.github.importSelected")} ({selectedMcpTools.size})
-                    </Button>
-                  </>
-                ) : (
-                  <div className="text-xs text-text-muted text-center py-4">
-                    {t("hub.mcp.noToolsFound")}
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
+          <McpImportPanel
+            mcpUrl={mcpUrl}
+            onMcpUrlChange={setMcpUrl}
+            libraryPath={libraryPath}
+            onConnect={handleConnectMcp}
+            isConnecting={connectMcpMutation.isPending}
+            connectError={connectMcpMutation.error}
+            mcpConnected={mcpConnected}
+            mcpTools={mcpTools}
+            selectedMcpTools={selectedMcpTools}
+            onToggleToolSelection={handleToggleMcpToolSelection}
+            onPreviewTool={handlePreviewMcpTool}
+            onImportSelected={handleImportSelectedMcpTools}
+            isImporting={importMcpToolMutation.isPending}
+          />
         )}
 
+        {/* Registry import */}
         {importSource === "registry" && (
-          <div className="space-y-3">
-            {/* Registry filter */}
-            <div>
-              <label className="text-xs text-text-muted mb-1.5 block">
-                {t("hub.registry.source")}
-              </label>
-              <select
-                className="w-full h-9 rounded-md border border-border-default bg-bg-primary px-3 text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-accent-blue"
-                value={selectedRegistry || ""}
-                onChange={(e) => setSelectedRegistry(e.target.value as McpRegistry || undefined)}
-              >
-                <option value="">{t("hub.registry.allRegistries")}</option>
-                <option value="glama">Glama.ai</option>
-                <option value="mcpso">MCP.so</option>
-                <option value="mcpserversorg">MCPServers.org</option>
-                <option value="smithery">Smithery.ai</option>
-              </select>
-            </div>
-
-            {/* Search input */}
-            <div>
-              <label className="text-xs text-text-muted mb-1.5 block">
-                {t("hub.registry.searchServers")}
-              </label>
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-text-muted" />
-                <Input
-                  placeholder={t("hub.registry.searchPlaceholder")}
-                  value={registrySearch}
-                  onChange={(e) => setRegistrySearch(e.target.value)}
-                  className="pl-9"
-                />
-              </div>
-            </div>
-
-            {!libraryPath && (
-              <div className="flex items-start gap-2 text-xs text-accent-yellow">
-                <AlertTriangle className="h-3.5 w-3.5 shrink-0 mt-0.5" />
-                <span>{t("hub.warnings.setLibraryPath")}</span>
-              </div>
-            )}
-
-            {/* Servers list */}
-            <div>
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-xs text-text-muted">
-                  {registrySearch ? t("hub.registry.searchResults") : t("hub.registry.featuredServers")}
-                </span>
-                <span className="text-xs text-text-muted">
-                  {t("hub.registry.serversCount", { count: registryServers.length })}
-                </span>
-              </div>
-
-              {isLoadingFeatured || isSearching ? (
-                <div className="flex items-center justify-center py-8">
-                  <Loader2 className="h-6 w-6 animate-spin text-text-muted" />
-                </div>
-              ) : registryServers.length > 0 ? (
-                <>
-                  <ScrollArea className="h-56 rounded-md border border-border-default">
-                    <div className="divide-y divide-border-muted">
-                      {registryServers.map((entry) => (
-                        <div
-                          key={`${entry.registry}-${entry.id}`}
-                          className={cn(
-                            "flex items-start gap-2 px-3 py-2 text-xs hover:bg-bg-tertiary cursor-pointer",
-                            selectedRegistryEntries.has(entry.id) && "bg-accent-blue/10"
-                          )}
-                        >
-                          <input
-                            type="checkbox"
-                            checked={selectedRegistryEntries.has(entry.id)}
-                            onChange={() => handleToggleRegistrySelection(entry.id)}
-                            className="h-3.5 w-3.5 mt-0.5"
-                          />
-                          <button
-                            className="flex-1 text-left"
-                            onClick={() => handlePreviewRegistryEntry(entry)}
-                          >
-                            <div className="flex items-center gap-2">
-                              <span className="text-text-primary font-medium">
-                                {entry.name}
-                              </span>
-                              <Badge variant="default" className="text-[9px] px-1 py-0">
-                                {entry.registry}
-                              </Badge>
-                            </div>
-                            <div className="text-text-muted line-clamp-2 mt-0.5">
-                              {entry.description}
-                            </div>
-                            {entry.tags.length > 0 && (
-                              <div className="flex flex-wrap gap-1 mt-1">
-                                {entry.tags.slice(0, 3).map((tag) => (
-                                  <Badge key={tag} variant="blue" className="text-[9px] px-1 py-0">
-                                    {tag}
-                                  </Badge>
-                                ))}
-                                {entry.tags.length > 3 && (
-                                  <span className="text-[9px] text-text-muted">
-                                    +{entry.tags.length - 3}
-                                  </span>
-                                )}
-                              </div>
-                            )}
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  </ScrollArea>
-
-                  <Button
-                    variant="secondary"
-                    size="sm"
-                    className="w-full mt-3"
-                    onClick={handleImportSelectedRegistryEntries}
-                    disabled={selectedRegistryEntries.size === 0 || importRegistryMutation.isPending || !libraryPath}
-                  >
-                    {importRegistryMutation.isPending ? (
-                      <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
-                    ) : (
-                      <Download className="h-3.5 w-3.5 mr-1.5" />
-                    )}
-                    {t("hub.github.importSelected")} ({selectedRegistryEntries.size})
-                  </Button>
-                </>
-              ) : (
-                <div className="text-xs text-text-muted text-center py-8">
-                  {registrySearch ? t("hub.registry.noServersFound") : t("common.loading")}
-                </div>
-              )}
-
-              {importRegistryMutation.isError && (
-                <div className="text-xs text-accent-red mt-2">
-                  {String(importRegistryMutation.error)}
-                </div>
-              )}
-            </div>
-          </div>
+          <RegistryImportPanel
+            libraryPath={libraryPath}
+            selectedRegistry={selectedRegistry}
+            onRegistryChange={setSelectedRegistry}
+            registrySearch={registrySearch}
+            onSearchChange={setRegistrySearch}
+            registryServers={registryServers}
+            isLoadingFeatured={isLoadingFeatured}
+            isSearching={isSearching}
+            selectedRegistryEntries={selectedRegistryEntries}
+            onToggleSelection={handleToggleRegistrySelection}
+            onPreviewEntry={handlePreviewRegistryEntry}
+            onImportSelected={handleImportSelectedRegistryEntries}
+            isImporting={importRegistryMutation.isPending}
+            importError={importRegistryMutation.error}
+          />
         )}
       </div>
 
       {/* Preview/Browse area */}
       <div className="flex-1 p-4">
-        {preview ? (
-          <div className="h-full flex flex-col">
-            {/* Preview header */}
-            <div className="flex items-start justify-between mb-4">
-              <div>
-                <h3 className="text-lg font-semibold text-text-primary">
-                  {preview.metadata.name}
-                </h3>
-                <p className="text-sm text-text-muted">
-                  {preview.metadata.author ? `${t("hub.preview.by")} ${preview.metadata.author}` : t("hub.preview.unknownAuthor")} · v{preview.metadata.version}
-                </p>
-              </div>
-              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={clearPreview}>
-                <X className="h-4 w-4" />
-              </Button>
-            </div>
-
-            <ScrollArea className="flex-1">
-              {/* Description */}
-              <div className="mb-4">
-                <h4 className="text-xs font-medium text-text-muted mb-2">{t("hub.preview.description")}</h4>
-                <Markdown 
-                  content={preview.metadata.description || t("hub.preview.noDescription")} 
-                  className="text-sm text-text-secondary"
-                />
-              </div>
-
-              {/* Tags */}
-              {preview.metadata.tags.length > 0 && (
-                <div className="mb-4">
-                  <h4 className="text-xs font-medium text-text-muted mb-2">{t("hub.preview.tags")}</h4>
-                  <div className="flex flex-wrap gap-1">
-                    {preview.metadata.tags.map((tag) => (
-                      <Badge key={tag} variant="blue" className="text-[10px]">
-                        {tag}
-                      </Badge>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Permissions */}
-              {preview.metadata.permissions.length > 0 && (
-                <div className="mb-4">
-                  <h4 className="text-xs font-medium text-text-muted mb-2">{t("hub.preview.permissionsRequired")}</h4>
-                  <div className="rounded-md border border-border-default bg-bg-tertiary p-3 space-y-2">
-                    {preview.metadata.permissions.map((permission) => {
-                      const level = getPermissionLevel(permission);
-                      return (
-                        <div key={permission} className="flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            <span
-                              className={cn(
-                                "h-2 w-2 rounded-full",
-                                level === "low" && "bg-permission-low",
-                                level === "medium" && "bg-permission-medium",
-                                level === "high" && "bg-permission-high"
-                              )}
-                            />
-                            <span className="text-xs text-text-primary">{permission}</span>
-                          </div>
-                          <Badge variant={level} className="text-[10px]">
-                            {level === "low" ? t("hub.preview.lowRisk") : level === "medium" ? t("hub.preview.mediumRisk") : t("hub.preview.highRisk")}
-                          </Badge>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-
-              {/* Parameters */}
-              {preview.metadata.parameters.length > 0 && (
-                <div className="mb-4">
-                  <h4 className="text-xs font-medium text-text-muted mb-2">{t("hub.preview.parameters")}</h4>
-                  <div className="space-y-2">
-                    {preview.metadata.parameters.map((param) => (
-                      <div key={param.name} className="text-xs">
-                        <span className="font-medium text-text-primary">{param.name}</span>
-                        <span className="text-text-muted"> ({param.type})</span>
-                        {param.required && <span className="text-accent-red"> *</span>}
-                        <p className="text-text-secondary mt-0.5">{param.description}</p>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Source preview */}
-              <div className="mb-4">
-                <h4 className="text-xs font-medium text-text-muted mb-2">{t("hub.preview.sourcePreview")}</h4>
-                <pre className="text-xs text-text-secondary bg-bg-tertiary rounded-md p-3 overflow-x-auto max-h-64">
-                  {preview.content.slice(0, 1000)}
-                  {preview.content.length > 1000 && `\n\n${t("hub.preview.truncated")}`}
-                </pre>
-              </div>
-            </ScrollArea>
-
-            {/* Import button */}
-            <div className="pt-4 border-t border-border-default">
-              {importSuccess ? (
-                <Button className="w-full" disabled>
-                  <Check className="h-4 w-4 mr-2" />
-                  {t("hub.preview.importedSuccessfully")}
-                </Button>
-              ) : registryPreview ? (
-                <Button
-                  className="w-full"
-                  onClick={handleImportRegistryEntry}
-                  disabled={importRegistryMutation.isPending}
-                >
-                  {importRegistryMutation.isPending ? (
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  ) : (
-                    <Download className="h-4 w-4 mr-2" />
-                  )}
-                  {t("hub.preview.importToLibrary")}
-                </Button>
-              ) : (
-                <Button
-                  className="w-full"
-                  onClick={handleImport}
-                  disabled={importMutation.isPending}
-                >
-                  {importMutation.isPending ? (
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  ) : (
-                    <Download className="h-4 w-4 mr-2" />
-                  )}
-                  {t("hub.preview.importToLibrary")}
-                </Button>
-              )}
-              {importMutation.isError && (
-                <div className="text-xs text-accent-red mt-2">
-                  {String(importMutation.error)}
-                </div>
-              )}
-              {importRegistryMutation.isError && (
-                <div className="text-xs text-accent-red mt-2">
-                  {String(importRegistryMutation.error)}
-                </div>
-              )}
-            </div>
-          </div>
-        ) : (
-          <div className="flex h-full items-center justify-center text-text-muted">
-            <div className="text-center">
-              <Download className="h-12 w-12 mx-auto mb-4 opacity-50" />
-              <p className="text-sm">{t("hub.preview.enterUrlToPreview")}</p>
-              <p className="text-xs mt-1">
-                {t("hub.preview.supportedFormats")}
-              </p>
-            </div>
-          </div>
-        )}
+        <SkillPreviewPanel
+          preview={preview}
+          onClearPreview={clearPreview}
+          importSuccess={importSuccess}
+          isImporting={registryPreview ? importRegistryMutation.isPending : importMutation.isPending}
+          importError={registryPreview ? importRegistryMutation.error : importMutation.error}
+          onImport={registryPreview ? handleImportRegistryEntry : handleImport}
+        />
       </div>
     </div>
   );
 };
-
-interface SourceButtonProps {
-  icon: React.ReactNode;
-  label: string;
-  description: string;
-  selected: boolean;
-  onClick: () => void;
-}
-
-const SourceButton: React.FC<SourceButtonProps> = ({
-  icon,
-  label,
-  description,
-  selected,
-  onClick,
-}) => (
-  <button
-    className={`flex flex-col items-center justify-center rounded-lg border p-3 transition-colors ${
-      selected
-        ? "border-accent-blue bg-accent-blue/10"
-        : "border-border-default hover:border-border-default/80 hover:bg-bg-tertiary"
-    }`}
-    onClick={onClick}
-  >
-    <div className={selected ? "text-accent-blue" : "text-text-muted"}>
-      {icon}
-    </div>
-    <span
-      className={`text-xs font-medium mt-1 ${
-        selected ? "text-accent-blue" : "text-text-primary"
-      }`}
-    >
-      {label}
-    </span>
-    <span className="text-[10px] text-text-muted">{description}</span>
-  </button>
-);

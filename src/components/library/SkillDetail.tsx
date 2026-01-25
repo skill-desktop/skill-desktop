@@ -2,27 +2,21 @@ import React from "react";
 import { useTranslation } from "react-i18next";
 import {
   X,
-  ExternalLink,
   Folder,
   Trash2,
   FileText,
-  AlertTriangle,
   Loader2,
   Copy,
   Check,
-  Code,
-  BookOpen,
   Shield,
   ShieldAlert,
-  Tag,
-  Hash,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAppStore } from "@/stores";
 import { useDeleteSkill, useShowInFolder, useOpenFile, useSkillContent, useQuarantinedSkills, useSetSkillQuarantine } from "@/hooks";
-import { Button, Badge, ScrollArea, Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, Markdown } from "@/components/ui";
+import { Button, ScrollArea, Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui";
 import type { Skill } from "@/types";
-import { getPermissionLevel } from "@/types";
+import { TabButton, OverviewTab, ContentTab, SourceTab } from "./detail";
 
 interface SkillDetailProps {
   skill: Skill | null;
@@ -128,7 +122,7 @@ export const SkillDetail: React.FC<SkillDetailProps> = ({ skill }) => {
               </div>
               <p className="text-xs text-text-muted mt-0.5">
                 v{skill.version}
-                {skill.author && ` · by ${skill.author}`}
+                {skill.author && ` · ${t("skillCard.by")} ${skill.author}`}
               </p>
             </div>
             <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0" onClick={handleClose}>
@@ -142,196 +136,28 @@ export const SkillDetail: React.FC<SkillDetailProps> = ({ skill }) => {
               active={activeTab === "overview"}
               onClick={() => setActiveTab("overview")}
             >
-              Overview
+              {t("skillDetail.tabs.overview")}
             </TabButton>
             <TabButton
               active={activeTab === "content"}
               onClick={() => setActiveTab("content")}
             >
-              Content
+              {t("skillDetail.tabs.content")}
             </TabButton>
             <TabButton
               active={activeTab === "source"}
               onClick={() => setActiveTab("source")}
             >
-              Source
+              {t("skillDetail.tabs.source")}
             </TabButton>
           </div>
         </div>
 
         {/* Content */}
         <ScrollArea className="flex-1 p-4">
-          {activeTab === "overview" && (
-            <>
-              {/* Description */}
-              <Section title="Description" icon={<BookOpen className="h-3.5 w-3.5" />}>
-                <Markdown 
-                  content={skill.description || "No description available"} 
-                  className="text-xs text-text-secondary"
-                />
-              </Section>
-
-              {/* Tags */}
-              {skill.tags.length > 0 && (
-                <Section title="Tags" icon={<Tag className="h-3.5 w-3.5" />}>
-                  <div className="flex flex-wrap gap-1">
-                    {skill.tags.map((tag) => (
-                      <Badge key={tag} variant="blue" className="text-[10px]">
-                        {tag}
-                      </Badge>
-                    ))}
-                  </div>
-                </Section>
-              )}
-
-              {/* Permissions */}
-              <Section title="Permissions" icon={<Shield className="h-3.5 w-3.5" />}>
-                {skill.permissions.length > 0 ? (
-                  <div className="space-y-2">
-                    {skill.permissions.map((permission) => {
-                      const level = getPermissionLevel(permission);
-                      return (
-                        <div
-                          key={permission}
-                          className="flex items-center justify-between"
-                        >
-                          <div className="flex items-center gap-2">
-                            <span
-                              className={cn(
-                                "h-2 w-2 rounded-full",
-                                level === "low" && "bg-permission-low",
-                                level === "medium" && "bg-permission-medium",
-                                level === "high" && "bg-permission-high"
-                              )}
-                            />
-                            <span className="text-xs text-text-primary">
-                              {permission}
-                            </span>
-                          </div>
-                          <Badge variant={level} className="text-[10px]">
-                            {level === "low"
-                              ? "Low Risk"
-                              : level === "medium"
-                              ? "Medium Risk"
-                              : "High Risk"}
-                          </Badge>
-                        </div>
-                      );
-                    })}
-                  </div>
-                ) : (
-                  <p className="text-xs text-text-muted">No permissions required</p>
-                )}
-              </Section>
-
-              {/* Parameters */}
-              {skill.parameters.length > 0 && (
-                <Section title="Parameters" icon={<Code className="h-3.5 w-3.5" />}>
-                  <div className="space-y-3">
-                    {skill.parameters.map((param) => (
-                      <div key={param.name} className="rounded-md border border-border-muted bg-bg-tertiary p-2">
-                        <div className="flex items-center gap-2">
-                          <code className="text-xs font-medium text-accent-blue">
-                            {param.name}
-                          </code>
-                          <span className="text-[10px] text-text-muted px-1.5 py-0.5 rounded bg-bg-elevated">
-                            {param.type}
-                          </span>
-                          {param.required && (
-                            <span className="text-[10px] text-accent-red">
-                              required
-                            </span>
-                          )}
-                        </div>
-                        <p className="text-[11px] text-text-secondary mt-1">
-                          {param.description}
-                        </p>
-                      </div>
-                    ))}
-                  </div>
-                </Section>
-              )}
-
-              {/* Metadata */}
-              <Section title="Metadata" icon={<Hash className="h-3.5 w-3.5" />}>
-                <div className="space-y-2 text-xs">
-                  <MetadataRow label="Filename" value={skill.filename} />
-                  <MetadataRow label="Hash" value={skill.hash.slice(0, 12) + "..."} />
-                  {skill.isDownloaded && (
-                    <MetadataRow label="Source" value="Downloaded" />
-                  )}
-                </div>
-              </Section>
-
-              {/* Warning for high-risk permissions */}
-              {skill.permissions.some(
-                (p) => getPermissionLevel(p) === "high"
-              ) && (
-                <div className="mt-4 flex items-start gap-2 rounded-md border border-permission-high/50 bg-permission-high/10 p-3">
-                  <AlertTriangle className="h-4 w-4 text-permission-high shrink-0 mt-0.5" />
-                  <p className="text-xs text-permission-high">
-                    This skill requires high-risk permissions. Make sure you trust the
-                    source before enabling it.
-                  </p>
-                </div>
-              )}
-            </>
-          )}
-
-          {activeTab === "content" && (
-            <div className="space-y-4">
-              {skillContent ? (
-                <Markdown 
-                  content={skillContent.replace(/^---[\s\S]*?---\n/, '')} 
-                  className="text-xs"
-                />
-              ) : (
-                <div className="text-xs text-text-muted text-center py-8">
-                  Loading content...
-                </div>
-              )}
-            </div>
-          )}
-
-          {activeTab === "source" && (
-            <div className="space-y-4">
-              {/* File location */}
-              <Section title="File Location" icon={<Folder className="h-3.5 w-3.5" />}>
-                <div className="rounded-md border border-border-muted bg-bg-tertiary p-2">
-                  <code className="text-xs text-text-secondary break-all">
-                    {skill.localPath}
-                  </code>
-                </div>
-              </Section>
-
-              {/* Source URL */}
-              {skill.sourceUrl && (
-                <Section title="Source URL" icon={<ExternalLink className="h-3.5 w-3.5" />}>
-                  <a
-                    href={skill.sourceUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-xs text-accent-blue hover:underline break-all"
-                  >
-                    {skill.sourceUrl}
-                  </a>
-                </Section>
-              )}
-
-              {/* Raw source */}
-              <Section title="Raw Source" icon={<FileText className="h-3.5 w-3.5" />}>
-                {skillContent ? (
-                  <pre className="text-[11px] text-text-secondary bg-bg-tertiary rounded-md p-3 overflow-x-auto max-h-96 whitespace-pre-wrap">
-                    {skillContent}
-                  </pre>
-                ) : (
-                  <div className="text-xs text-text-muted text-center py-4">
-                    Loading...
-                  </div>
-                )}
-              </Section>
-            </div>
-          )}
+          {activeTab === "overview" && <OverviewTab skill={skill} />}
+          {activeTab === "content" && <ContentTab content={skillContent} />}
+          {activeTab === "source" && <SourceTab skill={skill} content={skillContent} />}
         </ScrollArea>
 
         {/* Quarantine status banner */}
@@ -356,7 +182,7 @@ export const SkillDetail: React.FC<SkillDetailProps> = ({ skill }) => {
             ) : (
               <FileText className="h-3.5 w-3.5 mr-1.5" />
             )}
-            Edit
+            {t("skillDetail.actions.edit")}
           </Button>
           <Button
             variant="secondary"
@@ -370,7 +196,7 @@ export const SkillDetail: React.FC<SkillDetailProps> = ({ skill }) => {
             ) : (
               <Folder className="h-3.5 w-3.5 mr-1.5" />
             )}
-            Reveal
+            {t("skillDetail.actions.reveal")}
           </Button>
           <Button
             variant="ghost"
@@ -435,42 +261,3 @@ export const SkillDetail: React.FC<SkillDetailProps> = ({ skill }) => {
     </>
   );
 };
-
-const Section: React.FC<{ title: string; icon?: React.ReactNode; children: React.ReactNode }> = ({
-  title,
-  icon,
-  children,
-}) => (
-  <div className="mb-4">
-    <h3 className="flex items-center gap-1.5 text-xs font-medium text-text-muted mb-2">
-      {icon}
-      {title}
-    </h3>
-    {children}
-  </div>
-);
-
-const TabButton: React.FC<{
-  active: boolean;
-  onClick: () => void;
-  children: React.ReactNode;
-}> = ({ active, onClick, children }) => (
-  <button
-    className={cn(
-      "px-3 py-1.5 text-xs font-medium rounded-md transition-colors",
-      active
-        ? "bg-bg-tertiary text-text-primary"
-        : "text-text-muted hover:text-text-primary hover:bg-bg-tertiary/50"
-    )}
-    onClick={onClick}
-  >
-    {children}
-  </button>
-);
-
-const MetadataRow: React.FC<{ label: string; value: string }> = ({ label, value }) => (
-  <div className="flex items-center justify-between">
-    <span className="text-text-muted">{label}</span>
-    <span className="text-text-secondary font-mono">{value}</span>
-  </div>
-);
