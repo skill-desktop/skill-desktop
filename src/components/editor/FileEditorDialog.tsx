@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import Editor, { OnMount } from "@monaco-editor/react";
 import { 
@@ -10,8 +10,49 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { useReadTextFile, useSaveTextFile } from "@/hooks/useFileOperations";
-import { Loader2, Save, X } from "lucide-react";
+import { Loader2, Save } from "lucide-react";
 import { useSettingsStore } from "@/stores/settingsStore";
+
+// Get language from file extension
+function getLanguageFromPath(filePath: string): string {
+  const ext = filePath.split('.').pop()?.toLowerCase();
+  const languageMap: Record<string, string> = {
+    'md': 'markdown',
+    'markdown': 'markdown',
+    'js': 'javascript',
+    'jsx': 'javascript',
+    'ts': 'typescript',
+    'tsx': 'typescript',
+    'json': 'json',
+    'py': 'python',
+    'sh': 'shell',
+    'bash': 'shell',
+    'zsh': 'shell',
+    'yaml': 'yaml',
+    'yml': 'yaml',
+    'html': 'html',
+    'css': 'css',
+    'scss': 'scss',
+    'less': 'less',
+    'xml': 'xml',
+    'sql': 'sql',
+    'rs': 'rust',
+    'go': 'go',
+    'java': 'java',
+    'c': 'c',
+    'cpp': 'cpp',
+    'h': 'c',
+    'hpp': 'cpp',
+    'rb': 'ruby',
+    'php': 'php',
+    'swift': 'swift',
+    'kt': 'kotlin',
+    'toml': 'toml',
+    'ini': 'ini',
+    'txt': 'plaintext',
+  };
+  return languageMap[ext || ''] || 'plaintext';
+}
 
 interface FileEditorDialogProps {
   open: boolean;
@@ -51,9 +92,12 @@ export function FileEditorDialog({
     }
   }, [open, filePath]);
 
-  const handleEditorDidMount: OnMount = (editor, monaco) => {
+  const handleEditorDidMount: OnMount = (editor) => {
     editorRef.current = editor;
   };
+
+  // Detect language from file path
+  const detectedLanguage = language !== "markdown" ? language : getLanguageFromPath(filePath);
 
   const handleSave = async () => {
     if (!filePath) return;
@@ -103,9 +147,9 @@ export function FileEditorDialog({
           ) : (
             <Editor
               height="100%"
-              defaultLanguage={language}
+              language={detectedLanguage}
               value={content}
-              theme={isDark ? "vs-dark" : "light"} // Simple toggle, monaco has 'vs-dark' and 'light'
+              theme={isDark ? "vs-dark" : "light"}
               onChange={(value) => {
                 setContent(value || "");
                 setIsModified(true);
