@@ -217,3 +217,110 @@ pub struct SkillMetadata {
 fn default_version() -> String {
     "1.0.0".to_string()
 }
+
+// ========== AI Coding Tools Configuration Types ==========
+
+/// Supported AI coding tools
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum AIToolType {
+    ClaudeCode,
+    Cursor,
+    OpenCode,
+}
+
+impl std::fmt::Display for AIToolType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            AIToolType::ClaudeCode => write!(f, "Claude Code"),
+            AIToolType::Cursor => write!(f, "Cursor"),
+            AIToolType::OpenCode => write!(f, "OpenCode"),
+        }
+    }
+}
+
+/// Claude Code configuration (CLAUDE.md)
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ClaudeCodeConfig {
+    /// Global CLAUDE.md content (~/.claude/CLAUDE.md)
+    pub global_content: Option<String>,
+    /// Global CLAUDE.md path
+    pub global_path: Option<String>,
+    /// Project-specific CLAUDE.md files (path -> content)
+    pub project_configs: Vec<ProjectConfig>,
+}
+
+/// Cursor configuration (.cursor/rules/*.mdc and .cursorrules)
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CursorConfig {
+    /// Global rules from Cursor settings
+    pub global_rules: Option<String>,
+    /// Legacy .cursorrules file content
+    pub legacy_rules: Option<String>,
+    /// Legacy .cursorrules file path
+    pub legacy_rules_path: Option<String>,
+    /// MDC rule files (.cursor/rules/*.mdc)
+    pub mdc_rules: Vec<CursorMdcRule>,
+}
+
+/// Cursor MDC rule file
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CursorMdcRule {
+    /// File name (e.g., "code-style.mdc")
+    pub name: String,
+    /// Full path to the file
+    pub path: String,
+    /// Rule description from frontmatter
+    pub description: Option<String>,
+    /// Glob patterns for auto-application
+    pub globs: Option<String>,
+    /// Whether always applied
+    pub always_apply: bool,
+    /// Full content of the file
+    pub content: String,
+}
+
+/// OpenCode configuration (AGENTS.md and opencode.json)
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct OpenCodeConfig {
+    /// Global AGENTS.md content (~/.config/opencode/AGENTS.md)
+    pub global_agents_md: Option<String>,
+    /// Global AGENTS.md path
+    pub global_agents_path: Option<String>,
+    /// Global opencode.json content
+    pub global_config_json: Option<String>,
+    /// Global opencode.json path
+    pub global_config_path: Option<String>,
+    /// Project-specific AGENTS.md files
+    pub project_configs: Vec<ProjectConfig>,
+}
+
+/// Project-specific configuration file
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ProjectConfig {
+    /// Project directory path
+    pub project_path: String,
+    /// Config file path
+    pub config_path: String,
+    /// Config file content
+    pub content: String,
+    /// Last modified timestamp
+    pub last_modified: Option<String>,
+}
+
+/// Summary of all AI tools configurations
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AIToolsConfigSummary {
+    /// Claude Code configuration
+    pub claude_code: ClaudeCodeConfig,
+    /// Cursor configuration
+    pub cursor: CursorConfig,
+    /// OpenCode configuration
+    pub opencode: OpenCodeConfig,
+}

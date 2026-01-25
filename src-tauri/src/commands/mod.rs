@@ -3568,6 +3568,762 @@ pub async fn open_skill_directory(skill_dir: String) -> Result<(), String> {
             .spawn()
             .map_err(|e| e.to_string())?;
     }
+
+    Ok(())
+}
+
+// ========== Sandbox Execution Commands ==========
+
+/// Result of script execution
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ExecutionResult {
+    /// Whether the execution was successful
+    pub success: bool,
+    /// Standard output
+    pub stdout: String,
+    /// Standard error output
+    pub stderr: String,
+    /// Exit code (if available)
+    pub exit_code: Option<i32>,
+    /// Execution duration in milliseconds
+    pub duration_ms: u64,
+}
+
+/// Execute a script from a skill's scripts directory
+#[tauri::command]
+pub async fn execute_skill_script(
+    skill_hash: String,
+    script_path: String,
+    args: Vec<String>,
+    env_vars: std::collections::HashMap<String, String>,
+    library_state: State<'_, LibraryState>,
+) -> Result<ExecutionResult, String> {
+    use std::time::Instant;
+
+    let library_path = {
+        let guard = library_state.path.lock().map_err(|e| e.to_string())?;
+        guard.clone().ok_or("Library path not set")?
+    };
+
+    let all_skills = get_all_skills_internal(&library_path)?;
+
+    let skill = all_skills
+        .into_iter()
+        .find(|s| s.hash == skill_hash)
+        .ok_or("Skill not found")?;
+
+    let full_script_path = PathBuf::from(&skill.skill_dir).join("scripts").join(&script_path);
+
+    if !full_script_path.exists() {
+        return Err(format!("Script not found: {}", script_path));
+    }
+
+    // Determine the interpreter based on file extension
+    let extension = full_script_path.extension()
+        .and_then(|e| e.to_str())
+        .unwrap_or("");
+
+    let start_time = Instant::now();
+
+    let output = match extension {
+        "py" => {
+            // Python script
+            let mut cmd = Command::new("python3");
+            cmd.arg(&full_script_path);
+            cmd.args(&args);
+            cmd.current_dir(&skill.skill_dir);
+            for (key, value) in &env_vars {
+                cmd.env(key, value);
+            }
+            cmd.output()
+        }
+        "sh" | "bash" => {
+            // Shell script
+            let mut cmd = Command::new("bash");
+            cmd.arg(&full_script_path);
+            cmd.args(&args);
+            cmd.current_dir(&skill.skill_dir);
+            for (key, value) in &env_vars {
+                cmd.env(key, value);
+            }
+            cmd.output()
+        }
+        "js" | "mjs" => {
+            // Node.js script
+            let mut cmd = Command::new("node");
+            cmd.arg(&full_script_path);
+            cmd.args(&args);
+            cmd.current_dir(&skill.skill_dir);
+            for (key, value) in &env_vars {
+                cmd.env(key, value);
+            }
+            cmd.output()
+        }
+        "ts" => {
+            // TypeScript script (using ts-node or npx tsx)
+            let mut cmd = Command::new("npx");
+            cmd.arg("tsx");
+            cmd.arg(&full_script_path);
+            cmd.args(&args);
+            cmd.current_dir(&skill.skill_dir);
+            for (key, value) in &env_vars {
+                cmd.env(key, value);
+            }
+            cmd.output()
+        }
+        "rb" => {
+            // Ruby script
+            let mut cmd = Command::new("ruby");
+            cmd.arg(&full_script_path);
+            cmd.args(&args);
+            cmd.current_dir(&skill.skill_dir);
+            for (key, value) in &env_vars {
+                cmd.env(key, value);
+            }
+            cmd.output()
+        }
+        _ => {
+            // Try to execute directly (for executables with shebang)
+            let mut cmd = Command::new(&full_script_path);
+            cmd.args(&args);
+            cmd.current_dir(&skill.skill_dir);
+            for (key, value) in &env_vars {
+                cmd.env(key, value);
+            }
+            cmd.output()
+        }
+    };
+
+    let duration_ms = start_time.elapsed().as_millis() as u64;
+
+    match output {
+        Ok(output) => {
+            let stdout = String::from_utf8_lossy(&output.stdout).to_string();
+            let stderr = String::from_utf8_lossy(&output.stderr).to_string();
+            let exit_code = output.status.code();
+            let success = output.status.success();
+
+            Ok(ExecutionResult {
+                success,
+                stdout,
+                stderr,
+                exit_code,
+                duration_ms,
+            })
+        }
+        Err(e) => {
+            Ok(ExecutionResult {
+                success: false,
+                stdout: String::new(),
+                stderr: e.to_string(),
+                exit_code: None,
+                duration_ms,
+            })
+        }
+    }
+}
+
+/// Get available scripts for a skill
+#[tauri::command]
+pub async fn get_skill_scripts(
+    skill_hash: String,
+    library_state: State<'_, LibraryState>,
+) -> Result<Vec<String>, String> {
+    let library_path = {
+        let guard = library_state.path.lock().map_err(|e| e.to_string())?;
+        guard.clone().ok_or("Library path not set")?
+    };
+
+    let all_skills = get_all_skills_internal(&library_path)?;
+
+    let skill = all_skills
+        .into_iter()
+        .find(|s| s.hash == skill_hash)
+        .ok_or("Skill not found")?;
+
+    let scripts_dir = PathBuf::from(&skill.skill_dir).join("scripts");
+
+    if !scripts_dir.exists() {
+        return Ok(vec![]);
+    }
+
+    let mut scripts = Vec::new();
+
+    if let Ok(entries) = std::fs::read_dir(&scripts_dir) {
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if path.is_file() {
+                if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
+                    scripts.push(name.to_string());
+                }
+            }
+        }
+    }
+
+    scripts.sort();
+    Ok(scripts)
+}
+
+// ========== AI Tools Configuration Commands ==========
+
+use crate::types::{
+    AIToolsConfigSummary, ClaudeCodeConfig, CursorConfig, CursorMdcRule,
+    OpenCodeConfig, ProjectConfig,
+};
+
+/// Get all AI tools configurations
+#[tauri::command]
+pub async fn get_ai_tools_config() -> Result<AIToolsConfigSummary, String> {
+    let claude_code = get_claude_code_config_internal()?;
+    let cursor = get_cursor_config_internal()?;
+    let opencode = get_opencode_config_internal()?;
+    
+    Ok(AIToolsConfigSummary {
+        claude_code,
+        cursor,
+        opencode,
+    })
+}
+
+/// Get Claude Code configuration
+#[tauri::command]
+pub async fn get_claude_code_config() -> Result<ClaudeCodeConfig, String> {
+    get_claude_code_config_internal()
+}
+
+fn get_claude_code_config_internal() -> Result<ClaudeCodeConfig, String> {
+    let home_dir = dirs::home_dir()
+        .ok_or_else(|| "Unable to determine home directory".to_string())?;
+    
+    // Global CLAUDE.md path: ~/.claude/CLAUDE.md
+    let global_path = home_dir.join(".claude").join("CLAUDE.md");
+    let global_content = if global_path.exists() {
+        Some(std::fs::read_to_string(&global_path).map_err(|e| e.to_string())?)
+    } else {
+        None
+    };
+    
+    Ok(ClaudeCodeConfig {
+        global_content,
+        global_path: Some(global_path.to_string_lossy().to_string()),
+        project_configs: vec![],
+    })
+}
+
+/// Save Claude Code global configuration
+#[tauri::command]
+pub async fn save_claude_code_config(content: String) -> Result<(), String> {
+    let home_dir = dirs::home_dir()
+        .ok_or_else(|| "Unable to determine home directory".to_string())?;
+    
+    let claude_dir = home_dir.join(".claude");
+    if !claude_dir.exists() {
+        std::fs::create_dir_all(&claude_dir).map_err(|e| e.to_string())?;
+    }
+    
+    let global_path = claude_dir.join("CLAUDE.md");
+    std::fs::write(&global_path, content).map_err(|e| e.to_string())?;
     
     Ok(())
 }
+
+/// Get Cursor configuration
+#[tauri::command]
+pub async fn get_cursor_config() -> Result<CursorConfig, String> {
+    get_cursor_config_internal()
+}
+
+fn get_cursor_config_internal() -> Result<CursorConfig, String> {
+    let home_dir = dirs::home_dir()
+        .ok_or_else(|| "Unable to determine home directory".to_string())?;
+    
+    // Check for legacy .cursorrules in home directory
+    let legacy_path = home_dir.join(".cursorrules");
+    let (legacy_rules, legacy_rules_path) = if legacy_path.exists() {
+        (
+            Some(std::fs::read_to_string(&legacy_path).map_err(|e| e.to_string())?),
+            Some(legacy_path.to_string_lossy().to_string()),
+        )
+    } else {
+        (None, None)
+    };
+    
+    // Check for global Cursor rules in config
+    // On macOS: ~/Library/Application Support/Cursor/User/globalStorage/cursor.rules
+    // On Windows: %APPDATA%\Cursor\User\globalStorage\cursor.rules
+    // On Linux: ~/.config/Cursor/User/globalStorage/cursor.rules
+    let global_rules = get_cursor_global_rules();
+    
+    // MDC rules would be in project directories, not global
+    // We'll return empty for now as we'd need a project path to scan
+    let mdc_rules = vec![];
+    
+    Ok(CursorConfig {
+        global_rules,
+        legacy_rules,
+        legacy_rules_path,
+        mdc_rules,
+    })
+}
+
+fn get_cursor_global_rules() -> Option<String> {
+    #[cfg(target_os = "macos")]
+    {
+        let home_dir = dirs::home_dir()?;
+        let rules_path = home_dir
+            .join("Library")
+            .join("Application Support")
+            .join("Cursor")
+            .join("User")
+            .join("globalStorage")
+            .join("cursor.rules");
+        if rules_path.exists() {
+            return std::fs::read_to_string(&rules_path).ok();
+        }
+    }
+    
+    #[cfg(target_os = "windows")]
+    {
+        if let Some(app_data) = dirs::config_dir() {
+            let rules_path = app_data
+                .join("Cursor")
+                .join("User")
+                .join("globalStorage")
+                .join("cursor.rules");
+            if rules_path.exists() {
+                return std::fs::read_to_string(&rules_path).ok();
+            }
+        }
+    }
+    
+    #[cfg(target_os = "linux")]
+    {
+        let home_dir = dirs::home_dir()?;
+        let rules_path = home_dir
+            .join(".config")
+            .join("Cursor")
+            .join("User")
+            .join("globalStorage")
+            .join("cursor.rules");
+        if rules_path.exists() {
+            return std::fs::read_to_string(&rules_path).ok();
+        }
+    }
+    
+    None
+}
+
+/// Save Cursor legacy rules (.cursorrules)
+#[tauri::command]
+pub async fn save_cursor_legacy_rules(content: String) -> Result<(), String> {
+    let home_dir = dirs::home_dir()
+        .ok_or_else(|| "Unable to determine home directory".to_string())?;
+    
+    let legacy_path = home_dir.join(".cursorrules");
+    std::fs::write(&legacy_path, content).map_err(|e| e.to_string())?;
+    
+    Ok(())
+}
+
+/// Scan a project directory for Cursor MDC rules
+#[tauri::command]
+pub async fn scan_cursor_mdc_rules(project_path: String) -> Result<Vec<CursorMdcRule>, String> {
+    let project_dir = PathBuf::from(&project_path);
+    let rules_dir = project_dir.join(".cursor").join("rules");
+    
+    if !rules_dir.exists() {
+        return Ok(vec![]);
+    }
+    
+    let mut rules = Vec::new();
+    
+    if let Ok(entries) = std::fs::read_dir(&rules_dir) {
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if path.is_file() {
+                if let Some(ext) = path.extension() {
+                    if ext == "mdc" {
+                        if let Ok(content) = std::fs::read_to_string(&path) {
+                            let rule = parse_mdc_rule(&path, &content);
+                            rules.push(rule);
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
+    rules.sort_by(|a, b| a.name.cmp(&b.name));
+    Ok(rules)
+}
+
+fn parse_mdc_rule(path: &PathBuf, content: &str) -> CursorMdcRule {
+    let name = path.file_name()
+        .and_then(|n| n.to_str())
+        .unwrap_or("unknown.mdc")
+        .to_string();
+    
+    let mut description = None;
+    let mut globs = None;
+    let mut always_apply = false;
+    
+    // Parse YAML frontmatter if present
+    if content.starts_with("---") {
+        if let Some(end_idx) = content[3..].find("---") {
+            let frontmatter = &content[3..end_idx + 3];
+            for line in frontmatter.lines() {
+                let line = line.trim();
+                if line.starts_with("description:") {
+                    description = Some(line[12..].trim().to_string());
+                } else if line.starts_with("globs:") {
+                    globs = Some(line[6..].trim().to_string());
+                } else if line.starts_with("alwaysApply:") {
+                    always_apply = line[12..].trim() == "true";
+                }
+            }
+        }
+    }
+    
+    CursorMdcRule {
+        name,
+        path: path.to_string_lossy().to_string(),
+        description,
+        globs,
+        always_apply,
+        content: content.to_string(),
+    }
+}
+
+/// Save a Cursor MDC rule file
+#[tauri::command]
+pub async fn save_cursor_mdc_rule(
+    project_path: String,
+    rule_name: String,
+    content: String,
+) -> Result<(), String> {
+    let project_dir = PathBuf::from(&project_path);
+    let rules_dir = project_dir.join(".cursor").join("rules");
+    
+    if !rules_dir.exists() {
+        std::fs::create_dir_all(&rules_dir).map_err(|e| e.to_string())?;
+    }
+    
+    let rule_path = rules_dir.join(&rule_name);
+    std::fs::write(&rule_path, content).map_err(|e| e.to_string())?;
+    
+    Ok(())
+}
+
+/// Get OpenCode configuration
+#[tauri::command]
+pub async fn get_opencode_config() -> Result<OpenCodeConfig, String> {
+    get_opencode_config_internal()
+}
+
+fn get_opencode_config_internal() -> Result<OpenCodeConfig, String> {
+    let home_dir = dirs::home_dir()
+        .ok_or_else(|| "Unable to determine home directory".to_string())?;
+    
+    // Global AGENTS.md path: ~/.config/opencode/AGENTS.md
+    let config_dir = home_dir.join(".config").join("opencode");
+    
+    let global_agents_path = config_dir.join("AGENTS.md");
+    let global_agents_md = if global_agents_path.exists() {
+        Some(std::fs::read_to_string(&global_agents_path).map_err(|e| e.to_string())?)
+    } else {
+        None
+    };
+    
+    // Global opencode.json path: ~/.config/opencode/opencode.json
+    let global_config_path = config_dir.join("opencode.json");
+    let global_config_json = if global_config_path.exists() {
+        Some(std::fs::read_to_string(&global_config_path).map_err(|e| e.to_string())?)
+    } else {
+        None
+    };
+    
+    Ok(OpenCodeConfig {
+        global_agents_md,
+        global_agents_path: Some(global_agents_path.to_string_lossy().to_string()),
+        global_config_json,
+        global_config_path: Some(global_config_path.to_string_lossy().to_string()),
+        project_configs: vec![],
+    })
+}
+
+/// Save OpenCode global AGENTS.md
+#[tauri::command]
+pub async fn save_opencode_agents_md(content: String) -> Result<(), String> {
+    let home_dir = dirs::home_dir()
+        .ok_or_else(|| "Unable to determine home directory".to_string())?;
+    
+    let config_dir = home_dir.join(".config").join("opencode");
+    if !config_dir.exists() {
+        std::fs::create_dir_all(&config_dir).map_err(|e| e.to_string())?;
+    }
+    
+    let agents_path = config_dir.join("AGENTS.md");
+    std::fs::write(&agents_path, content).map_err(|e| e.to_string())?;
+    
+    Ok(())
+}
+
+/// Save OpenCode global config JSON
+#[tauri::command]
+pub async fn save_opencode_config_json(content: String) -> Result<(), String> {
+    let home_dir = dirs::home_dir()
+        .ok_or_else(|| "Unable to determine home directory".to_string())?;
+    
+    let config_dir = home_dir.join(".config").join("opencode");
+    if !config_dir.exists() {
+        std::fs::create_dir_all(&config_dir).map_err(|e| e.to_string())?;
+    }
+    
+    let config_path = config_dir.join("opencode.json");
+    std::fs::write(&config_path, content).map_err(|e| e.to_string())?;
+    
+    Ok(())
+}
+
+/// Scan a project directory for project-specific config files
+#[tauri::command]
+pub async fn scan_project_ai_configs(project_path: String) -> Result<Vec<ProjectConfig>, String> {
+    let project_dir = PathBuf::from(&project_path);
+    
+    if !project_dir.exists() {
+        return Err("Project directory does not exist".to_string());
+    }
+    
+    let mut configs = Vec::new();
+    
+    // Check for CLAUDE.md
+    let claude_md = project_dir.join("CLAUDE.md");
+    if claude_md.exists() {
+        if let Ok(content) = std::fs::read_to_string(&claude_md) {
+            let last_modified = get_file_modified_time(&claude_md);
+            configs.push(ProjectConfig {
+                project_path: project_path.clone(),
+                config_path: claude_md.to_string_lossy().to_string(),
+                content,
+                last_modified,
+            });
+        }
+    }
+    
+    // Check for AGENTS.md (OpenCode)
+    let agents_md = project_dir.join("AGENTS.md");
+    if agents_md.exists() {
+        if let Ok(content) = std::fs::read_to_string(&agents_md) {
+            let last_modified = get_file_modified_time(&agents_md);
+            configs.push(ProjectConfig {
+                project_path: project_path.clone(),
+                config_path: agents_md.to_string_lossy().to_string(),
+                content,
+                last_modified,
+            });
+        }
+    }
+    
+    // Check for .cursorrules (legacy Cursor)
+    let cursorrules = project_dir.join(".cursorrules");
+    if cursorrules.exists() {
+        if let Ok(content) = std::fs::read_to_string(&cursorrules) {
+            let last_modified = get_file_modified_time(&cursorrules);
+            configs.push(ProjectConfig {
+                project_path: project_path.clone(),
+                config_path: cursorrules.to_string_lossy().to_string(),
+                content,
+                last_modified,
+            });
+        }
+    }
+    
+    // Check for opencode.json
+    let opencode_json = project_dir.join("opencode.json");
+    if opencode_json.exists() {
+        if let Ok(content) = std::fs::read_to_string(&opencode_json) {
+            let last_modified = get_file_modified_time(&opencode_json);
+            configs.push(ProjectConfig {
+                project_path: project_path.clone(),
+                config_path: opencode_json.to_string_lossy().to_string(),
+                content,
+                last_modified,
+            });
+        }
+    }
+    
+    Ok(configs)
+}
+
+fn get_file_modified_time(path: &PathBuf) -> Option<String> {
+    std::fs::metadata(path)
+        .ok()
+        .and_then(|m| m.modified().ok())
+        .map(|t| {
+            let duration = t.duration_since(std::time::UNIX_EPOCH).unwrap_or_default();
+            let secs = duration.as_secs() as i64;
+            format_timestamp(secs)
+        })
+}
+
+fn format_timestamp(secs: i64) -> String {
+    let days = secs / 86400;
+    let time_secs = secs % 86400;
+    
+    let mut year = 1970;
+    let mut remaining_days = days;
+    
+    loop {
+        let days_in_year = if is_leap_year(year) { 366 } else { 365 };
+        if remaining_days < days_in_year {
+            break;
+        }
+        remaining_days -= days_in_year;
+        year += 1;
+    }
+    
+    let is_leap = is_leap_year(year);
+    let days_in_months: [i64; 12] = if is_leap {
+        [31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
+    } else {
+        [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
+    };
+    
+    let mut month = 1;
+    for days_in_month in days_in_months.iter() {
+        if remaining_days < *days_in_month {
+            break;
+        }
+        remaining_days -= days_in_month;
+        month += 1;
+    }
+    
+    let day = remaining_days + 1;
+    let hour = time_secs / 3600;
+    let minute = (time_secs % 3600) / 60;
+    let second = time_secs % 60;
+    
+    format!(
+        "{:04}-{:02}-{:02}T{:02}:{:02}:{:02}Z",
+        year, month, day, hour, minute, second
+    )
+}
+
+/// Save a project-specific config file
+#[tauri::command]
+pub async fn save_project_config(config_path: String, content: String) -> Result<(), String> {
+    let path = PathBuf::from(&config_path);
+    
+    // Ensure parent directory exists
+    if let Some(parent) = path.parent() {
+        if !parent.exists() {
+            std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+        }
+    }
+    
+    std::fs::write(&path, content).map_err(|e| e.to_string())?;
+    
+    Ok(())
+}
+
+/// Create a new project config file
+#[tauri::command]
+pub async fn create_project_config(
+    project_path: String,
+    config_type: String, // "claude", "cursor", "opencode"
+) -> Result<ProjectConfig, String> {
+    let project_dir = PathBuf::from(&project_path);
+    
+    if !project_dir.exists() {
+        return Err("Project directory does not exist".to_string());
+    }
+    
+    let (config_path, default_content) = match config_type.as_str() {
+        "claude" => {
+            let path = project_dir.join("CLAUDE.md");
+            let content = r#"# Project Configuration for Claude Code
+
+## Overview
+<!-- Brief description of this project -->
+
+## Tech Stack
+<!-- List the main technologies used -->
+
+## Key Directories
+<!-- Important folder locations -->
+
+## Standards
+<!-- Coding conventions and requirements -->
+
+## Common Commands
+<!-- Frequently used bash commands -->
+
+## Conventions
+<!-- Project-specific patterns and practices -->
+
+## Notes
+<!-- Important warnings and gotchas -->
+"#;
+            (path, content)
+        }
+        "cursor" => {
+            let path = project_dir.join(".cursorrules");
+            let content = r#"# Cursor Rules for this Project
+
+## Code Style
+<!-- Define your coding style preferences -->
+
+## Project Context
+<!-- Provide context about the project -->
+
+## Conventions
+<!-- List project-specific conventions -->
+"#;
+            (path, content)
+        }
+        "opencode" => {
+            let path = project_dir.join("AGENTS.md");
+            let content = r#"# Agent Instructions for OpenCode
+
+## Overview
+<!-- Brief description of this project -->
+
+## Tech Stack
+<!-- List the main technologies used -->
+
+## Guidelines
+<!-- Coding guidelines and conventions -->
+
+## Common Tasks
+<!-- Frequently performed tasks -->
+"#;
+            (path, content)
+        }
+        _ => return Err(format!("Unknown config type: {}", config_type)),
+    };
+    
+    std::fs::write(&config_path, default_content).map_err(|e| e.to_string())?;
+    
+    let last_modified = get_file_modified_time(&config_path);
+    
+    Ok(ProjectConfig {
+        project_path,
+        config_path: config_path.to_string_lossy().to_string(),
+        content: default_content.to_string(),
+        last_modified,
+    })
+}
+
+/// Delete a project config file
+#[tauri::command]
+pub async fn delete_project_config(config_path: String) -> Result<(), String> {
+    let path = PathBuf::from(&config_path);
+    
+    if path.exists() {
+        std::fs::remove_file(&path).map_err(|e| e.to_string())?;
+    }
+    
+    Ok(())
+}
+

@@ -1,30 +1,38 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
-import { Play, RotateCcw, AlertTriangle, CheckCircle, XCircle, Loader2, ChevronDown, ChevronRight, Clock } from "lucide-react";
+import { Play, RotateCcw, AlertTriangle, CheckCircle, XCircle, Loader2, ChevronDown, ChevronRight, Clock, FileCode2, Terminal } from "lucide-react";
 import { Button, Input, ScrollArea, Badge } from "@/components/ui";
-import { useSkills } from "@/hooks";
+import { useSkills, useSkillScripts, useExecuteScript } from "@/hooks";
 import type { Skill, Parameter } from "@/types";
 import { getPermissionLevel } from "@/types";
+import type { ExecutionResult } from "@/hooks";
 
-interface ExecutionResult {
-  success: boolean;
-  output: string;
-  error?: string;
-  duration: number;
+interface HistoryEntry {
+  skillName: string;
+  scriptPath?: string;
+  params: Record<string, string>;
+  result: ExecutionResult;
   timestamp: string;
 }
 
 export const SandboxView: React.FC = () => {
   const { t } = useTranslation();
   const { data: skills = [] } = useSkills();
-  
+
   const [selectedSkill, setSelectedSkill] = React.useState<Skill | null>(null);
+  const [selectedScript, setSelectedScript] = React.useState<string | null>(null);
   const [paramValues, setParamValues] = React.useState<Record<string, string>>({});
-  const [isExecuting, setIsExecuting] = React.useState(false);
   const [executionResult, setExecutionResult] = React.useState<ExecutionResult | null>(null);
-  const [executionHistory, setExecutionHistory] = React.useState<ExecutionResult[]>([]);
+  const [executionHistory, setExecutionHistory] = React.useState<HistoryEntry[]>([]);
   const [showConfirmDialog, setShowConfirmDialog] = React.useState(false);
   const [expandedHistory, setExpandedHistory] = React.useState<Set<number>>(new Set());
+  const [activeTab, setActiveTab] = React.useState<"params" | "scripts">("params");
+
+  // Fetch available scripts for the selected skill
+  const { data: scripts = [] } = useSkillScripts(selectedSkill?.hash || null);
+
+  // Execute script mutation
+  const executeScriptMutation = useExecuteScript();
 
   // Reset params when skill changes
   React.useEffect(() => {
@@ -35,6 +43,7 @@ export const SandboxView: React.FC = () => {
       });
       setParamValues(initialValues);
       setExecutionResult(null);
+      setSelectedScript(null);
     }
   }, [selectedSkill]);
 
@@ -59,9 +68,10 @@ export const SandboxView: React.FC = () => {
       setParamValues(initialValues);
     }
     setExecutionResult(null);
+    setSelectedScript(null);
   };
 
-  // Execute skill (mock execution)
+  // Execute skill script
   const handleExecute = async () => {
     if (!selectedSkill) return;
 
@@ -72,41 +82,58 @@ export const SandboxView: React.FC = () => {
     }
 
     setShowConfirmDialog(false);
-    setIsExecuting(true);
     setExecutionResult(null);
 
-    const startTime = Date.now();
+    // If we have a script selected, execute it
+    if (selectedScript) {
+      try {
+        // Convert params to args format
+        const args = Object.entries(paramValues)
+          .filter(([_, v]) => v.trim())
+          .map(([k, v]) => `--${k}=${v}`);
 
-    try {
-      // Simulate execution delay
-      await new Promise((resolve) => setTimeout(resolve, 500 + Math.random() * 1000));
+        const result = await executeScriptMutation.mutateAsync({
+          skillHash: selectedSkill.hash,
+          scriptPath: selectedScript,
+          args,
+          envVars: {},
+        });
 
-      // Mock execution result
-      const mockOutput = generateMockOutput(selectedSkill, paramValues);
-      const duration = Date.now() - startTime;
-
-      const result: ExecutionResult = {
+        setExecutionResult(result);
+        setExecutionHistory((prev) => [{
+          skillName: selectedSkill.name,
+          scriptPath: selectedScript,
+          params: { ...paramValues },
+          result,
+          timestamp: new Date().toISOString(),
+        }, ...prev].slice(0, 20));
+      } catch (error) {
+        const errorResult: ExecutionResult = {
+          success: false,
+          stdout: "",
+          stderr: String(error),
+          exitCode: null,
+          durationMs: 0,
+        };
+        setExecutionResult(errorResult);
+      }
+    } else {
+      // Mock execution for skills without scripts
+      const mockResult: ExecutionResult = {
         success: true,
-        output: mockOutput,
-        duration,
-        timestamp: new Date().toISOString(),
+        stdout: generateMockOutput(selectedSkill, paramValues),
+        stderr: "",
+        exitCode: 0,
+        durationMs: Math.floor(Math.random() * 500) + 100,
       };
 
-      setExecutionResult(result);
-      setExecutionHistory((prev) => [result, ...prev].slice(0, 10)); // Keep last 10
-    } catch (error) {
-      const duration = Date.now() - startTime;
-      const result: ExecutionResult = {
-        success: false,
-        output: "",
-        error: String(error),
-        duration,
+      setExecutionResult(mockResult);
+      setExecutionHistory((prev) => [{
+        skillName: selectedSkill.name,
+        params: { ...paramValues },
+        result: mockResult,
         timestamp: new Date().toISOString(),
-      };
-      setExecutionResult(result);
-      setExecutionHistory((prev) => [result, ...prev].slice(0, 10));
-    } finally {
-      setIsExecuting(false);
+      }, ...prev].slice(0, 20));
     }
   };
 
@@ -131,6 +158,8 @@ export const SandboxView: React.FC = () => {
       .every((p) => paramValues[p.name]?.trim());
   }, [selectedSkill, paramValues]);
 
+  const isExecuting = executeScriptMutation.isPending;
+
   return (
     <div className="flex h-full">
       {/* Skill selector */}
@@ -154,9 +183,17 @@ export const SandboxView: React.FC = () => {
                 }`}
                 onClick={() => setSelectedSkill(skill)}
               >
-                <div className="font-medium truncate">{skill.name}</div>
+                <div className="flex items-center gap-2">
+                  <div className="font-medium truncate flex-1">{skill.name}</div>
+                  {skill.resources.scripts.length > 0 && (
+                    <FileCode2 className="h-3.5 w-3.5 text-accent-blue shrink-0" />
+                  )}
+                </div>
                 <div className="text-xs text-text-muted truncate">
                   {skill.parameters.length} {t("sandbox.parameters")}
+                  {skill.resources.scripts.length > 0 && (
+                    <span className="ml-2">• {skill.resources.scripts.length} scripts</span>
+                  )}
                 </div>
               </button>
             ))
@@ -185,24 +222,81 @@ export const SandboxView: React.FC = () => {
               </div>
             </div>
 
-            {/* Parameter input */}
+            {/* Tabs for parameters and scripts */}
             <div className="flex-1 overflow-auto p-4">
               <div className="max-w-2xl">
-                <h3 className="text-sm font-medium text-text-primary mb-4">{t("sandbox.parameterInput")}</h3>
-                
-                {selectedSkill.parameters.length === 0 ? (
-                  <p className="text-sm text-text-muted">{t("sandbox.noParameters")}</p>
-                ) : (
-                  <div className="space-y-4">
-                    {selectedSkill.parameters.map((param) => (
-                      <ParameterInput
-                        key={param.name}
-                        param={param}
-                        value={paramValues[param.name] || ""}
-                        onChange={(value) => handleParamChange(param.name, value)}
-                      />
-                    ))}
-                  </div>
+                {/* Tab buttons */}
+                <div className="flex gap-1 mb-4 border-b border-border-default pb-1">
+                  <button
+                    onClick={() => setActiveTab("params")}
+                    className={`px-3 py-1.5 text-sm font-medium rounded-t-md transition-colors ${
+                      activeTab === "params"
+                        ? "bg-bg-tertiary text-text-primary"
+                        : "text-text-muted hover:text-text-primary"
+                    }`}
+                  >
+                    {t("sandbox.parameterInput")}
+                  </button>
+                  {scripts.length > 0 && (
+                    <button
+                      onClick={() => setActiveTab("scripts")}
+                      className={`px-3 py-1.5 text-sm font-medium rounded-t-md transition-colors flex items-center gap-1.5 ${
+                        activeTab === "scripts"
+                          ? "bg-bg-tertiary text-text-primary"
+                          : "text-text-muted hover:text-text-primary"
+                      }`}
+                    >
+                      <FileCode2 className="h-3.5 w-3.5" />
+                      Scripts ({scripts.length})
+                    </button>
+                  )}
+                </div>
+
+                {/* Tab content: Parameters */}
+                {activeTab === "params" && (
+                  <>
+                    {selectedSkill.parameters.length === 0 ? (
+                      <p className="text-sm text-text-muted">{t("sandbox.noParameters")}</p>
+                    ) : (
+                      <div className="space-y-4">
+                        {selectedSkill.parameters.map((param) => (
+                          <ParameterInput
+                            key={param.name}
+                            param={param}
+                            value={paramValues[param.name] || ""}
+                            onChange={(value) => handleParamChange(param.name, value)}
+                          />
+                        ))}
+                      </div>
+                    )}
+                  </>
+                )}
+
+                {/* Tab content: Scripts */}
+                {activeTab === "scripts" && (
+                  <>
+                    <div className="space-y-2">
+                      {scripts.map((script) => (
+                        <button
+                          key={script}
+                          onClick={() => setSelectedScript(script === selectedScript ? null : script)}
+                          className={`w-full flex items-center gap-3 px-3 py-2 rounded-md border transition-colors ${
+                            selectedScript === script
+                              ? "border-accent-blue bg-accent-blue/10"
+                              : "border-border-default hover:bg-bg-tertiary"
+                          }`}
+                        >
+                          <Terminal className="h-4 w-4 text-text-muted" />
+                          <span className="text-sm font-mono text-text-primary">{script}</span>
+                        </button>
+                      ))}
+                    </div>
+                    {selectedScript && (
+                      <p className="text-xs text-text-muted mt-3">
+                        Selected script: <code className="bg-bg-tertiary px-1 rounded">{selectedScript}</code>
+                      </p>
+                    )}
+                  </>
                 )}
 
                 {/* Action buttons */}
@@ -216,7 +310,7 @@ export const SandboxView: React.FC = () => {
                     ) : (
                       <Play className="h-4 w-4 mr-2" />
                     )}
-                    {t("sandbox.execute")}
+                    {selectedScript ? `Execute ${selectedScript}` : t("sandbox.execute")}
                   </Button>
                   <Button variant="secondary" onClick={handleReset}>
                     <RotateCcw className="h-4 w-4 mr-2" />
@@ -251,8 +345,13 @@ export const SandboxView: React.FC = () => {
                     <h3 className="text-sm font-medium text-text-primary mb-2 flex items-center gap-2">
                       {t("sandbox.executionResult")}
                       <span className="text-xs text-text-muted">
-                        {executionResult.duration}ms
+                        {executionResult.durationMs}ms
                       </span>
+                      {executionResult.exitCode !== null && (
+                        <span className="text-xs text-text-muted">
+                          (exit code: {executionResult.exitCode})
+                        </span>
+                      )}
                     </h3>
                     <div
                       className={`rounded-lg border p-4 ${
@@ -271,9 +370,27 @@ export const SandboxView: React.FC = () => {
                           {executionResult.success ? t("sandbox.success") : t("sandbox.failed")}
                         </span>
                       </div>
-                      <pre className="text-xs font-mono bg-bg-primary p-3 rounded overflow-x-auto whitespace-pre-wrap">
-                        {executionResult.success ? executionResult.output : executionResult.error}
-                      </pre>
+                      {executionResult.stdout && (
+                        <div className="mb-2">
+                          <div className="text-xs text-text-muted mb-1">stdout:</div>
+                          <pre className="text-xs font-mono bg-bg-primary p-3 rounded overflow-x-auto whitespace-pre-wrap">
+                            {executionResult.stdout}
+                          </pre>
+                        </div>
+                      )}
+                      {executionResult.stderr && (
+                        <div>
+                          <div className="text-xs text-text-muted mb-1">stderr:</div>
+                          <pre className="text-xs font-mono bg-bg-primary p-3 rounded overflow-x-auto whitespace-pre-wrap text-accent-red">
+                            {executionResult.stderr}
+                          </pre>
+                        </div>
+                      )}
+                      {!executionResult.stdout && !executionResult.stderr && (
+                        <pre className="text-xs font-mono bg-bg-primary p-3 rounded text-text-muted">
+                          (no output)
+                        </pre>
+                      )}
                     </div>
                   </div>
                 )}
@@ -283,7 +400,7 @@ export const SandboxView: React.FC = () => {
                   <div className="mt-6">
                     <h3 className="text-sm font-medium text-text-primary mb-2">{t("sandbox.history")}</h3>
                     <div className="space-y-2">
-                      {executionHistory.map((result, index) => (
+                      {executionHistory.map((entry, index) => (
                         <div
                           key={index}
                           className="border border-border-default rounded-lg overflow-hidden"
@@ -297,24 +414,37 @@ export const SandboxView: React.FC = () => {
                             ) : (
                               <ChevronRight className="h-4 w-4 text-text-muted" />
                             )}
-                            {result.success ? (
+                            {entry.result.success ? (
                               <CheckCircle className="h-4 w-4 text-accent-green" />
                             ) : (
                               <XCircle className="h-4 w-4 text-accent-red" />
                             )}
                             <span className="text-sm text-text-primary flex-1">
-                              {new Date(result.timestamp).toLocaleTimeString()}
+                              {entry.skillName}
+                              {entry.scriptPath && (
+                                <span className="text-text-muted ml-1">/ {entry.scriptPath}</span>
+                              )}
                             </span>
                             <span className="text-xs text-text-muted flex items-center gap-1">
                               <Clock className="h-3 w-3" />
-                              {result.duration}ms
+                              {entry.result.durationMs}ms
                             </span>
                           </button>
                           {expandedHistory.has(index) && (
                             <div className="px-3 pb-3">
-                              <pre className="text-xs font-mono bg-bg-primary p-2 rounded overflow-x-auto whitespace-pre-wrap">
-                                {result.success ? result.output : result.error}
-                              </pre>
+                              <div className="text-xs text-text-muted mb-1">
+                                {new Date(entry.timestamp).toLocaleString()}
+                              </div>
+                              {entry.result.stdout && (
+                                <pre className="text-xs font-mono bg-bg-primary p-2 rounded overflow-x-auto whitespace-pre-wrap">
+                                  {entry.result.stdout}
+                                </pre>
+                              )}
+                              {entry.result.stderr && (
+                                <pre className="text-xs font-mono bg-bg-primary p-2 rounded overflow-x-auto whitespace-pre-wrap text-accent-red mt-1">
+                                  {entry.result.stderr}
+                                </pre>
+                              )}
                             </div>
                           )}
                         </div>
@@ -384,7 +514,7 @@ const ParameterInput: React.FC<ParameterInputProps> = ({ param, value, onChange 
   );
 };
 
-// Generate mock output based on skill and parameters
+// Generate mock output based on skill and parameters (fallback for skills without scripts)
 function generateMockOutput(skill: Skill, params: Record<string, string>): string {
   const output = {
     skill: skill.name,
@@ -392,7 +522,8 @@ function generateMockOutput(skill: Skill, params: Record<string, string>): strin
     parameters: params,
     result: {
       status: "success",
-      message: `Skill "${skill.name}" executed successfully with ${Object.keys(params).length} parameters.`,
+      message: `Skill "${skill.name}" simulated successfully with ${Object.keys(params).length} parameters.`,
+      note: "This is a mock execution. Add scripts to the skill's scripts/ directory to enable real execution.",
       data: {
         timestamp: new Date().toISOString(),
         executionId: Math.random().toString(36).substring(7),

@@ -153,6 +153,24 @@ pub fn run() {
             commands::validate_skill_description_cmd,
             commands::get_skill_resource_content,
             commands::open_skill_directory,
+            // Sandbox execution commands
+            commands::execute_skill_script,
+            commands::get_skill_scripts,
+            // AI Tools configuration commands
+            commands::get_ai_tools_config,
+            commands::get_claude_code_config,
+            commands::save_claude_code_config,
+            commands::get_cursor_config,
+            commands::save_cursor_legacy_rules,
+            commands::scan_cursor_mdc_rules,
+            commands::save_cursor_mdc_rule,
+            commands::get_opencode_config,
+            commands::save_opencode_agents_md,
+            commands::save_opencode_config_json,
+            commands::scan_project_ai_configs,
+            commands::save_project_config,
+            commands::create_project_config,
+            commands::delete_project_config,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

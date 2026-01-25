@@ -10,6 +10,7 @@ import {
   ChevronRight,
   Plus,
   Check,
+  Wrench,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAppStore } from "@/stores";
@@ -17,7 +18,7 @@ import { useSpaces, useSetSkillVisibility } from "@/hooks";
 import { Button } from "@/components/ui";
 import { SKILL_DRAG_TYPE } from "@/components/library/SkillCard";
 
-type View = "library" | "spaces" | "hub" | "sandbox" | "settings";
+type View = "library" | "spaces" | "hub" | "sandbox" | "aitools" | "settings";
 
 export const Sidebar: React.FC = () => {
   const { t } = useTranslation();
@@ -41,6 +42,7 @@ export const Sidebar: React.FC = () => {
     { id: "spaces" as View, label: t("nav.spaces"), icon: <FolderTree className="h-4 w-4" /> },
     { id: "hub" as View, label: t("nav.hub"), icon: <Globe className="h-4 w-4" /> },
     { id: "sandbox" as View, label: t("nav.sandbox"), icon: <FlaskConical className="h-4 w-4" /> },
+    { id: "aitools" as View, label: t("nav.aitools"), icon: <Wrench className="h-4 w-4" /> },
   ];
 
   // Drag and drop handlers for spaces

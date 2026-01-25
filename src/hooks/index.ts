@@ -122,3 +122,30 @@ export {
   useGetSkillResourceContent,
   useOpenSkillDirectory,
 } from "./useSkillCreation";
+
+// Sandbox hooks
+export {
+  useSkillScripts,
+  useExecuteScript,
+  sandboxKeys,
+  type ExecutionResult,
+  type ExecutionHistoryEntry,
+} from "./useSandbox";
+
+// AI Tools hooks
+export {
+  useAIToolsConfig,
+  useClaudeCodeConfig,
+  useCursorConfig,
+  useOpenCodeConfig,
+  useCursorMdcRules,
+  useProjectAIConfigs,
+  useSaveClaudeCodeConfig,
+  useSaveCursorLegacyRules,
+  useSaveCursorMdcRule,
+  useSaveOpenCodeAgentsMd,
+  useSaveOpenCodeConfigJson,
+  useSaveProjectConfig,
+  useCreateProjectConfig,
+  useDeleteProjectConfig,
+} from "./useAITools";
