@@ -156,6 +156,7 @@
   "spaces": {
     "title": "ワークスペース",
     "noDescription": "説明なし",
+    "newSpace": "新しいスペース",
     "createSpace": "新しいスペースを作成",
     "editSpace": "スペースを編集",
     "cloneSpace": "スペースを複製",

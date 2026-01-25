@@ -132,6 +132,7 @@
   "spaces": {
     "title": "工作空間",
     "noDescription": "暫無描述",
+    "newSpace": "新建空間",
     "createSpace": "建立新空間",
     "editSpace": "編輯空間",
     "cloneSpace": "複製空間",

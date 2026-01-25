@@ -163,6 +163,7 @@
   "spaces": {
     "title": "工作空间",
     "noDescription": "暂无描述",
+    "newSpace": "新建空间",
     "createSpace": "创建新空间",
     "editSpace": "编辑空间",
     "cloneSpace": "克隆空间",

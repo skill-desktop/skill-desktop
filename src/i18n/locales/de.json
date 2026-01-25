@@ -132,6 +132,7 @@
   "spaces": {
     "title": "Arbeitsbereiche",
     "noDescription": "Keine Beschreibung",
+    "newSpace": "Neuer Bereich",
     "createSpace": "Neuen Bereich erstellen",
     "editSpace": "Bereich bearbeiten",
     "cloneSpace": "Bereich klonen",

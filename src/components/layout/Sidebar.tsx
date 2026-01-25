@@ -158,7 +158,13 @@ export const Sidebar: React.FC = () => {
                 ))}
                 {currentView === "spaces" && (
                   <button
-                    onClick={() => setCurrentView("spaces")}
+                    onClick={() => {
+                      // Trigger the new space dialog in SpacesView
+                      const newSpaceButton = document.querySelector('[data-action="new-space"]') as HTMLButtonElement;
+                      if (newSpaceButton) {
+                        newSpaceButton.click();
+                      }
+                    }}
                     className="flex w-full items-center gap-2 px-3 py-1.5 text-xs text-text-muted hover:bg-bg-tertiary hover:text-text-primary"
                   >
                     <Plus className="h-3 w-3" />

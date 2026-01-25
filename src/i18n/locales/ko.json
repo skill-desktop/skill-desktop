@@ -132,6 +132,7 @@
   "spaces": {
     "title": "워크스페이스",
     "noDescription": "설명 없음",
+    "newSpace": "새 스페이스",
     "createSpace": "새 스페이스 만들기",
     "editSpace": "스페이스 편집",
     "cloneSpace": "스페이스 복제",

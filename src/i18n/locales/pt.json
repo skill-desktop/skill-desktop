@@ -132,6 +132,7 @@
   "spaces": {
     "title": "Espaços de trabalho",
     "noDescription": "Sem descrição",
+    "newSpace": "Novo espaço",
     "createSpace": "Criar novo espaço",
     "editSpace": "Editar espaço",
     "cloneSpace": "Clonar espaço",

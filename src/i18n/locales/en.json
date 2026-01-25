@@ -163,6 +163,7 @@
   "spaces": {
     "title": "Workspaces",
     "noDescription": "No description",
+    "newSpace": "New Space",
     "createSpace": "Create New Space",
     "editSpace": "Edit Space",
     "cloneSpace": "Clone Space",
