@@ -47,6 +47,8 @@
     "library": "라이브러리",
     "spaces": "스페이스",
     "hub": "스킬 허브",
+    "sandbox": "샌드박스",
+    "aitools": "AI 도구",
     "settings": "설정"
   },
   "header": {

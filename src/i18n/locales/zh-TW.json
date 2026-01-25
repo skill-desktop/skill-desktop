@@ -47,6 +47,8 @@
     "library": "技能庫",
     "spaces": "工作空間",
     "hub": "技能中心",
+    "sandbox": "除錯沙箱",
+    "aitools": "AI 工具",
     "settings": "設定"
   },
   "header": {

@@ -67,7 +67,7 @@ export function useCursorMdcRules(projectPath: string) {
   return useQuery({
     queryKey: AI_TOOLS_KEYS.cursorMdc(projectPath),
     queryFn: async () => {
-      return await invoke<CursorMdcRule[]>("scan_cursor_mdc_rules", { projectPath });
+      return await invoke<CursorMdcRule[]>("scan_cursor_mdc_rules", { project_path: projectPath });
     },
     enabled: !!projectPath,
   });
@@ -78,7 +78,7 @@ export function useProjectAIConfigs(projectPath: string) {
   return useQuery({
     queryKey: AI_TOOLS_KEYS.projectConfigs(projectPath),
     queryFn: async () => {
-      return await invoke<ProjectConfig[]>("scan_project_ai_configs", { projectPath });
+      return await invoke<ProjectConfig[]>("scan_project_ai_configs", { project_path: projectPath });
     },
     enabled: !!projectPath,
   });
@@ -122,7 +122,7 @@ export function useSaveCursorMdcRule() {
   
   return useMutation({
     mutationFn: async ({ projectPath, ruleName, content }: { projectPath: string; ruleName: string; content: string }) => {
-      await invoke("save_cursor_mdc_rule", { projectPath, ruleName, content });
+      await invoke("save_cursor_mdc_rule", { project_path: projectPath, rule_name: ruleName, content });
     },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: AI_TOOLS_KEYS.cursorMdc(variables.projectPath) });
@@ -166,7 +166,7 @@ export function useSaveProjectConfig() {
   
   return useMutation({
     mutationFn: async ({ configPath, content }: { configPath: string; content: string }) => {
-      await invoke("save_project_config", { configPath, content });
+      await invoke("save_project_config", { config_path: configPath, content });
     },
     onSuccess: () => {
       // Invalidate all project configs as we don't know which project
@@ -181,7 +181,7 @@ export function useCreateProjectConfig() {
   
   return useMutation({
     mutationFn: async ({ projectPath, configType }: { projectPath: string; configType: string }) => {
-      return await invoke<ProjectConfig>("create_project_config", { projectPath, configType });
+      return await invoke<ProjectConfig>("create_project_config", { project_path: projectPath, config_type: configType });
     },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: AI_TOOLS_KEYS.projectConfigs(variables.projectPath) });
@@ -195,7 +195,7 @@ export function useDeleteProjectConfig() {
   
   return useMutation({
     mutationFn: async (configPath: string) => {
-      await invoke("delete_project_config", { configPath });
+      await invoke("delete_project_config", { config_path: configPath });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: AI_TOOLS_KEYS.all });
