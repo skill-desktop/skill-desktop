@@ -74,6 +74,12 @@
       "safe": "安全",
       "quarantine": "隔离区"
     },
+    "sort": {
+      "label": "排序",
+      "name": "名称",
+      "createdAt": "创建时间",
+      "updatedAt": "修改时间"
+    },
     "selection": {
       "selected": "已选择 {{count}} 项",
       "quarantine": "隔离",

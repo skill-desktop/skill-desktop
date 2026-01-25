@@ -7,7 +7,6 @@ import {
   Settings,
   ChevronLeft,
   ChevronRight,
-  Plus,
   Check,
   Wrench,
 } from "lucide-react";
@@ -154,21 +153,6 @@ export const Sidebar: React.FC = () => {
                     </div>
                   </button>
                 ))}
-                {currentView === "spaces" && (
-                  <button
-                    onClick={() => {
-                      // Trigger the new space dialog in SpacesView
-                      const newSpaceButton = document.querySelector('[data-action="new-space"]') as HTMLButtonElement;
-                      if (newSpaceButton) {
-                        newSpaceButton.click();
-                      }
-                    }}
-                    className="flex w-full items-center gap-2 px-3 py-1.5 text-xs text-text-muted hover:bg-bg-tertiary hover:text-text-primary"
-                  >
-                    <Plus className="h-3 w-3" />
-                    <span>{t("spaces.newSpace")}</span>
-                  </button>
-                )}
               </div>
             )}
           </React.Fragment>

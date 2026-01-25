@@ -74,6 +74,12 @@
       "safe": "Safe",
       "quarantine": "Quarantine"
     },
+    "sort": {
+      "label": "Sort",
+      "name": "Name",
+      "createdAt": "Created",
+      "updatedAt": "Modified"
+    },
     "selection": {
       "selected": "{{count}} selected",
       "quarantine": "Quarantine",

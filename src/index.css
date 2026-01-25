@@ -58,6 +58,9 @@
     background-color: var(--color-bg-primary);
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    /* 禁止文本选择，使应用更专业 */
+    user-select: none;
+    -webkit-user-select: none;
   }
 
   /* 滚动条样式 */
@@ -101,13 +104,33 @@
   }
 
   /* 输入框基础样式重置 */
-  input,
+  input:not([type="checkbox"]):not([type="radio"]),
   textarea {
     font-family: inherit;
     font-size: inherit;
     border: none;
     outline: none;
     background: none;
+    /* 允许输入框内文本选择 */
+    user-select: text;
+    -webkit-user-select: text;
+  }
+
+  /* Checkbox 和 Radio 样式 */
+  input[type="checkbox"],
+  input[type="radio"] {
+    accent-color: var(--color-accent-blue);
+    cursor: pointer;
+  }
+
+  /* 允许代码块和预格式化文本选择 */
+  pre,
+  code,
+  .prose,
+  .selectable,
+  [contenteditable="true"] {
+    user-select: text;
+    -webkit-user-select: text;
   }
 
   /* 链接样式重置 */

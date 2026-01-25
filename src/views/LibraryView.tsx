@@ -1,14 +1,16 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
-import { Trash2, X, Loader2, Shield, ShieldAlert, Filter, Folder, FolderPlus, Download, Plus, Import } from "lucide-react";
+import { Trash2, X, Loader2, Shield, ShieldAlert, Filter, Folder, FolderPlus, Download, Plus, Import, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 import { invoke } from "@tauri-apps/api/core";
 import { useAppStore, useSettingsStore } from "@/stores";
 import { useSkills, useSearchSkills, useDeleteSkillsBatch, useQuarantinedSkills, useSetSkillQuarantine, useSpaces, useSetBulkSkillVisibility, useExportSkillsBatch, useExportSkillsBatchJson } from "@/hooks";
 import { SkillList, SkillDetail, CreateSkillDialog, ImportSkillDialog } from "@/components/library";
-import { Skeleton, Button, Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, ScrollArea } from "@/components/ui";
+import { Skeleton, Button, Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, ScrollArea, DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator } from "@/components/ui";
 import type { Skill } from "@/types";
 
 type FilterMode = "all" | "quarantined" | "safe";
+type SortField = "name" | "createdAt" | "updatedAt";
+type SortDirection = "asc" | "desc";
 
 export const LibraryView: React.FC = () => {
   const { t } = useTranslation();
@@ -20,6 +22,8 @@ export const LibraryView: React.FC = () => {
   const [selectionMode, setSelectionMode] = React.useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = React.useState(false);
   const [filterMode, setFilterMode] = React.useState<FilterMode>("all");
+  const [sortField, setSortField] = React.useState<SortField>("name");
+  const [sortDirection, setSortDirection] = React.useState<SortDirection>("asc");
   const [showQuarantineConfirm, setShowQuarantineConfirm] = React.useState(false);
   const [showAddToSpaceDialog, setShowAddToSpaceDialog] = React.useState(false);
   const [showCreateSkillDialog, setShowCreateSkillDialog] = React.useState(false);
@@ -43,21 +47,55 @@ export const LibraryView: React.FC = () => {
   const { data: searchResults } = useSearchSkills(searchQuery);
 
   // Use search results if searching, otherwise use all skills
-  // Then apply filter mode
+  // Then apply filter mode and sorting
   const filteredSkills = React.useMemo(() => {
     const baseSkills = searchQuery ? (searchResults || []) : allSkills;
     
+    let filtered: Skill[];
     switch (filterMode) {
       case "quarantined":
-        return baseSkills.filter(s => quarantinedSet.has(s.hash));
+        filtered = baseSkills.filter(s => quarantinedSet.has(s.hash));
+        break;
       case "safe":
-        return baseSkills.filter(s => !quarantinedSet.has(s.hash));
+        filtered = baseSkills.filter(s => !quarantinedSet.has(s.hash));
+        break;
       default:
-        return baseSkills;
+        filtered = [...baseSkills];
     }
-  }, [searchQuery, searchResults, allSkills, filterMode, quarantinedSet]);
+    
+    // Apply sorting
+    filtered.sort((a, b) => {
+      let comparison = 0;
+      switch (sortField) {
+        case "name":
+          comparison = a.name.localeCompare(b.name);
+          break;
+        case "createdAt":
+          comparison = new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+          break;
+        case "updatedAt":
+          comparison = new Date(a.updatedAt).getTime() - new Date(b.updatedAt).getTime();
+          break;
+      }
+      return sortDirection === "asc" ? comparison : -comparison;
+    });
+    
+    return filtered;
+  }, [searchQuery, searchResults, allSkills, filterMode, quarantinedSet, sortField, sortDirection]);
   
   const skills = filteredSkills;
+  
+  // Handle sort field change
+  const handleSortChange = (field: SortField) => {
+    if (field === sortField) {
+      // Toggle direction if same field
+      setSortDirection(prev => prev === "asc" ? "desc" : "asc");
+    } else {
+      setSortField(field);
+      // Default to descending for time fields, ascending for name
+      setSortDirection(field === "name" ? "asc" : "desc");
+    }
+  };
   
   // Count quarantined skills
   const quarantinedCount = allSkills.filter(s => quarantinedSet.has(s.hash)).length;
@@ -268,6 +306,44 @@ export const LibraryView: React.FC = () => {
               </div>
             </div>
             <div className="flex items-center gap-2">
+              {/* Sort dropdown */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="sm">
+                    <ArrowUpDown className="h-3.5 w-3.5 mr-1.5" />
+                    {t("library.sort.label")}
+                    {sortDirection === "asc" ? (
+                      <ArrowUp className="h-3 w-3 ml-1" />
+                    ) : (
+                      <ArrowDown className="h-3 w-3 ml-1" />
+                    )}
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem 
+                    onClick={() => handleSortChange("name")}
+                    className={sortField === "name" ? "bg-bg-tertiary" : ""}
+                  >
+                    {t("library.sort.name")}
+                    {sortField === "name" && (sortDirection === "asc" ? <ArrowUp className="h-3 w-3 ml-auto" /> : <ArrowDown className="h-3 w-3 ml-auto" />)}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem 
+                    onClick={() => handleSortChange("createdAt")}
+                    className={sortField === "createdAt" ? "bg-bg-tertiary" : ""}
+                  >
+                    {t("library.sort.createdAt")}
+                    {sortField === "createdAt" && (sortDirection === "asc" ? <ArrowUp className="h-3 w-3 ml-auto" /> : <ArrowDown className="h-3 w-3 ml-auto" />)}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem 
+                    onClick={() => handleSortChange("updatedAt")}
+                    className={sortField === "updatedAt" ? "bg-bg-tertiary" : ""}
+                  >
+                    {t("library.sort.updatedAt")}
+                    {sortField === "updatedAt" && (sortDirection === "asc" ? <ArrowUp className="h-3 w-3 ml-auto" /> : <ArrowDown className="h-3 w-3 ml-auto" />)}
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+              <DropdownMenuSeparator className="h-4 w-px bg-border-default" />
               <Button
                 variant="outline"
                 size="sm"
