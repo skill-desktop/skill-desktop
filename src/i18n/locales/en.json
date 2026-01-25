@@ -67,7 +67,7 @@
     "goToSettings": "Go to Settings",
     "failedToLoad": "Failed to load skills",
     "createSkill": "Create Skill",
-    "exampleSkills": "Examples",
+    "importSkill": "Import Skill",
     "filter": {
       "all": "All",
       "safe": "Safe",
@@ -139,6 +139,8 @@
       "content": "Content",
       "source": "Source"
     },
+    "fileTree": "File Structure",
+    "files": "files",
     "actions": {
       "showInFolder": "Show in Folder",
       "openFile": "Open File",

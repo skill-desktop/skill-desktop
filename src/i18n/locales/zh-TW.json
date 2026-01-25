@@ -79,7 +79,9 @@
       "title": "隔離 {{count}} 個技能",
       "description": "將 {{count}} 個技能移至隔離區。被隔離的技能會被標記為可能不穩定或敏感。",
       "markAsSafe": "標記為安全"
-    }
+    },
+    "createSkill": "創建技能",
+    "importSkill": "導入技能"
   },
   "skillCard": {
     "by": "作者",
@@ -115,6 +117,8 @@
       "content": "內容",
       "source": "原始碼"
     },
+    "fileTree": "目錄結構",
+    "files": "個檔案",
     "actions": {
       "showInFolder": "在資料夾中顯示",
       "openFile": "開啟檔案",

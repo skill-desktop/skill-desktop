@@ -15,9 +15,10 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAppStore } from "@/stores";
-import { useDeleteSkill, useShowInFolder, useOpenFile, useSkillContent, useQuarantinedSkills, useSetSkillQuarantine, useCheckSkillUpdate } from "@/hooks";
+import { useDeleteSkill, useShowInFolder, useSkillContent, useQuarantinedSkills, useSetSkillQuarantine, useCheckSkillUpdate } from "@/hooks";
 import { useImportSkillFromUrl } from "@/hooks/useImport";
 import { Button, ScrollArea, Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui";
+import { FileEditorDialog } from "@/components/editor/FileEditorDialog";
 import type { Skill } from "@/types";
 import { TabButton, OverviewTab, ContentTab, SourceTab } from "./detail";
 
@@ -32,10 +33,11 @@ export const SkillDetail: React.FC<SkillDetailProps> = ({ skill }) => {
   const [showDeleteConfirm, setShowDeleteConfirm] = React.useState(false);
   const [activeTab, setActiveTab] = React.useState<"overview" | "content" | "source">("overview");
   const [copied, setCopied] = React.useState(false);
+  const [editorOpen, setEditorOpen] = React.useState(false);
 
   const deleteSkillMutation = useDeleteSkill();
   const showInFolderMutation = useShowInFolder();
-  const openFileMutation = useOpenFile();
+  // const openFileMutation = useOpenFile(); // Removed as we use internal editor
   const { data: skillContent } = useSkillContent(skill?.hash || null);
   const { data: quarantinedHashes = [] } = useQuarantinedSkills();
   const setQuarantineMutation = useSetSkillQuarantine();
@@ -82,17 +84,14 @@ export const SkillDetail: React.FC<SkillDetailProps> = ({ skill }) => {
     setDetailPanelOpen(false);
   };
 
-  const handleViewSource = async () => {
-    try {
-      await openFileMutation.mutateAsync(skill.localPath);
-    } catch (error) {
-      console.error("Failed to open file:", error);
-    }
+  const handleViewSource = () => {
+    setEditorOpen(true);
   };
 
   const handleShowInFinder = async () => {
     try {
-      await showInFolderMutation.mutateAsync(skill.localPath);
+      // Show the skill directory, not the file
+      await showInFolderMutation.mutateAsync(skill.skillDir);
     } catch (error) {
       console.error("Failed to show in folder:", error);
     }
@@ -230,13 +229,8 @@ export const SkillDetail: React.FC<SkillDetailProps> = ({ skill }) => {
             size="sm"
             className="flex-1"
             onClick={handleViewSource}
-            disabled={openFileMutation.isPending}
           >
-            {openFileMutation.isPending ? (
-              <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
-            ) : (
-              <FileText className="h-3.5 w-3.5 mr-1.5" />
-            )}
+            <FileText className="h-3.5 w-3.5 mr-1.5" />
             {t("skillDetail.actions.edit")}
           </Button>
           <Button
@@ -362,6 +356,13 @@ export const SkillDetail: React.FC<SkillDetailProps> = ({ skill }) => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      
+      {/* File Editor Dialog */}
+      <FileEditorDialog
+        open={editorOpen}
+        onOpenChange={setEditorOpen}
+        filePath={skill.localPath}
+      />
     </>
   );
 };

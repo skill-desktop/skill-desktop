@@ -4,4 +4,4 @@ export { SkillListItem } from "./SkillListItem";
 export { SkillDetail } from "./SkillDetail";
 export { CreateSkillDialog } from "./CreateSkillDialog";
 export { AIEnhanceDialog, type EnhanceType } from "./AIEnhanceDialog";
-export { ExampleSkillsDialog } from "./ExampleSkillsDialog";
+export { ImportSkillDialog } from "./ImportSkillDialog";

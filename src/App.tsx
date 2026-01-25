@@ -10,7 +10,6 @@ import { useFileWatcher, useLoadAppSettings, useSaveAppSettings, useLibraryPath 
 import {
   LibraryView,
   SpacesView,
-  HubView,
   SandboxView,
   SettingsView,
   AIToolsView,
@@ -129,10 +128,10 @@ function AppContent() {
         }
       }
 
-      // ⌘1-6 - Switch views
-      if ((e.metaKey || e.ctrlKey) && e.key >= "1" && e.key <= "6") {
+      // ⌘1-5 - Switch views
+      if ((e.metaKey || e.ctrlKey) && e.key >= "1" && e.key <= "5") {
         e.preventDefault();
-        const views = ["library", "spaces", "hub", "sandbox", "aitools", "settings"] as const;
+        const views = ["library", "spaces", "sandbox", "aitools", "settings"] as const;
         const index = parseInt(e.key) - 1;
         if (index < views.length) {
           setCurrentView(views[index]);
@@ -151,11 +150,6 @@ function AppContent() {
         }
       }
 
-      // ⌘I or Ctrl+I - Import skill (switch to hub view)
-      if ((e.metaKey || e.ctrlKey) && e.key === "i") {
-        e.preventDefault();
-        setCurrentView("hub");
-      }
 
       // Escape - Clear search or close panels
       if (e.key === "Escape") {
@@ -177,8 +171,6 @@ function AppContent() {
         return <LibraryView />;
       case "spaces":
         return <SpacesView />;
-      case "hub":
-        return <HubView />;
       case "sandbox":
         return <SandboxView />;
       case "aitools":

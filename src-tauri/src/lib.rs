@@ -196,6 +196,8 @@ pub fn run() {
             commands::write_gemini_config,
             commands::generate_opencode_cli_config,
             commands::write_opencode_cli_config,
+            commands::read_text_file,
+            commands::save_text_file,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

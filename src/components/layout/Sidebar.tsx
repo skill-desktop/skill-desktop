@@ -3,7 +3,6 @@ import { useTranslation } from "react-i18next";
 import {
   Library,
   FolderTree,
-  Globe,
   FlaskConical,
   Settings,
   ChevronLeft,
@@ -18,7 +17,7 @@ import { useSpaces, useSetSkillVisibility } from "@/hooks";
 import { Button } from "@/components/ui";
 import { SKILL_DRAG_TYPE } from "@/components/library/SkillCard";
 
-type View = "library" | "spaces" | "hub" | "sandbox" | "aitools" | "settings";
+type View = "library" | "spaces" | "sandbox" | "aitools" | "settings";
 
 export const Sidebar: React.FC = () => {
   const { t } = useTranslation();
@@ -40,7 +39,6 @@ export const Sidebar: React.FC = () => {
   const navItems = [
     { id: "library" as View, label: t("nav.library"), icon: <Library className="h-4 w-4" /> },
     { id: "spaces" as View, label: t("nav.spaces"), icon: <FolderTree className="h-4 w-4" /> },
-    { id: "hub" as View, label: t("nav.hub"), icon: <Globe className="h-4 w-4" /> },
     { id: "sandbox" as View, label: t("nav.sandbox"), icon: <FlaskConical className="h-4 w-4" /> },
     { id: "aitools" as View, label: t("nav.aitools"), icon: <Wrench className="h-4 w-4" /> },
   ];

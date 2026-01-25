@@ -18,8 +18,10 @@ export const Header: React.FC = () => {
         return t("nav.library");
       case "spaces":
         return t("nav.spaces");
-      case "hub":
-        return t("nav.hub");
+      case "sandbox":
+        return t("nav.sandbox");
+      case "aitools":
+        return t("nav.aitools");
       case "settings":
         return t("nav.settings");
       default:
@@ -43,8 +45,8 @@ export const Header: React.FC = () => {
 
       {/* Search and actions */}
       <div className="flex items-center gap-2">
-        {/* Search bar - only show on library and hub views */}
-        {(currentView === "library" || currentView === "hub") && (
+        {/* Search bar - only show on library view */}
+        {currentView === "library" && (
           <div className="relative">
             <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-text-muted" />
             <Input

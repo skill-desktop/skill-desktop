@@ -4559,3 +4559,13 @@ pub async fn write_opencode_cli_config(
     Ok(())
 }
 
+
+#[tauri::command]
+pub async fn read_text_file(path: String) -> Result<String, String> {
+    std::fs::read_to_string(&path).map_err(|e| format!("Failed to read file: {}", e))
+}
+
+#[tauri::command]
+pub async fn save_text_file(path: String, content: String) -> Result<(), String> {
+    std::fs::write(&path, &content).map_err(|e| format!("Failed to write file: {}", e))
+}

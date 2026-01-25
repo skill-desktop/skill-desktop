@@ -11,6 +11,22 @@ export const fileWatcherKeys = {
 
 // ========== File Operations ==========
 
+export function useReadTextFile() {
+  return useMutation({
+    mutationFn: async (path: string) => {
+      return await invoke<string>("read_text_file", { path });
+    },
+  });
+}
+
+export function useSaveTextFile() {
+  return useMutation({
+    mutationFn: async ({ path, content }: { path: string; content: string }) => {
+      await invoke("save_text_file", { path, content });
+    },
+  });
+}
+
 export function useShowInFolder() {
   return useMutation({
     mutationFn: async (path: string) => {

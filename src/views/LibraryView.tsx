@@ -1,10 +1,10 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
-import { Trash2, X, Loader2, Shield, ShieldAlert, Filter, Folder, FolderPlus, Download, Plus, BookOpen } from "lucide-react";
+import { Trash2, X, Loader2, Shield, ShieldAlert, Filter, Folder, FolderPlus, Download, Plus, Import } from "lucide-react";
 import { invoke } from "@tauri-apps/api/core";
 import { useAppStore, useSettingsStore } from "@/stores";
 import { useSkills, useSearchSkills, useDeleteSkillsBatch, useQuarantinedSkills, useSetSkillQuarantine, useSpaces, useSetBulkSkillVisibility, useExportSkillsBatch, useExportSkillsBatchJson } from "@/hooks";
-import { SkillList, SkillDetail, CreateSkillDialog, ExampleSkillsDialog } from "@/components/library";
+import { SkillList, SkillDetail, CreateSkillDialog, ImportSkillDialog } from "@/components/library";
 import { Skeleton, Button, Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, ScrollArea } from "@/components/ui";
 import type { Skill } from "@/types";
 
@@ -23,7 +23,7 @@ export const LibraryView: React.FC = () => {
   const [showQuarantineConfirm, setShowQuarantineConfirm] = React.useState(false);
   const [showAddToSpaceDialog, setShowAddToSpaceDialog] = React.useState(false);
   const [showCreateSkillDialog, setShowCreateSkillDialog] = React.useState(false);
-  const [showExampleSkillsDialog, setShowExampleSkillsDialog] = React.useState(false);
+  const [showImportSkillDialog, setShowImportSkillDialog] = React.useState(false);
 
   // Fetch skills from backend
   const { data: allSkills = [], isLoading, error } = useSkills();
@@ -271,10 +271,10 @@ export const LibraryView: React.FC = () => {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => setShowExampleSkillsDialog(true)}
+                onClick={() => setShowImportSkillDialog(true)}
               >
-                <BookOpen className="h-3.5 w-3.5 mr-1.5" />
-                {t("library.exampleSkills")}
+                <Import className="h-3.5 w-3.5 mr-1.5" />
+                {t("library.importSkill")}
               </Button>
               <Button
                 size="sm"
@@ -534,10 +534,10 @@ export const LibraryView: React.FC = () => {
         onOpenChange={setShowCreateSkillDialog}
       />
 
-      {/* Example Skills Dialog */}
-      <ExampleSkillsDialog
-        open={showExampleSkillsDialog}
-        onOpenChange={setShowExampleSkillsDialog}
+      {/* Import Skill Dialog */}
+      <ImportSkillDialog
+        open={showImportSkillDialog}
+        onOpenChange={setShowImportSkillDialog}
       />
     </>
   );

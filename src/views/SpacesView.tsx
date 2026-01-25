@@ -8,7 +8,6 @@ import {
   SpaceDetail,
   SpaceFormDialog,
   ManageSkillsDialog,
-  ExportConfigDialog,
   DeleteSpaceDialog,
 } from "@/components/spaces";
 import {
@@ -17,15 +16,11 @@ import {
   useUpdateSpace,
   useDeleteSpace,
   useSkills,
-  useExportClaudeConfig,
-  useExportGenericConfig,
-  useExportMcpConfig,
   useSkillVisibilityMap,
   useSetSkillVisibility,
   useSetBulkSkillVisibility,
-  useSyncSpace,
 } from "@/hooks";
-import { useAppStore, useSettingsStore } from "@/stores";
+import { useAppStore } from "@/stores";
 
 // Helper to open folder dialog via Tauri command
 async function openFolderDialog(): Promise<string | null> {
@@ -44,39 +39,12 @@ async function openFolderDialog(): Promise<string | null> {
   }
 }
 
-// Helper to save file dialog via Tauri command
-async function saveFileDialog(defaultPath: string): Promise<string | null> {
-  try {
-    const result = await invoke<string | null>("plugin:dialog|save", {
-      options: {
-        defaultPath,
-        filters: [{ name: "JSON", extensions: ["json"] }],
-      },
-    });
-    return result;
-  } catch (error) {
-    console.error("Dialog error:", error);
-    return null;
-  }
-}
-
-// Helper to write text file via Tauri command
-async function writeFile(path: string, contents: string): Promise<void> {
-  await invoke("plugin:fs|write_text_file", {
-    path,
-    contents,
-  });
-}
-
 export const SpacesView: React.FC = () => {
   const { t } = useTranslation();
   const { currentSpaceId, setCurrentSpaceId } = useAppStore();
   const [showCreateDialog, setShowCreateDialog] = React.useState(false);
   const [showEditDialog, setShowEditDialog] = React.useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = React.useState(false);
-  const [showExportDialog, setShowExportDialog] = React.useState(false);
-  const [exportConfig, setExportConfig] = React.useState<string | null>(null);
-  const [exportType, setExportType] = React.useState<"claude" | "generic" | "mcp">("claude");
   const [showSkillsDialog, setShowSkillsDialog] = React.useState(false);
   const [showCloneDialog, setShowCloneDialog] = React.useState(false);
 
@@ -93,14 +61,8 @@ export const SpacesView: React.FC = () => {
   const createSpaceMutation = useCreateSpace();
   const updateSpaceMutation = useUpdateSpace();
   const deleteSpaceMutation = useDeleteSpace();
-  const exportClaudeMutation = useExportClaudeConfig();
-  const exportGenericMutation = useExportGenericConfig();
-  const exportMcpMutation = useExportMcpConfig();
   const setSkillVisibilityMutation = useSetSkillVisibility();
   const setBulkVisibilityMutation = useSetBulkSkillVisibility();
-  const syncSpaceMutation = useSyncSpace();
-
-  const { libraryPath } = useSettingsStore();
 
   // Get visibility map for selected space
   const { data: visibilityMap = {} } = useSkillVisibilityMap(currentSpaceId);
@@ -193,82 +155,6 @@ export const SpacesView: React.FC = () => {
     }
   };
 
-  // Handle export
-  const handleExport = async (type: "claude" | "generic" | "mcp") => {
-    if (!selectedSpace) return;
-    setExportType(type);
-
-    try {
-      let config: string;
-      if (type === "claude") {
-        config = await exportClaudeMutation.mutateAsync(selectedSpace.id);
-      } else if (type === "mcp") {
-        config = await exportMcpMutation.mutateAsync(selectedSpace.id);
-      } else {
-        config = await exportGenericMutation.mutateAsync(selectedSpace.id);
-      }
-      setExportConfig(config);
-      setShowExportDialog(true);
-    } catch (error) {
-      console.error("Failed to export config:", error);
-    }
-  };
-
-  // Handle save config to file
-  const handleSaveConfig = async () => {
-    if (!exportConfig) return;
-
-    try {
-      let filename: string;
-      if (exportType === "claude") {
-        filename = "claude_desktop_config.json";
-      } else if (exportType === "mcp") {
-        filename = `${selectedSpace?.name || "space"}_mcp_config.json`;
-      } else {
-        filename = `${selectedSpace?.name || "space"}_config.json`;
-      }
-
-      const filePath = await saveFileDialog(filename);
-
-      if (filePath) {
-        await writeFile(filePath, exportConfig);
-        setShowExportDialog(false);
-        setExportConfig(null);
-      }
-    } catch (error) {
-      console.error("Failed to save config:", error);
-    }
-  };
-
-  // Handle copy config to clipboard
-  const handleCopyConfig = async () => {
-    if (!exportConfig) return;
-    try {
-      await navigator.clipboard.writeText(exportConfig);
-    } catch (error) {
-      console.error("Failed to copy config:", error);
-    }
-  };
-
-  // Auto-sync symlinks after visibility change
-  const autoSyncSymlinks = React.useCallback(async (newVisibilityMap: Record<string, boolean>) => {
-    if (!selectedSpace || !libraryPath || !selectedSpace.activeDirPath) return;
-    
-    const visibleSkillPaths = skills
-      .filter((s) => newVisibilityMap[s.hash] ?? true)
-      .map((s) => s.localPath);
-    
-    try {
-      await syncSpaceMutation.mutateAsync({
-        libraryPath,
-        activePath: selectedSpace.activeDirPath,
-        enabledSkills: visibleSkillPaths,
-      });
-    } catch (error) {
-      console.error("Failed to auto-sync symlinks:", error);
-    }
-  }, [selectedSpace, libraryPath, skills, syncSpaceMutation]);
-
   // Handle skill visibility toggle
   const handleToggleSkillVisibility = async (skillHash: string, isVisible: boolean) => {
     if (!currentSpaceId) return;
@@ -278,11 +164,6 @@ export const SpacesView: React.FC = () => {
         skillHash,
         isVisible,
       });
-      
-      if (selectedSpace?.activeDirPath) {
-        const newVisibilityMap = { ...visibilityMap, [skillHash]: isVisible };
-        await autoSyncSymlinks(newVisibilityMap);
-      }
     } catch (error) {
       console.error("Failed to toggle visibility:", error);
     }
@@ -297,12 +178,6 @@ export const SpacesView: React.FC = () => {
         skillHashes: skills.map((s) => s.hash),
         isVisible: true,
       });
-      
-      if (selectedSpace?.activeDirPath) {
-        const newVisibilityMap = { ...visibilityMap };
-        skills.forEach(s => { newVisibilityMap[s.hash] = true; });
-        await autoSyncSymlinks(newVisibilityMap);
-      }
     } catch (error) {
       console.error("Failed to select all:", error);
     }
@@ -317,33 +192,8 @@ export const SpacesView: React.FC = () => {
         skillHashes: skills.map((s) => s.hash),
         isVisible: false,
       });
-      
-      if (selectedSpace?.activeDirPath) {
-        const newVisibilityMap = { ...visibilityMap };
-        skills.forEach(s => { newVisibilityMap[s.hash] = false; });
-        await autoSyncSymlinks(newVisibilityMap);
-      }
     } catch (error) {
       console.error("Failed to deselect all:", error);
-    }
-  };
-
-  // Handle sync space symlinks
-  const handleSyncSpace = async () => {
-    if (!selectedSpace || !libraryPath || !selectedSpace.activeDirPath) return;
-
-    const visibleSkillPaths = skills
-      .filter((s) => visibilityMap[s.hash] ?? true)
-      .map((s) => s.localPath);
-
-    try {
-      await syncSpaceMutation.mutateAsync({
-        libraryPath,
-        activePath: selectedSpace.activeDirPath,
-        enabledSkills: visibleSkillPaths,
-      });
-    } catch (error) {
-      console.error("Failed to sync space:", error);
     }
   };
 
@@ -446,21 +296,10 @@ export const SpacesView: React.FC = () => {
             space={selectedSpace}
             visibleSkillCount={visibleSkillCount}
             totalSkills={skills.length}
-            libraryPath={libraryPath}
             onEdit={openEditDialog}
             onClone={openCloneDialog}
             onDelete={() => setShowDeleteConfirm(true)}
             onManageSkills={() => setShowSkillsDialog(true)}
-            onExportClaude={() => handleExport("claude")}
-            onExportGeneric={() => handleExport("generic")}
-            onExportMcp={() => handleExport("mcp")}
-            onSyncSymlinks={handleSyncSpace}
-            isExportingClaude={exportClaudeMutation.isPending}
-            isExportingGeneric={exportGenericMutation.isPending}
-            isExportingMcp={exportMcpMutation.isPending}
-            isSyncing={syncSpaceMutation.isPending}
-            syncSuccess={syncSpaceMutation.isSuccess}
-            syncedCount={syncSpaceMutation.data?.created}
           />
         ) : (
           <div className="flex flex-1 items-center justify-center text-text-muted">
@@ -539,16 +378,6 @@ export const SpacesView: React.FC = () => {
         onSelectAll={handleSelectAllSkills}
         onDeselectAll={handleDeselectAllSkills}
         isUpdating={setSkillVisibilityMutation.isPending || setBulkVisibilityMutation.isPending}
-      />
-
-      {/* Export Dialog */}
-      <ExportConfigDialog
-        open={showExportDialog}
-        onOpenChange={setShowExportDialog}
-        exportType={exportType}
-        config={exportConfig}
-        onCopy={handleCopyConfig}
-        onSave={handleSaveConfig}
       />
     </>
   );

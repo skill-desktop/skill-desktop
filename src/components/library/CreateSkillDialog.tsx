@@ -170,29 +170,43 @@ export function CreateSkillDialog({ open, onOpenChange }: CreateSkillDialogProps
     if (step === "success") return null;
 
     return (
-      <div className="flex items-center justify-center gap-1 mb-6">
-        {steps.map((s, i) => (
-          <div key={s.key} className="flex items-center">
-            <div
-              className={`flex items-center justify-center w-8 h-8 rounded-full text-xs font-medium transition-colors ${
-                i < currentIndex
-                  ? "bg-primary text-primary-foreground"
-                  : i === currentIndex
-                  ? "bg-primary text-primary-foreground"
-                  : "bg-muted text-muted-foreground"
-              }`}
-            >
-              {i < currentIndex ? <Check className="w-4 h-4" /> : i + 1}
-            </div>
-            {i < steps.length - 1 && (
+      <div className="flex items-center justify-between px-8 mb-8 relative">
+        {/* Progress Line Background */}
+        <div className="absolute top-1/2 left-10 right-10 h-0.5 bg-muted -z-10 -translate-y-1/2" />
+        
+        {/* Progress Line Active */}
+        <div 
+          className="absolute top-1/2 left-10 h-0.5 bg-primary -z-10 -translate-y-1/2 transition-all duration-300 ease-in-out"
+          style={{ width: `calc(${(currentIndex / (steps.length - 1)) * 100}% - 5rem)` }}
+        />
+
+        {steps.map((s, i) => {
+          const isCompleted = i < currentIndex;
+          const isCurrent = i === currentIndex;
+          
+          return (
+            <div key={s.key} className="flex flex-col items-center gap-2 bg-background z-10 px-2">
               <div
-                className={`w-12 h-0.5 mx-1 transition-colors ${
-                  i < currentIndex ? "bg-primary" : "bg-muted"
-                }`}
-              />
-            )}
-          </div>
-        ))}
+                className={`
+                  flex items-center justify-center w-8 h-8 rounded-full text-xs font-semibold border-2 transition-all duration-300
+                  ${isCompleted 
+                    ? "bg-primary border-primary text-primary-foreground" 
+                    : isCurrent
+                      ? "border-primary text-primary bg-background ring-4 ring-primary/20"
+                      : "border-muted text-muted-foreground bg-background"
+                  }
+                `}
+              >
+                {isCompleted ? <Check className="w-4 h-4" /> : i + 1}
+              </div>
+              <span className={`text-xs font-medium transition-colors duration-300 ${
+                isCurrent ? "text-primary" : "text-muted-foreground"
+              }`}>
+                {s.label}
+              </span>
+            </div>
+          );
+        })}
       </div>
     );
   };
@@ -374,26 +388,46 @@ export function CreateSkillDialog({ open, onOpenChange }: CreateSkillDialogProps
   );
 
   const renderSuccessStep = () => (
-    <div className="space-y-6 text-center py-6">
-      <div className="w-20 h-20 mx-auto bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center">
-        <Check className="w-10 h-10 text-green-600 dark:text-green-400" />
+    <div className="flex flex-col items-center justify-center py-6 space-y-6 animate-in fade-in duration-300">
+      <div className="relative">
+        <div className="w-20 h-20 bg-green-100 dark:bg-green-900/20 rounded-full flex items-center justify-center animate-bounce-subtle">
+          <Check className="w-10 h-10 text-green-600 dark:text-green-500" />
+        </div>
+        <div className="absolute -inset-2 bg-green-100/30 dark:bg-green-900/10 rounded-full blur-xl -z-10" />
       </div>
-      <div>
-        <h3 className="text-xl font-semibold">{t("createSkill.successTitle")}</h3>
-        <p className="text-sm text-muted-foreground mt-2">
+      
+      <div className="text-center space-y-2">
+        <h3 className="text-2xl font-bold tracking-tight">{t("createSkill.successTitle")}</h3>
+        <p className="text-muted-foreground max-w-xs mx-auto">
           {t("createSkill.successMessage", { name })}
         </p>
       </div>
-      <div className="bg-muted rounded-md p-4 text-left">
-        <p className="text-xs text-muted-foreground mb-1">{t("createSkill.location")}</p>
-        <p className="text-sm font-mono break-all">{createdSkillDir}</p>
+
+      <div className="w-full bg-muted/50 rounded-lg p-4 border text-left space-y-1">
+        <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground uppercase tracking-wider">
+          <FolderOpen className="w-3.5 h-3.5" />
+          {t("createSkill.location")}
+        </div>
+        <code className="block text-sm font-mono break-all bg-background p-2 rounded border">
+          {createdSkillDir}
+        </code>
       </div>
-      <div className="text-sm text-muted-foreground">
-        <p>{t("createSkill.nextSteps")}</p>
-        <ul className="mt-2 space-y-1 text-left list-disc list-inside">
-          <li>{t("createSkill.nextStep1")}</li>
-          <li>{t("createSkill.nextStep2")}</li>
-          <li>{t("createSkill.nextStep3")}</li>
+
+      <div className="w-full space-y-3 text-left">
+        <p className="text-sm font-medium">{t("createSkill.nextSteps")}</p>
+        <ul className="space-y-2 text-sm text-muted-foreground">
+          <li className="flex items-start gap-2">
+            <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full border bg-background text-[10px] font-medium">1</span>
+            <span>{t("createSkill.nextStep1")}</span>
+          </li>
+          <li className="flex items-start gap-2">
+            <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full border bg-background text-[10px] font-medium">2</span>
+            <span>{t("createSkill.nextStep2")}</span>
+          </li>
+          <li className="flex items-start gap-2">
+            <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full border bg-background text-[10px] font-medium">3</span>
+            <span>{t("createSkill.nextStep3")}</span>
+          </li>
         </ul>
       </div>
     </div>

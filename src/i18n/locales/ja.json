@@ -92,7 +92,9 @@
       "title": "{{count}}件のスキルを隔離",
       "description": "{{count}}件のスキルを隔離エリアに移動します。隔離されたスキルは不安定または機密としてマークされます。",
       "markAsSafe": "安全としてマーク"
-    }
+    },
+    "createSkill": "スキルを作成",
+    "importSkill": "スキルをインポート"
   },
   "skillCard": {
     "by": "作成者",
@@ -133,6 +135,8 @@
       "content": "コンテンツ",
       "source": "ソース"
     },
+    "fileTree": "ディレクトリ構造",
+    "files": "ファイル",
     "actions": {
       "showInFolder": "フォルダで表示",
       "openFile": "ファイルを開く",
