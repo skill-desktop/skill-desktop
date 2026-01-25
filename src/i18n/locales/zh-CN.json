@@ -47,6 +47,7 @@
     "library": "技能库",
     "spaces": "工作空间",
     "hub": "技能中心",
+    "sandbox": "调试沙箱",
     "settings": "设置"
   },
   "header": {
@@ -318,5 +319,41 @@
     "lineNumber": "第 {{line}} 行",
     "overallRisk": "整体风险等级",
     "codeWarning": "此技能包含可执行代码。请在启用前仔细审查检测到的风险。"
+  },
+  "statusBar": {
+    "ready": "就绪",
+    "scanning": "扫描中...",
+    "watching": "监控中",
+    "error": "错误",
+    "visible": "可见"
+  },
+  "contextMenu": {
+    "viewDetails": "查看详情",
+    "viewSource": "查看源码",
+    "addToSpace": "添加到空间...",
+    "showInFolder": "在文件夹中显示",
+    "quarantine": "隔离",
+    "removeFromQuarantine": "取消隔离",
+    "delete": "删除"
+  },
+  "sandbox": {
+    "selectSkill": "选择技能",
+    "selectSkillPrompt": "从列表中选择一个技能进行调试",
+    "noSkills": "暂无可用技能",
+    "parameters": "个参数",
+    "parameterInput": "参数输入",
+    "noParameters": "此技能没有参数",
+    "execute": "执行",
+    "reset": "重置",
+    "selectValue": "选择值",
+    "enterJson": "输入 JSON 格式的",
+    "enter": "输入",
+    "executionResult": "执行结果",
+    "success": "成功",
+    "failed": "失败",
+    "history": "执行历史",
+    "highRiskWarning": "高风险权限警告",
+    "highRiskDescription": "此技能需要高风险权限（shell_exec）。确定要执行吗？",
+    "confirmExecute": "仍然执行"
   }
 }

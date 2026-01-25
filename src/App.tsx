@@ -11,6 +11,7 @@ import {
   LibraryView,
   SpacesView,
   HubView,
+  SandboxView,
   SettingsView,
 } from "@/views";
 import { changeLanguage, detectBrowserLanguage, type SupportedLanguage } from "@/i18n";
@@ -117,14 +118,32 @@ function AppContent() {
         }
       }
 
-      // ⌘1-4 - Switch views
-      if ((e.metaKey || e.ctrlKey) && e.key >= "1" && e.key <= "4") {
+      // ⌘1-5 - Switch views
+      if ((e.metaKey || e.ctrlKey) && e.key >= "1" && e.key <= "5") {
         e.preventDefault();
-        const views = ["library", "spaces", "hub", "settings"] as const;
+        const views = ["library", "spaces", "hub", "sandbox", "settings"] as const;
         const index = parseInt(e.key) - 1;
         if (index < views.length) {
           setCurrentView(views[index]);
         }
+      }
+
+      // ⌘N or Ctrl+N - New space (when in spaces view)
+      if ((e.metaKey || e.ctrlKey) && e.key === "n") {
+        e.preventDefault();
+        if (currentView === "spaces") {
+          // Trigger the new space button
+          const newSpaceButton = document.querySelector('[data-action="new-space"]') as HTMLButtonElement;
+          if (newSpaceButton) {
+            newSpaceButton.click();
+          }
+        }
+      }
+
+      // ⌘I or Ctrl+I - Import skill (switch to hub view)
+      if ((e.metaKey || e.ctrlKey) && e.key === "i") {
+        e.preventDefault();
+        setCurrentView("hub");
       }
 
       // Escape - Clear search or close panels
@@ -149,6 +168,8 @@ function AppContent() {
         return <SpacesView />;
       case "hub":
         return <HubView />;
+      case "sandbox":
+        return <SandboxView />;
       case "settings":
         return <SettingsView />;
       default:

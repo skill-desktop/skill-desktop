@@ -47,6 +47,7 @@
     "library": "Library",
     "spaces": "Spaces",
     "hub": "Skill Hub",
+    "sandbox": "Sandbox",
     "settings": "Settings"
   },
   "header": {
@@ -318,5 +319,41 @@
     "lineNumber": "Line {{line}}",
     "overallRisk": "Overall Risk Level",
     "codeWarning": "This skill contains executable code. Review the detected risks carefully before enabling."
+  },
+  "statusBar": {
+    "ready": "Ready",
+    "scanning": "Scanning...",
+    "watching": "Watching",
+    "error": "Error",
+    "visible": "visible"
+  },
+  "contextMenu": {
+    "viewDetails": "View Details",
+    "viewSource": "View Source",
+    "addToSpace": "Add to Space...",
+    "showInFolder": "Show in Folder",
+    "quarantine": "Quarantine",
+    "removeFromQuarantine": "Remove from Quarantine",
+    "delete": "Delete"
+  },
+  "sandbox": {
+    "selectSkill": "Select a Skill",
+    "selectSkillPrompt": "Select a skill from the list to debug",
+    "noSkills": "No skills available",
+    "parameters": "parameters",
+    "parameterInput": "Parameter Input",
+    "noParameters": "This skill has no parameters",
+    "execute": "Execute",
+    "reset": "Reset",
+    "selectValue": "Select value",
+    "enterJson": "Enter JSON for",
+    "enter": "Enter",
+    "executionResult": "Execution Result",
+    "success": "Success",
+    "failed": "Failed",
+    "history": "Execution History",
+    "highRiskWarning": "High-Risk Permission Warning",
+    "highRiskDescription": "This skill requires high-risk permissions (shell_exec). Are you sure you want to execute it?",
+    "confirmExecute": "Execute Anyway"
   }
 }

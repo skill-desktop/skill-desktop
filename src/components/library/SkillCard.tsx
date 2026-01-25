@@ -1,9 +1,10 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
-import { Download, ExternalLink, Shield, Tag, ShieldAlert } from "lucide-react";
+import { Download, ExternalLink, Shield, Tag, ShieldAlert, Eye, Folder, FileText, Trash2, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAppStore } from "@/stores";
-import { Badge, Switch } from "@/components/ui";
+import { Badge, Switch, ContextMenu, ContextMenuTrigger, ContextMenuContent, ContextMenuItem, ContextMenuSeparator } from "@/components/ui";
+import { useShowInFolder, useOpenFile, useDeleteSkill, useSetSkillQuarantine } from "@/hooks";
 import type { Skill } from "@/types";
 import { getPermissionLevel } from "@/types";
 
@@ -29,7 +30,11 @@ export const SkillCard: React.FC<SkillCardProps> = ({
   isQuarantined = false,
 }) => {
   const { t } = useTranslation();
-  const { setSelectedSkillHash, selectedSkillHash } = useAppStore();
+  const { setSelectedSkillHash, selectedSkillHash, setCurrentView } = useAppStore();
+  const showInFolderMutation = useShowInFolder();
+  const openFileMutation = useOpenFile();
+  const deleteSkillMutation = useDeleteSkill();
+  const setQuarantineMutation = useSetSkillQuarantine();
 
   const isSelected = selectedSkillHash === skill.hash;
   
@@ -44,18 +49,65 @@ export const SkillCard: React.FC<SkillCardProps> = ({
     }
   };
 
+  // Context menu handlers
+  const handleViewDetails = () => {
+    setSelectedSkillHash(skill.hash);
+  };
+
+  const handleViewSource = async () => {
+    try {
+      await openFileMutation.mutateAsync(skill.localPath);
+    } catch (error) {
+      console.error("Failed to open file:", error);
+    }
+  };
+
+  const handleShowInFolder = async () => {
+    try {
+      await showInFolderMutation.mutateAsync(skill.localPath);
+    } catch (error) {
+      console.error("Failed to show in folder:", error);
+    }
+  };
+
+  const handleToggleQuarantine = async () => {
+    try {
+      await setQuarantineMutation.mutateAsync({
+        hash: skill.hash,
+        isQuarantined: !isQuarantined,
+      });
+    } catch (error) {
+      console.error("Failed to toggle quarantine:", error);
+    }
+  };
+
+  const handleDelete = async () => {
+    try {
+      await deleteSkillMutation.mutateAsync(skill.hash);
+    } catch (error) {
+      console.error("Failed to delete skill:", error);
+    }
+  };
+
+  const handleAddToSpace = () => {
+    // Navigate to spaces view to add skill
+    setCurrentView("spaces");
+  };
+
   return (
-    <div
-      className={cn(
-        "group relative cursor-pointer rounded-lg border bg-bg-secondary transition-all hover:shadow-md",
-        selectionMode && isSelectedForBatch
-          ? "border-accent-blue shadow-md ring-2 ring-accent-blue/30"
-          : isSelected
-          ? "border-accent-blue shadow-md ring-1 ring-accent-blue/20"
-          : "border-border-default hover:border-border-default/80"
-      )}
-      onClick={handleClick}
-    >
+    <ContextMenu>
+      <ContextMenuTrigger asChild>
+        <div
+          className={cn(
+            "group relative cursor-pointer rounded-lg border bg-bg-secondary transition-all hover:shadow-md",
+            selectionMode && isSelectedForBatch
+              ? "border-accent-blue shadow-md ring-2 ring-accent-blue/30"
+              : isSelected
+              ? "border-accent-blue shadow-md ring-1 ring-accent-blue/20"
+              : "border-border-default hover:border-border-default/80"
+          )}
+          onClick={handleClick}
+        >
       {/* Header with gradient accent */}
       <div className={cn(
         "h-1 rounded-t-lg",
@@ -182,6 +234,37 @@ export const SkillCard: React.FC<SkillCardProps> = ({
           </div>
         </div>
       </div>
-    </div>
+        </div>
+      </ContextMenuTrigger>
+
+      <ContextMenuContent>
+        <ContextMenuItem onClick={handleViewDetails}>
+          <Eye className="h-4 w-4" />
+          {t("contextMenu.viewDetails")}
+        </ContextMenuItem>
+        <ContextMenuItem onClick={handleViewSource}>
+          <FileText className="h-4 w-4" />
+          {t("contextMenu.viewSource")}
+        </ContextMenuItem>
+        <ContextMenuSeparator />
+        <ContextMenuItem onClick={handleAddToSpace}>
+          <Plus className="h-4 w-4" />
+          {t("contextMenu.addToSpace")}
+        </ContextMenuItem>
+        <ContextMenuItem onClick={handleShowInFolder}>
+          <Folder className="h-4 w-4" />
+          {t("contextMenu.showInFolder")}
+        </ContextMenuItem>
+        <ContextMenuSeparator />
+        <ContextMenuItem onClick={handleToggleQuarantine}>
+          <ShieldAlert className="h-4 w-4" />
+          {isQuarantined ? t("contextMenu.removeFromQuarantine") : t("contextMenu.quarantine")}
+        </ContextMenuItem>
+        <ContextMenuItem onClick={handleDelete} destructive>
+          <Trash2 className="h-4 w-4" />
+          {t("contextMenu.delete")}
+        </ContextMenuItem>
+      </ContextMenuContent>
+    </ContextMenu>
   );
 };

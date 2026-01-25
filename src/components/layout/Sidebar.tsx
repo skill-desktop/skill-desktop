@@ -4,6 +4,7 @@ import {
   Library,
   FolderTree,
   Globe,
+  FlaskConical,
   Settings,
   ChevronLeft,
   ChevronRight,
@@ -15,7 +16,7 @@ import { useAppStore } from "@/stores";
 import { useSpaces } from "@/hooks";
 import { Button } from "@/components/ui";
 
-type View = "library" | "spaces" | "hub" | "settings";
+type View = "library" | "spaces" | "hub" | "sandbox" | "settings";
 
 export const Sidebar: React.FC = () => {
   const { t } = useTranslation();
@@ -34,6 +35,7 @@ export const Sidebar: React.FC = () => {
     { id: "library" as View, label: t("nav.library"), icon: <Library className="h-4 w-4" /> },
     { id: "spaces" as View, label: t("nav.spaces"), icon: <FolderTree className="h-4 w-4" /> },
     { id: "hub" as View, label: t("nav.hub"), icon: <Globe className="h-4 w-4" /> },
+    { id: "sandbox" as View, label: t("nav.sandbox"), icon: <FlaskConical className="h-4 w-4" /> },
   ];
 
   return (

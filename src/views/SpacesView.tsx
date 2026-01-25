@@ -417,6 +417,7 @@ export const SpacesView: React.FC = () => {
               variant="ghost"
               size="icon"
               className="h-7 w-7"
+              data-action="new-space"
               onClick={() => {
                 resetForm();
                 setShowCreateDialog(true);

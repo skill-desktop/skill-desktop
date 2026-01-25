@@ -1,4 +1,5 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 import { Circle, FolderOpen, Layers, Eye } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useSettingsStore, useAppStore } from "@/stores";
@@ -7,6 +8,7 @@ import { useSkills, useSpaces, useIsFileWatcherRunning, useSkillVisibilityMap } 
 type Status = "ready" | "scanning" | "watching" | "error";
 
 export const StatusBar: React.FC = () => {
+  const { t } = useTranslation();
   const { libraryPath } = useSettingsStore();
   const { currentSpaceId } = useAppStore();
   const { data: skills = [], isLoading: isLoadingSkills, error: skillsError } = useSkills();
@@ -39,7 +41,7 @@ export const StatusBar: React.FC = () => {
 
   // Format library path for display
   const displayPath = React.useMemo(() => {
-    if (!libraryPath) return "Not set";
+    if (!libraryPath) return t("common.notSet");
     // Shorten home directory
     const home = "~";
     if (libraryPath.startsWith("/Users/")) {
@@ -58,19 +60,19 @@ export const StatusBar: React.FC = () => {
   const statusConfig = {
     ready: {
       color: "text-text-muted",
-      label: "Ready",
+      label: t("statusBar.ready"),
     },
     scanning: {
       color: "text-accent-yellow",
-      label: "Scanning...",
+      label: t("statusBar.scanning"),
     },
     watching: {
       color: "text-permission-low",
-      label: "Watching",
+      label: t("statusBar.watching"),
     },
     error: {
       color: "text-accent-red",
-      label: "Error",
+      label: t("statusBar.error"),
     },
   };
 
@@ -99,7 +101,7 @@ export const StatusBar: React.FC = () => {
         <div className="flex items-center gap-1">
           <Layers className="h-3 w-3" />
           <span className="text-text-primary font-medium">{skills.length}</span>
-          <span>total</span>
+          <span>{t("common.total")}</span>
         </div>
 
         {/* Visible skills in current space */}
@@ -107,7 +109,7 @@ export const StatusBar: React.FC = () => {
           <div className="flex items-center gap-1">
             <Eye className="h-3 w-3" />
             <span className="text-text-primary font-medium">{visibleSkillCount}</span>
-            <span>visible</span>
+            <span>{t("statusBar.visible")}</span>
           </div>
         )}
 

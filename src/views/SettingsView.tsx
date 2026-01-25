@@ -8,6 +8,21 @@ import { useSettingsStore } from "@/stores";
 import { useSetLibraryPath, useLibraryPath, useRescanLibrary, useUpdateAppSetting } from "@/hooks";
 import type { SupportedLanguage } from "@/i18n";
 
+// Constants for external links
+const DOCUMENTATION_URL = "https://github.com/anthropics/skill-desktop#readme";
+const REPORT_ISSUE_URL = "https://github.com/anthropics/skill-desktop/issues/new";
+
+// Helper to open URL using Tauri opener plugin
+async function openUrl(url: string): Promise<void> {
+  try {
+    await invoke("plugin:opener|open_url", { url });
+  } catch (error) {
+    // Fallback to window.open if Tauri plugin fails
+    console.error("Failed to open URL via Tauri:", error);
+    window.open(url, "_blank");
+  }
+}
+
 // Helper to open folder dialog via Tauri command
 async function openFolderDialog(): Promise<string | null> {
   try {
@@ -107,6 +122,22 @@ export const SettingsView: React.FC = () => {
     } catch (error) {
       console.error("Failed to save language setting:", error);
     }
+  };
+
+  // Handle check for updates
+  const handleCheckUpdates = async () => {
+    // For now, open the releases page
+    await openUrl("https://github.com/anthropics/skill-desktop/releases");
+  };
+
+  // Handle open documentation
+  const handleOpenDocumentation = async () => {
+    await openUrl(DOCUMENTATION_URL);
+  };
+
+  // Handle report issue
+  const handleReportIssue = async () => {
+    await openUrl(REPORT_ISSUE_URL);
   };
 
   return (
@@ -229,15 +260,15 @@ export const SettingsView: React.FC = () => {
           </div>
 
           <div className="flex items-center gap-2 mt-4">
-            <Button variant="secondary" size="sm">
+            <Button variant="secondary" size="sm" onClick={handleCheckUpdates}>
               <RefreshCw className="h-3.5 w-3.5 mr-1.5" />
               {t("settings.about.checkUpdates")}
             </Button>
-            <Button variant="secondary" size="sm">
+            <Button variant="secondary" size="sm" onClick={handleOpenDocumentation}>
               <ExternalLink className="h-3.5 w-3.5 mr-1.5" />
               {t("settings.about.documentation")}
             </Button>
-            <Button variant="secondary" size="sm">
+            <Button variant="secondary" size="sm" onClick={handleReportIssue}>
               <ExternalLink className="h-3.5 w-3.5 mr-1.5" />
               {t("settings.about.reportIssue")}
             </Button>
