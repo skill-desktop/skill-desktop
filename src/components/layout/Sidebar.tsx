@@ -13,8 +13,9 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAppStore } from "@/stores";
-import { useSpaces } from "@/hooks";
+import { useSpaces, useSetSkillVisibility } from "@/hooks";
 import { Button } from "@/components/ui";
+import { SKILL_DRAG_TYPE } from "@/components/library/SkillCard";
 
 type View = "library" | "spaces" | "hub" | "sandbox" | "settings";
 
@@ -30,6 +31,10 @@ export const Sidebar: React.FC = () => {
   } = useAppStore();
 
   const { data: spaces = [] } = useSpaces();
+  const setSkillVisibilityMutation = useSetSkillVisibility();
+  
+  // Track which space is being dragged over
+  const [dragOverSpaceId, setDragOverSpaceId] = React.useState<string | null>(null);
 
   const navItems = [
     { id: "library" as View, label: t("nav.library"), icon: <Library className="h-4 w-4" /> },
@@ -37,6 +42,37 @@ export const Sidebar: React.FC = () => {
     { id: "hub" as View, label: t("nav.hub"), icon: <Globe className="h-4 w-4" /> },
     { id: "sandbox" as View, label: t("nav.sandbox"), icon: <FlaskConical className="h-4 w-4" /> },
   ];
+
+  // Drag and drop handlers for spaces
+  const handleDragOver = (e: React.DragEvent, spaceId: string) => {
+    if (e.dataTransfer.types.includes(SKILL_DRAG_TYPE)) {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = "copy";
+      setDragOverSpaceId(spaceId);
+    }
+  };
+
+  const handleDragLeave = () => {
+    setDragOverSpaceId(null);
+  };
+
+  const handleDrop = async (e: React.DragEvent, spaceId: string) => {
+    e.preventDefault();
+    setDragOverSpaceId(null);
+    
+    const skillHash = e.dataTransfer.getData(SKILL_DRAG_TYPE);
+    if (skillHash) {
+      try {
+        await setSkillVisibilityMutation.mutateAsync({
+          spaceId,
+          skillHash,
+          isVisible: true,
+        });
+      } catch (error) {
+        console.error("Failed to add skill to space:", error);
+      }
+    }
+  };
 
   return (
     <aside
@@ -83,30 +119,42 @@ export const Sidebar: React.FC = () => {
               {!sidebarCollapsed && <span>{item.label}</span>}
             </button>
 
-            {/* Show spaces submenu when spaces is selected */}
-            {item.id === "spaces" &&
-              currentView === "spaces" &&
-              !sidebarCollapsed && (
-                <div className="ml-4 border-l border-border-muted">
-                  {spaces.map((space) => (
-                    <button
-                      key={space.id}
-                      onClick={() => setCurrentSpaceId(space.id)}
-                      className={cn(
-                        "flex w-full items-center justify-between px-3 py-1.5 text-xs transition-colors",
-                        currentSpaceId === space.id
-                          ? "text-text-primary bg-bg-tertiary"
-                          : "text-text-secondary hover:bg-bg-tertiary hover:text-text-primary"
+            {/* Show spaces submenu - always visible for drag & drop, expanded when spaces view is selected */}
+            {item.id === "spaces" && !sidebarCollapsed && (
+              <div className={cn(
+                "ml-4 border-l border-border-muted",
+                currentView !== "spaces" && "hidden group-hover:block"
+              )}>
+                {spaces.map((space) => (
+                  <button
+                    key={space.id}
+                    onClick={() => {
+                      setCurrentSpaceId(space.id);
+                      if (currentView !== "spaces") {
+                        setCurrentView("spaces");
+                      }
+                    }}
+                    onDragOver={(e) => handleDragOver(e, space.id)}
+                    onDragLeave={handleDragLeave}
+                    onDrop={(e) => handleDrop(e, space.id)}
+                    className={cn(
+                      "flex w-full items-center justify-between px-3 py-1.5 text-xs transition-colors",
+                      dragOverSpaceId === space.id
+                        ? "bg-accent-blue/20 text-text-primary ring-1 ring-accent-blue"
+                        : currentSpaceId === space.id
+                        ? "text-text-primary bg-bg-tertiary"
+                        : "text-text-secondary hover:bg-bg-tertiary hover:text-text-primary"
+                    )}
+                  >
+                    <span className="truncate">{space.name}</span>
+                    <div className="flex items-center gap-1">
+                      {currentSpaceId === space.id && (
+                        <Check className="h-3 w-3 text-accent-blue" />
                       )}
-                    >
-                      <span className="truncate">{space.name}</span>
-                      <div className="flex items-center gap-1">
-                        {currentSpaceId === space.id && (
-                          <Check className="h-3 w-3 text-accent-blue" />
-                        )}
-                      </div>
-                    </button>
-                  ))}
+                    </div>
+                  </button>
+                ))}
+                {currentView === "spaces" && (
                   <button
                     onClick={() => setCurrentView("spaces")}
                     className="flex w-full items-center gap-2 px-3 py-1.5 text-xs text-text-muted hover:bg-bg-tertiary hover:text-text-primary"
@@ -114,8 +162,9 @@ export const Sidebar: React.FC = () => {
                     <Plus className="h-3 w-3" />
                     <span>{t("spaces.newSpace")}</span>
                   </button>
-                </div>
-              )}
+                )}
+              </div>
+            )}
           </React.Fragment>
         ))}
       </nav>

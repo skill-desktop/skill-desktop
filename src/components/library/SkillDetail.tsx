@@ -10,10 +10,13 @@ import {
   Check,
   Shield,
   ShieldAlert,
+  RefreshCw,
+  Download,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAppStore } from "@/stores";
-import { useDeleteSkill, useShowInFolder, useOpenFile, useSkillContent, useQuarantinedSkills, useSetSkillQuarantine } from "@/hooks";
+import { useDeleteSkill, useShowInFolder, useOpenFile, useSkillContent, useQuarantinedSkills, useSetSkillQuarantine, useCheckSkillUpdate } from "@/hooks";
+import { useImportSkillFromUrl } from "@/hooks/useImport";
 import { Button, ScrollArea, Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui";
 import type { Skill } from "@/types";
 import { TabButton, OverviewTab, ContentTab, SourceTab } from "./detail";
@@ -36,9 +39,18 @@ export const SkillDetail: React.FC<SkillDetailProps> = ({ skill }) => {
   const { data: skillContent } = useSkillContent(skill?.hash || null);
   const { data: quarantinedHashes = [] } = useQuarantinedSkills();
   const setQuarantineMutation = useSetSkillQuarantine();
+  const checkUpdateMutation = useCheckSkillUpdate();
+  const importSkillMutation = useImportSkillFromUrl();
+  
+  // Update check state
+  const [updateAvailable, setUpdateAvailable] = React.useState(false);
+  const [showUpdateDialog, setShowUpdateDialog] = React.useState(false);
 
   // Check if current skill is quarantined
   const isQuarantined = skill ? quarantinedHashes.includes(skill.hash) : false;
+  
+  // Check if skill has a source URL (can check for updates)
+  const canCheckUpdate = skill?.sourceUrl && skill.isDownloaded;
 
   if (!skill || !detailPanelOpen) {
     return null;
@@ -93,6 +105,38 @@ export const SkillDetail: React.FC<SkillDetailProps> = ({ skill }) => {
       handleClose();
     } catch (error) {
       console.error("Failed to delete skill:", error);
+    }
+  };
+
+  const handleCheckUpdate = async () => {
+    if (!skill?.sourceUrl) return;
+    
+    try {
+      const result = await checkUpdateMutation.mutateAsync({
+        sourceUrl: skill.sourceUrl,
+        currentHash: skill.hash,
+      });
+      
+      if (result.hasUpdate) {
+        setUpdateAvailable(true);
+        setShowUpdateDialog(true);
+      } else {
+        setUpdateAvailable(false);
+      }
+    } catch (error) {
+      console.error("Failed to check for updates:", error);
+    }
+  };
+
+  const handleApplyUpdate = async () => {
+    if (!skill?.sourceUrl) return;
+    
+    try {
+      await importSkillMutation.mutateAsync(skill.sourceUrl);
+      setShowUpdateDialog(false);
+      setUpdateAvailable(false);
+    } catch (error) {
+      console.error("Failed to apply update:", error);
     }
   };
 
@@ -168,6 +212,17 @@ export const SkillDetail: React.FC<SkillDetailProps> = ({ skill }) => {
           </div>
         )}
 
+        {/* Update available banner */}
+        {updateAvailable && (
+          <div className="flex items-center gap-2 border-t border-accent-blue/30 bg-accent-blue/10 px-4 py-2">
+            <RefreshCw className="h-4 w-4 text-accent-blue" />
+            <span className="text-xs text-accent-blue flex-1">{t("skillDetail.updateAvailable")}</span>
+            <Button size="sm" variant="secondary" onClick={() => setShowUpdateDialog(true)}>
+              {t("skillDetail.actions.update")}
+            </Button>
+          </div>
+        )}
+
         {/* Actions */}
         <div className="flex items-center gap-2 border-t border-border-default p-4">
           <Button
@@ -198,6 +253,22 @@ export const SkillDetail: React.FC<SkillDetailProps> = ({ skill }) => {
             )}
             {t("skillDetail.actions.reveal")}
           </Button>
+          {canCheckUpdate && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className={cn("h-8 w-8", updateAvailable ? "text-accent-blue" : "text-text-muted")}
+              onClick={handleCheckUpdate}
+              disabled={checkUpdateMutation.isPending}
+              title={t("skillDetail.actions.checkUpdate")}
+            >
+              {checkUpdateMutation.isPending ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <RefreshCw className="h-3.5 w-3.5" />
+              )}
+            </Button>
+          )}
           <Button
             variant="ghost"
             size="icon"
@@ -254,6 +325,39 @@ export const SkillDetail: React.FC<SkillDetailProps> = ({ skill }) => {
                 <Trash2 className="h-3.5 w-3.5 mr-1.5" />
               )}
               {t("common.delete")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Update confirmation dialog */}
+      <Dialog open={showUpdateDialog} onOpenChange={setShowUpdateDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{t("skillDetail.updateConfirm.title")}</DialogTitle>
+            <DialogDescription>
+              {t("skillDetail.updateConfirm.description", { name: skill.name })}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => setShowUpdateDialog(false)}
+            >
+              {t("common.cancel")}
+            </Button>
+            <Button
+              size="sm"
+              onClick={handleApplyUpdate}
+              disabled={importSkillMutation.isPending}
+            >
+              {importSkillMutation.isPending ? (
+                <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+              ) : (
+                <Download className="h-3.5 w-3.5 mr-1.5" />
+              )}
+              {t("skillDetail.actions.update")}
             </Button>
           </DialogFooter>
         </DialogContent>

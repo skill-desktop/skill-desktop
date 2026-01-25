@@ -2537,3 +2537,311 @@ pub async fn update_app_setting(
     
     Ok(settings)
 }
+
+// ========== Batch Export Commands ==========
+
+/// Export multiple skills as a single combined file
+#[tauri::command]
+pub async fn export_skills_batch(
+    skill_hashes: Vec<String>,
+    library_state: State<'_, LibraryState>,
+) -> Result<String, String> {
+    let library_path = {
+        let guard = library_state.path.lock().map_err(|e| e.to_string())?;
+        guard.clone().ok_or("Library path not set")?
+    };
+
+    let all_skills = get_all_skills_internal(&library_path)?;
+    
+    // Filter to requested skills
+    let hash_set: std::collections::HashSet<_> = skill_hashes.iter().collect();
+    let skills: Vec<_> = all_skills.into_iter()
+        .filter(|s| hash_set.contains(&s.hash))
+        .collect();
+
+    if skills.is_empty() {
+        return Err("No matching skills found".to_string());
+    }
+
+    // Build combined export
+    let mut combined_content = String::new();
+    combined_content.push_str("# Skill Desktop Export\n\n");
+    combined_content.push_str(&format!("Exported {} skill(s) on {}\n\n", skills.len(), chrono_now()));
+    combined_content.push_str("---\n\n");
+
+    for skill in &skills {
+        // Read skill file content
+        let content = std::fs::read_to_string(&skill.local_path)
+            .map_err(|e| format!("Failed to read skill file {}: {}", skill.local_path, e))?;
+        
+        combined_content.push_str(&format!("## {}\n\n", skill.name));
+        combined_content.push_str(&format!("**Version**: {}\n", skill.version));
+        combined_content.push_str(&format!("**Author**: {}\n", skill.author.as_deref().unwrap_or("Unknown")));
+        combined_content.push_str(&format!("**Tags**: {}\n", skill.tags.join(", ")));
+        combined_content.push_str(&format!("**Permissions**: {}\n\n", skill.permissions.join(", ")));
+        combined_content.push_str("### Content\n\n");
+        combined_content.push_str("```markdown\n");
+        combined_content.push_str(&content);
+        combined_content.push_str("\n```\n\n");
+        combined_content.push_str("---\n\n");
+    }
+
+    Ok(combined_content)
+}
+
+/// Export multiple skills as JSON
+#[tauri::command]
+pub async fn export_skills_batch_json(
+    skill_hashes: Vec<String>,
+    library_state: State<'_, LibraryState>,
+) -> Result<String, String> {
+    let library_path = {
+        let guard = library_state.path.lock().map_err(|e| e.to_string())?;
+        guard.clone().ok_or("Library path not set")?
+    };
+
+    let all_skills = get_all_skills_internal(&library_path)?;
+    
+    // Filter to requested skills
+    let hash_set: std::collections::HashSet<_> = skill_hashes.iter().collect();
+    let skills: Vec<_> = all_skills.into_iter()
+        .filter(|s| hash_set.contains(&s.hash))
+        .collect();
+
+    if skills.is_empty() {
+        return Err("No matching skills found".to_string());
+    }
+
+    // Build JSON export with content
+    let mut skill_exports = Vec::new();
+    for skill in &skills {
+        let content = std::fs::read_to_string(&skill.local_path)
+            .map_err(|e| format!("Failed to read skill file {}: {}", skill.local_path, e))?;
+        
+        skill_exports.push(serde_json::json!({
+            "name": skill.name,
+            "version": skill.version,
+            "description": skill.description,
+            "author": skill.author,
+            "tags": skill.tags,
+            "permissions": skill.permissions,
+            "parameters": skill.parameters,
+            "content": content
+        }));
+    }
+
+    let export = serde_json::json!({
+        "version": "1.0",
+        "exportedAt": chrono_now(),
+        "skillCount": skills.len(),
+        "skills": skill_exports
+    });
+
+    serde_json::to_string_pretty(&export).map_err(|e| e.to_string())
+}
+
+// ========== Version History Commands ==========
+
+/// Record a skill change in history
+#[tauri::command]
+pub async fn record_skill_change(
+    skill_hash: String,
+    skill_name: String,
+    version: String,
+    content_hash: String,
+    change_type: String,
+    db_state: State<'_, DatabaseState>,
+) -> Result<(), String> {
+    db_state.0.add_skill_history(&skill_hash, &skill_name, &version, &content_hash, &change_type)
+}
+
+/// Get history for a specific skill
+#[tauri::command]
+pub async fn get_skill_history(
+    skill_hash: String,
+    db_state: State<'_, DatabaseState>,
+) -> Result<Vec<crate::database::SkillHistoryEntry>, String> {
+    db_state.0.get_skill_history(&skill_hash)
+}
+
+/// Get recent skill history across all skills
+#[tauri::command]
+pub async fn get_recent_skill_history(
+    limit: Option<i64>,
+    db_state: State<'_, DatabaseState>,
+) -> Result<Vec<crate::database::SkillHistoryEntry>, String> {
+    db_state.0.get_all_skill_history(limit.unwrap_or(50))
+}
+
+// ========== Update Detection Commands ==========
+
+/// Check if a skill from URL has updates available
+#[tauri::command]
+pub async fn check_skill_update(
+    source_url: String,
+    current_hash: String,
+) -> Result<UpdateCheckResult, String> {
+    // Fetch the remote content
+    let client = reqwest::Client::new();
+    let response = client
+        .get(&source_url)
+        .header("User-Agent", "skill-desktop/1.0")
+        .send()
+        .await
+        .map_err(|e| format!("Failed to fetch URL: {}", e))?;
+
+    if !response.status().is_success() {
+        return Err(format!("HTTP error: {}", response.status()));
+    }
+
+    let content = response
+        .text()
+        .await
+        .map_err(|e| format!("Failed to read response: {}", e))?;
+
+    // Calculate hash of remote content
+    use sha2::{Digest, Sha256};
+    let mut hasher = Sha256::new();
+    hasher.update(content.as_bytes());
+    let remote_hash = format!("{:x}", hasher.finalize());
+
+    let has_update = remote_hash != current_hash;
+
+    Ok(UpdateCheckResult {
+        has_update,
+        current_hash,
+        remote_hash,
+        source_url,
+    })
+}
+
+/// Result of update check
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct UpdateCheckResult {
+    pub has_update: bool,
+    pub current_hash: String,
+    pub remote_hash: String,
+    pub source_url: String,
+}
+
+/// Check updates for all skills with source URLs
+#[tauri::command]
+pub async fn check_all_skill_updates(
+    library_state: State<'_, LibraryState>,
+) -> Result<Vec<SkillUpdateInfo>, String> {
+    let library_path = {
+        let guard = library_state.path.lock().map_err(|e| e.to_string())?;
+        guard.clone().ok_or("Library path not set")?
+    };
+
+    let all_skills = get_all_skills_internal(&library_path)?;
+    
+    // Filter to skills with source URLs
+    let skills_with_urls: Vec<_> = all_skills
+        .into_iter()
+        .filter(|s| s.source_url.is_some())
+        .collect();
+
+    let client = reqwest::Client::new();
+    let mut results = Vec::new();
+
+    for skill in skills_with_urls {
+        let source_url = skill.source_url.as_ref().unwrap();
+        
+        // Try to fetch and check for updates
+        match client
+            .get(source_url)
+            .header("User-Agent", "skill-desktop/1.0")
+            .send()
+            .await
+        {
+            Ok(response) if response.status().is_success() => {
+                if let Ok(content) = response.text().await {
+                    use sha2::{Digest, Sha256};
+                    let mut hasher = Sha256::new();
+                    hasher.update(content.as_bytes());
+                    let remote_hash = format!("{:x}", hasher.finalize());
+
+                    if remote_hash != skill.hash {
+                        results.push(SkillUpdateInfo {
+                            skill_hash: skill.hash.clone(),
+                            skill_name: skill.name.clone(),
+                            source_url: source_url.clone(),
+                            has_update: true,
+                            error: None,
+                        });
+                    }
+                }
+            }
+            Ok(response) => {
+                results.push(SkillUpdateInfo {
+                    skill_hash: skill.hash.clone(),
+                    skill_name: skill.name.clone(),
+                    source_url: source_url.clone(),
+                    has_update: false,
+                    error: Some(format!("HTTP error: {}", response.status())),
+                });
+            }
+            Err(e) => {
+                results.push(SkillUpdateInfo {
+                    skill_hash: skill.hash.clone(),
+                    skill_name: skill.name.clone(),
+                    source_url: source_url.clone(),
+                    has_update: false,
+                    error: Some(format!("Request failed: {}", e)),
+                });
+            }
+        }
+    }
+
+    Ok(results)
+}
+
+/// Information about a skill update
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SkillUpdateInfo {
+    pub skill_hash: String,
+    pub skill_name: String,
+    pub source_url: String,
+    pub has_update: bool,
+    pub error: Option<String>,
+}
+
+// ========== File Save Commands ==========
+
+/// Save content to a file (with file dialog)
+#[tauri::command]
+pub async fn save_file_with_dialog(
+    app_handle: AppHandle,
+    content: String,
+    default_name: String,
+    filter_name: String,
+    filter_extensions: Vec<String>,
+) -> Result<Option<String>, String> {
+    use tauri_plugin_dialog::DialogExt;
+    
+    let extensions: Vec<&str> = filter_extensions.iter().map(|s| s.as_str()).collect();
+    
+    let file_path = app_handle
+        .dialog()
+        .file()
+        .add_filter(&filter_name, &extensions)
+        .set_file_name(&default_name)
+        .blocking_save_file();
+    
+    match file_path {
+        Some(file_path) => {
+            if let Some(path) = file_path.as_path() {
+                let path_str = path.to_string_lossy().to_string();
+                std::fs::write(&path_str, &content)
+                    .map_err(|e| format!("Failed to write file: {}", e))?;
+                Ok(Some(path_str))
+            } else {
+                Err("Invalid file path".to_string())
+            }
+        }
+        None => Ok(None),
+    }
+}

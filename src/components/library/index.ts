@@ -1,4 +1,4 @@
-export { SkillCard } from "./SkillCard";
+export { SkillCard, SKILL_DRAG_TYPE } from "./SkillCard";
 export { SkillList } from "./SkillList";
 export { SkillListItem } from "./SkillListItem";
 export { SkillDetail } from "./SkillDetail";

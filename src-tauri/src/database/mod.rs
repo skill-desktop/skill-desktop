@@ -37,6 +37,20 @@ CREATE TABLE IF NOT EXISTS settings (
     updated_at TEXT DEFAULT (datetime('now'))
 );
 
+-- Skill version history table
+CREATE TABLE IF NOT EXISTS skill_history (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    skill_hash TEXT NOT NULL,
+    skill_name TEXT NOT NULL,
+    version TEXT NOT NULL,
+    content_hash TEXT NOT NULL,
+    change_type TEXT NOT NULL,
+    changed_at TEXT DEFAULT (datetime('now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_skill_history_hash ON skill_history(skill_hash);
+CREATE INDEX IF NOT EXISTS idx_skill_history_name ON skill_history(skill_name);
+
 -- Insert default settings
 INSERT OR IGNORE INTO settings (key, value) VALUES
     ('library_path', ''),
@@ -240,4 +254,78 @@ impl Database {
         }
         Ok(())
     }
+    
+    // ========== Version History ==========
+    
+    pub fn add_skill_history(&self, skill_hash: &str, skill_name: &str, version: &str, content_hash: &str, change_type: &str) -> Result<(), String> {
+        let conn = self.conn.lock().map_err(|e| e.to_string())?;
+        conn.execute(
+            "INSERT INTO skill_history (skill_hash, skill_name, version, content_hash, change_type) VALUES (?, ?, ?, ?, ?)",
+            rusqlite::params![skill_hash, skill_name, version, content_hash, change_type],
+        ).map_err(|e| e.to_string())?;
+        Ok(())
+    }
+    
+    pub fn get_skill_history(&self, skill_hash: &str) -> Result<Vec<SkillHistoryEntry>, String> {
+        let conn = self.conn.lock().map_err(|e| e.to_string())?;
+        let mut stmt = conn
+            .prepare("SELECT id, skill_hash, skill_name, version, content_hash, change_type, changed_at FROM skill_history WHERE skill_hash = ? ORDER BY changed_at DESC")
+            .map_err(|e| e.to_string())?;
+        
+        let entries = stmt
+            .query_map([skill_hash], |row| {
+                Ok(SkillHistoryEntry {
+                    id: row.get(0)?,
+                    skill_hash: row.get(1)?,
+                    skill_name: row.get(2)?,
+                    version: row.get(3)?,
+                    content_hash: row.get(4)?,
+                    change_type: row.get(5)?,
+                    changed_at: row.get(6)?,
+                })
+            })
+            .map_err(|e| e.to_string())?
+            .filter_map(|r| r.ok())
+            .collect();
+        
+        Ok(entries)
+    }
+    
+    pub fn get_all_skill_history(&self, limit: i64) -> Result<Vec<SkillHistoryEntry>, String> {
+        let conn = self.conn.lock().map_err(|e| e.to_string())?;
+        let mut stmt = conn
+            .prepare("SELECT id, skill_hash, skill_name, version, content_hash, change_type, changed_at FROM skill_history ORDER BY changed_at DESC LIMIT ?")
+            .map_err(|e| e.to_string())?;
+        
+        let entries = stmt
+            .query_map([limit], |row| {
+                Ok(SkillHistoryEntry {
+                    id: row.get(0)?,
+                    skill_hash: row.get(1)?,
+                    skill_name: row.get(2)?,
+                    version: row.get(3)?,
+                    content_hash: row.get(4)?,
+                    change_type: row.get(5)?,
+                    changed_at: row.get(6)?,
+                })
+            })
+            .map_err(|e| e.to_string())?
+            .filter_map(|r| r.ok())
+            .collect();
+        
+        Ok(entries)
+    }
+}
+
+/// Skill history entry
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SkillHistoryEntry {
+    pub id: i64,
+    pub skill_hash: String,
+    pub skill_name: String,
+    pub version: String,
+    pub content_hash: String,
+    pub change_type: String,
+    pub changed_at: String,
 }

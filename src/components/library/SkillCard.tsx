@@ -18,7 +18,12 @@ interface SkillCardProps {
   onToggleSelection?: (hash: string) => void;
   // Quarantine props
   isQuarantined?: boolean;
+  // Drag props
+  draggable?: boolean;
 }
+
+// Export drag data type for type safety
+export const SKILL_DRAG_TYPE = "application/skill-hash";
 
 export const SkillCard: React.FC<SkillCardProps> = ({
   skill,
@@ -28,6 +33,7 @@ export const SkillCard: React.FC<SkillCardProps> = ({
   isSelected: isSelectedForBatch = false,
   onToggleSelection,
   isQuarantined = false,
+  draggable = true,
 }) => {
   const { t } = useTranslation();
   const { setSelectedSkillHash, selectedSkillHash, setCurrentView } = useAppStore();
@@ -94,6 +100,13 @@ export const SkillCard: React.FC<SkillCardProps> = ({
     setCurrentView("spaces");
   };
 
+  // Drag handlers
+  const handleDragStart = (e: React.DragEvent) => {
+    e.dataTransfer.setData(SKILL_DRAG_TYPE, skill.hash);
+    e.dataTransfer.setData("text/plain", skill.name);
+    e.dataTransfer.effectAllowed = "copy";
+  };
+
   return (
     <ContextMenu>
       <ContextMenuTrigger asChild>
@@ -107,6 +120,8 @@ export const SkillCard: React.FC<SkillCardProps> = ({
               : "border-border-default hover:border-border-default/80"
           )}
           onClick={handleClick}
+          draggable={draggable && !selectionMode}
+          onDragStart={handleDragStart}
         >
       {/* Header with gradient accent */}
       <div className={cn(

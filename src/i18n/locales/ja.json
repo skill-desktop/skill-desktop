@@ -47,6 +47,7 @@
     "library": "ライブラリ",
     "spaces": "スペース",
     "hub": "スキルハブ",
+    "sandbox": "サンドボックス",
     "settings": "設定"
   },
   "header": {
@@ -67,7 +68,20 @@
     "selection": {
       "selected": "{{count}}件選択中",
       "quarantine": "隔離",
-      "delete": "削除"
+      "delete": "削除",
+      "addToSpace": "スペースに追加",
+      "export": "エクスポート"
+    },
+    "addToSpace": {
+      "title": "スペースに追加",
+      "description": "{{count}}件のスキルを追加するスペースを選択",
+      "noSpaces": "利用可能なスペースがありません。先にスペースを作成してください。"
+    },
+    "export": {
+      "title": "スキルをエクスポート",
+      "description": "{{count}}件のスキルをファイルにエクスポート",
+      "asMarkdown": "Markdown (.md) としてエクスポート",
+      "asJson": "JSON (.json) としてエクスポート"
     },
     "deleteConfirm": {
       "title": "{{count}}件のスキルを削除",
@@ -108,6 +122,11 @@
     "mediumRisk": "中リスク",
     "highRisk": "高リスク",
     "highRiskWarning": "このスキルは高リスクの権限を必要とします。有効にする前にソースを信頼できることを確認してください。",
+    "history": "バージョン履歴",
+    "historyCreated": "作成",
+    "historyModified": "変更",
+    "historyImported": "インポート",
+    "updateAvailable": "アップデートあり",
     "tabs": {
       "overview": "概要",
       "content": "コンテンツ",
@@ -120,11 +139,17 @@
       "unquarantine": "隔離解除",
       "delete": "削除",
       "edit": "編集",
-      "reveal": "表示"
+      "reveal": "表示",
+      "checkUpdate": "アップデートを確認",
+      "update": "更新"
     },
     "deleteConfirm": {
       "title": "スキルを削除",
       "description": "「{{name}}」を削除してもよろしいですか？この操作は元に戻せません。"
+    },
+    "updateConfirm": {
+      "title": "スキルを更新",
+      "description": "「{{name}}」の新しいバージョンが利用可能です。更新しますか？"
     }
   },
   "spaces": {
@@ -318,5 +343,41 @@
     "lineNumber": "{{line}}行目",
     "overallRisk": "全体的なリスクレベル",
     "codeWarning": "このスキルには実行可能コードが含まれています。有効にする前に検出されたリスクを慎重に確認してください。"
+  },
+  "statusBar": {
+    "ready": "準備完了",
+    "scanning": "スキャン中...",
+    "watching": "監視中",
+    "error": "エラー",
+    "visible": "表示"
+  },
+  "contextMenu": {
+    "viewDetails": "詳細を表示",
+    "viewSource": "ソースを表示",
+    "addToSpace": "スペースに追加...",
+    "showInFolder": "フォルダで表示",
+    "quarantine": "隔離",
+    "removeFromQuarantine": "隔離解除",
+    "delete": "削除"
+  },
+  "sandbox": {
+    "selectSkill": "スキルを選択",
+    "selectSkillPrompt": "リストからスキルを選択してデバッグ",
+    "noSkills": "利用可能なスキルがありません",
+    "parameters": "パラメータ",
+    "parameterInput": "パラメータ入力",
+    "noParameters": "このスキルにはパラメータがありません",
+    "execute": "実行",
+    "reset": "リセット",
+    "selectValue": "値を選択",
+    "enterJson": "JSON形式で入力",
+    "enter": "入力",
+    "executionResult": "実行結果",
+    "success": "成功",
+    "failed": "失敗",
+    "history": "実行履歴",
+    "highRiskWarning": "高リスク権限の警告",
+    "highRiskDescription": "このスキルは高リスク権限（shell_exec）を必要とします。実行してもよろしいですか？",
+    "confirmExecute": "それでも実行"
   }
 }

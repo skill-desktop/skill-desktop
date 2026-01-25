@@ -130,6 +130,18 @@ pub fn run() {
             commands::load_app_settings,
             commands::save_app_settings,
             commands::update_app_setting,
+            // Batch export commands
+            commands::export_skills_batch,
+            commands::export_skills_batch_json,
+            // Version history commands
+            commands::record_skill_change,
+            commands::get_skill_history,
+            commands::get_recent_skill_history,
+            // Update detection commands
+            commands::check_skill_update,
+            commands::check_all_skill_updates,
+            // File save commands
+            commands::save_file_with_dialog,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="public/tauri.svg" width="80" height="80" alt="Skill Desktop Logo">
+  <img src="public/skill-desktop.png" width="80" height="80" alt="Skill Desktop Logo">
 </p>
 
 <h1 align="center">Skill Desktop</h1>

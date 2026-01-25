@@ -6,8 +6,18 @@ export {
   useRescanLibrary,
   useDeleteSkill,
   useDeleteSkillsBatch,
+  useExportSkillsBatch,
+  useExportSkillsBatchJson,
+  useRecordSkillChange,
+  useSkillHistory,
+  useRecentSkillHistory,
+  useCheckSkillUpdate,
+  useCheckAllSkillUpdates,
   skillKeys,
   type BatchDeleteResult,
+  type SkillHistoryEntry,
+  type UpdateCheckResult,
+  type SkillUpdateInfo,
 } from "./useSkills";
 
 // Library hooks

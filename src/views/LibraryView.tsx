@@ -1,10 +1,11 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
-import { Trash2, X, Loader2, Shield, ShieldAlert, Filter, Folder } from "lucide-react";
+import { Trash2, X, Loader2, Shield, ShieldAlert, Filter, Folder, FolderPlus, Download } from "lucide-react";
+import { invoke } from "@tauri-apps/api/core";
 import { useAppStore, useSettingsStore } from "@/stores";
-import { useSkills, useSearchSkills, useDeleteSkillsBatch, useQuarantinedSkills, useSetSkillQuarantine } from "@/hooks";
+import { useSkills, useSearchSkills, useDeleteSkillsBatch, useQuarantinedSkills, useSetSkillQuarantine, useSpaces, useSetBulkSkillVisibility, useExportSkillsBatch, useExportSkillsBatchJson } from "@/hooks";
 import { SkillList, SkillDetail } from "@/components/library";
-import { Skeleton, Button, Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui";
+import { Skeleton, Button, Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, ScrollArea } from "@/components/ui";
 import type { Skill } from "@/types";
 
 type FilterMode = "all" | "quarantined" | "safe";
@@ -20,12 +21,18 @@ export const LibraryView: React.FC = () => {
   const [showDeleteConfirm, setShowDeleteConfirm] = React.useState(false);
   const [filterMode, setFilterMode] = React.useState<FilterMode>("all");
   const [showQuarantineConfirm, setShowQuarantineConfirm] = React.useState(false);
+  const [showAddToSpaceDialog, setShowAddToSpaceDialog] = React.useState(false);
 
   // Fetch skills from backend
   const { data: allSkills = [], isLoading, error } = useSkills();
   const deleteSkillsBatchMutation = useDeleteSkillsBatch();
   const { data: quarantinedHashes = [] } = useQuarantinedSkills();
   const setQuarantineMutation = useSetSkillQuarantine();
+  const { data: spaces = [] } = useSpaces();
+  const setBulkVisibilityMutation = useSetBulkSkillVisibility();
+  const exportBatchMutation = useExportSkillsBatch();
+  const exportBatchJsonMutation = useExportSkillsBatchJson();
+  const [showExportDialog, setShowExportDialog] = React.useState(false);
   
   // Create a set for faster lookup
   const quarantinedSet = React.useMemo(() => new Set(quarantinedHashes), [quarantinedHashes]);
@@ -116,6 +123,67 @@ export const LibraryView: React.FC = () => {
       cancelSelectionMode();
     } catch (error) {
       console.error("Failed to quarantine skills:", error);
+    }
+  };
+
+  // Handle batch add to space
+  const handleBatchAddToSpace = async (spaceId: string) => {
+    if (selectedHashes.size === 0) return;
+    
+    try {
+      await setBulkVisibilityMutation.mutateAsync({
+        spaceId,
+        skillHashes: Array.from(selectedHashes),
+        isVisible: true,
+      });
+      setShowAddToSpaceDialog(false);
+      cancelSelectionMode();
+    } catch (error) {
+      console.error("Failed to add skills to space:", error);
+    }
+  };
+
+  // Handle batch export as Markdown
+  const handleBatchExportMarkdown = async () => {
+    if (selectedHashes.size === 0) return;
+    
+    try {
+      const content = await exportBatchMutation.mutateAsync(Array.from(selectedHashes));
+      
+      // Use custom Tauri command for file save with dialog
+      await invoke<string | null>("save_file_with_dialog", {
+        content,
+        defaultName: `skills-export-${new Date().toISOString().split("T")[0]}.md`,
+        filterName: "Markdown",
+        filterExtensions: ["md"],
+      });
+      
+      setShowExportDialog(false);
+      cancelSelectionMode();
+    } catch (error) {
+      console.error("Failed to export skills:", error);
+    }
+  };
+
+  // Handle batch export as JSON
+  const handleBatchExportJson = async () => {
+    if (selectedHashes.size === 0) return;
+    
+    try {
+      const content = await exportBatchJsonMutation.mutateAsync(Array.from(selectedHashes));
+      
+      // Use custom Tauri command for file save with dialog
+      await invoke<string | null>("save_file_with_dialog", {
+        content,
+        defaultName: `skills-export-${new Date().toISOString().split("T")[0]}.json`,
+        filterName: "JSON",
+        filterExtensions: ["json"],
+      });
+      
+      setShowExportDialog(false);
+      cancelSelectionMode();
+    } catch (error) {
+      console.error("Failed to export skills:", error);
     }
   };
 
@@ -215,6 +283,24 @@ export const LibraryView: React.FC = () => {
               </Button>
             </div>
             <div className="flex items-center gap-2">
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => setShowAddToSpaceDialog(true)}
+                disabled={selectedHashes.size === 0 || spaces.length === 0}
+              >
+                <FolderPlus className="h-3.5 w-3.5 mr-1.5" />
+                {t("library.selection.addToSpace")}
+              </Button>
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => setShowExportDialog(true)}
+                disabled={selectedHashes.size === 0}
+              >
+                <Download className="h-3.5 w-3.5 mr-1.5" />
+                {t("library.selection.export")}
+              </Button>
               <Button
                 variant="secondary"
                 size="sm"
@@ -323,6 +409,101 @@ export const LibraryView: React.FC = () => {
                 <ShieldAlert className="h-3.5 w-3.5 mr-1.5" />
               )}
               {t("library.selection.quarantine")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Add to Space Dialog */}
+      <Dialog open={showAddToSpaceDialog} onOpenChange={setShowAddToSpaceDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{t("library.addToSpace.title")}</DialogTitle>
+            <DialogDescription>
+              {t("library.addToSpace.description", { count: selectedHashes.size })}
+            </DialogDescription>
+          </DialogHeader>
+          <ScrollArea className="max-h-[300px]">
+            <div className="space-y-1 py-2">
+              {spaces.map((space) => (
+                <button
+                  key={space.id}
+                  onClick={() => handleBatchAddToSpace(space.id)}
+                  disabled={setBulkVisibilityMutation.isPending}
+                  className="flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm text-text-primary hover:bg-bg-tertiary transition-colors disabled:opacity-50"
+                >
+                  <Folder className="h-4 w-4 text-text-muted" />
+                  <span className="flex-1 text-left truncate">{space.name}</span>
+                  {space.description && (
+                    <span className="text-xs text-text-muted truncate max-w-[150px]">
+                      {space.description}
+                    </span>
+                  )}
+                </button>
+              ))}
+              {spaces.length === 0 && (
+                <div className="text-center py-4 text-sm text-text-muted">
+                  {t("library.addToSpace.noSpaces")}
+                </div>
+              )}
+            </div>
+          </ScrollArea>
+          <DialogFooter>
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => setShowAddToSpaceDialog(false)}
+            >
+              {t("common.cancel")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Export Dialog */}
+      <Dialog open={showExportDialog} onOpenChange={setShowExportDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{t("library.export.title")}</DialogTitle>
+            <DialogDescription>
+              {t("library.export.description", { count: selectedHashes.size })}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2 py-4">
+            <Button
+              variant="secondary"
+              className="w-full justify-start"
+              onClick={handleBatchExportMarkdown}
+              disabled={exportBatchMutation.isPending}
+            >
+              {exportBatchMutation.isPending ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <Download className="h-4 w-4 mr-2" />
+              )}
+              {t("library.export.asMarkdown")}
+            </Button>
+            <Button
+              variant="secondary"
+              className="w-full justify-start"
+              onClick={handleBatchExportJson}
+              disabled={exportBatchJsonMutation.isPending}
+            >
+              {exportBatchJsonMutation.isPending ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <Download className="h-4 w-4 mr-2" />
+              )}
+              {t("library.export.asJson")}
+            </Button>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => setShowExportDialog(false)}
+            >
+              {t("common.cancel")}
             </Button>
           </DialogFooter>
         </DialogContent>

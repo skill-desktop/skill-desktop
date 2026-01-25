@@ -68,7 +68,20 @@
     "selection": {
       "selected": "{{count}} selected",
       "quarantine": "Quarantine",
-      "delete": "Delete"
+      "delete": "Delete",
+      "addToSpace": "Add to Space",
+      "export": "Export"
+    },
+    "addToSpace": {
+      "title": "Add to Space",
+      "description": "Select a space to add {{count}} skill(s) to",
+      "noSpaces": "No spaces available. Create a space first."
+    },
+    "export": {
+      "title": "Export Skills",
+      "description": "Export {{count}} skill(s) to a file",
+      "asMarkdown": "Export as Markdown (.md)",
+      "asJson": "Export as JSON (.json)"
     },
     "deleteConfirm": {
       "title": "Delete {{count}} Skills",
@@ -109,6 +122,10 @@
     "mediumRisk": "Medium Risk",
     "highRisk": "High Risk",
     "highRiskWarning": "This skill requires high-risk permissions. Make sure you trust the source before enabling it.",
+    "history": "Version History",
+    "historyCreated": "Created",
+    "historyModified": "Modified",
+    "historyImported": "Imported",
     "tabs": {
       "overview": "Overview",
       "content": "Content",
@@ -121,11 +138,18 @@
       "unquarantine": "Remove from Quarantine",
       "delete": "Delete",
       "edit": "Edit",
-      "reveal": "Reveal"
+      "reveal": "Reveal",
+      "checkUpdate": "Check for Updates",
+      "update": "Update"
     },
+    "updateAvailable": "Update available",
     "deleteConfirm": {
       "title": "Delete Skill",
       "description": "Are you sure you want to delete \"{{name}}\"? This action cannot be undone."
+    },
+    "updateConfirm": {
+      "title": "Update Skill",
+      "description": "A new version of \"{{name}}\" is available. Do you want to update?"
     }
   },
   "spaces": {

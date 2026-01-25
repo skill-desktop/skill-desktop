@@ -85,3 +85,121 @@ export function useDeleteSkillsBatch() {
     },
   });
 }
+
+// ========== Export Hooks ==========
+
+export function useExportSkillsBatch() {
+  return useMutation({
+    mutationFn: async (skillHashes: string[]) => {
+      return await invoke<string>("export_skills_batch", { skillHashes });
+    },
+  });
+}
+
+export function useExportSkillsBatchJson() {
+  return useMutation({
+    mutationFn: async (skillHashes: string[]) => {
+      return await invoke<string>("export_skills_batch_json", { skillHashes });
+    },
+  });
+}
+
+// ========== Version History Hooks ==========
+
+export interface SkillHistoryEntry {
+  id: number;
+  skillHash: string;
+  skillName: string;
+  version: string;
+  contentHash: string;
+  changeType: string;
+  changedAt: string;
+}
+
+export function useRecordSkillChange() {
+  return useMutation({
+    mutationFn: async ({
+      skillHash,
+      skillName,
+      version,
+      contentHash,
+      changeType,
+    }: {
+      skillHash: string;
+      skillName: string;
+      version: string;
+      contentHash: string;
+      changeType: string;
+    }) => {
+      await invoke("record_skill_change", {
+        skillHash,
+        skillName,
+        version,
+        contentHash,
+        changeType,
+      });
+    },
+  });
+}
+
+export function useSkillHistory(skillHash: string | null) {
+  return useQuery({
+    queryKey: ["skill-history", skillHash],
+    queryFn: async () => {
+      if (!skillHash) return [];
+      return await invoke<SkillHistoryEntry[]>("get_skill_history", { skillHash });
+    },
+    enabled: !!skillHash,
+  });
+}
+
+export function useRecentSkillHistory(limit?: number) {
+  return useQuery({
+    queryKey: ["skill-history", "recent", limit],
+    queryFn: async () => {
+      return await invoke<SkillHistoryEntry[]>("get_recent_skill_history", { limit });
+    },
+  });
+}
+
+// ========== Update Detection Hooks ==========
+
+export interface UpdateCheckResult {
+  hasUpdate: boolean;
+  currentHash: string;
+  remoteHash: string;
+  sourceUrl: string;
+}
+
+export interface SkillUpdateInfo {
+  skillHash: string;
+  skillName: string;
+  sourceUrl: string;
+  hasUpdate: boolean;
+  error?: string;
+}
+
+export function useCheckSkillUpdate() {
+  return useMutation({
+    mutationFn: async ({
+      sourceUrl,
+      currentHash,
+    }: {
+      sourceUrl: string;
+      currentHash: string;
+    }) => {
+      return await invoke<UpdateCheckResult>("check_skill_update", {
+        sourceUrl,
+        currentHash,
+      });
+    },
+  });
+}
+
+export function useCheckAllSkillUpdates() {
+  return useMutation({
+    mutationFn: async () => {
+      return await invoke<SkillUpdateInfo[]>("check_all_skill_updates");
+    },
+  });
+}

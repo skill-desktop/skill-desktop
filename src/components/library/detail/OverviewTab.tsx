@@ -1,9 +1,10 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
-import { BookOpen, Tag, Shield, Code, Hash, AlertTriangle } from "lucide-react";
+import { BookOpen, Tag, Shield, Code, Hash, AlertTriangle, History } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Badge, Markdown } from "@/components/ui";
 import { getPermissionLevel, getSkillRiskLevel } from "@/types";
+import { useSkillHistory } from "@/hooks/useSkills";
 import type { Skill } from "@/types";
 import { Section } from "./Section";
 import { MetadataRow } from "./MetadataRow";
@@ -18,6 +19,9 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({ skill }) => {
   
   // Get overall risk level considering both permissions and code analysis
   const overallRiskLevel = getSkillRiskLevel(skill);
+  
+  // Get version history
+  const { data: history = [] } = useSkillHistory(skill.hash);
 
   return (
     <>
@@ -125,6 +129,39 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({ skill }) => {
           )}
         </div>
       </Section>
+
+      {/* Version History */}
+      {history.length > 0 && (
+        <Section title={t("skillDetail.history")} icon={<History className="h-3.5 w-3.5" />}>
+          <div className="space-y-2">
+            {history.slice(0, 5).map((entry) => (
+              <div
+                key={entry.id}
+                className="flex items-center justify-between text-xs"
+              >
+                <div className="flex items-center gap-2">
+                  <span
+                    className={cn(
+                      "h-2 w-2 rounded-full",
+                      entry.changeType === "created" && "bg-accent-green",
+                      entry.changeType === "modified" && "bg-accent-blue",
+                      entry.changeType === "imported" && "bg-accent-purple"
+                    )}
+                  />
+                  <span className="text-text-secondary">
+                    {entry.changeType === "created" && t("skillDetail.historyCreated")}
+                    {entry.changeType === "modified" && t("skillDetail.historyModified")}
+                    {entry.changeType === "imported" && t("skillDetail.historyImported")}
+                  </span>
+                </div>
+                <span className="text-text-muted">
+                  {new Date(entry.changedAt).toLocaleDateString()}
+                </span>
+              </div>
+            ))}
+          </div>
+        </Section>
+      )}
 
       {/* Warning for high-risk (from permissions or code analysis) */}
       {overallRiskLevel === "high" && !skill.riskAnalysis && (

@@ -68,7 +68,20 @@
     "selection": {
       "selected": "已选择 {{count}} 项",
       "quarantine": "隔离",
-      "delete": "删除"
+      "delete": "删除",
+      "addToSpace": "添加到空间",
+      "export": "导出"
+    },
+    "addToSpace": {
+      "title": "添加到空间",
+      "description": "选择一个空间来添加 {{count}} 个技能",
+      "noSpaces": "暂无可用空间。请先创建一个空间。"
+    },
+    "export": {
+      "title": "导出技能",
+      "description": "将 {{count}} 个技能导出到文件",
+      "asMarkdown": "导出为 Markdown (.md)",
+      "asJson": "导出为 JSON (.json)"
     },
     "deleteConfirm": {
       "title": "删除 {{count}} 个技能",
@@ -109,6 +122,10 @@
     "mediumRisk": "中风险",
     "highRisk": "高风险",
     "highRiskWarning": "此技能需要高风险权限。请确保您信任来源后再启用。",
+    "history": "版本历史",
+    "historyCreated": "创建",
+    "historyModified": "修改",
+    "historyImported": "导入",
     "tabs": {
       "overview": "概览",
       "content": "内容",
@@ -121,11 +138,18 @@
       "unquarantine": "取消隔离",
       "delete": "删除",
       "edit": "编辑",
-      "reveal": "显示"
+      "reveal": "显示",
+      "checkUpdate": "检查更新",
+      "update": "更新"
     },
+    "updateAvailable": "有可用更新",
     "deleteConfirm": {
       "title": "删除技能",
       "description": "确定要删除「{{name}}」吗？此操作无法撤销。"
+    },
+    "updateConfirm": {
+      "title": "更新技能",
+      "description": "「{{name}}」有新版本可用。是否要更新？"
     }
   },
   "spaces": {
