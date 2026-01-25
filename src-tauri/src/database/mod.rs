@@ -51,6 +51,13 @@ CREATE TABLE IF NOT EXISTS skill_history (
 CREATE INDEX IF NOT EXISTS idx_skill_history_hash ON skill_history(skill_hash);
 CREATE INDEX IF NOT EXISTS idx_skill_history_name ON skill_history(skill_name);
 
+-- Skill Categories table
+CREATE TABLE IF NOT EXISTS skill_categories (
+    skill_hash TEXT PRIMARY KEY,
+    category TEXT NOT NULL,
+    updated_at TEXT DEFAULT (datetime('now'))
+);
+
 -- Insert default settings
 INSERT OR IGNORE INTO settings (key, value) VALUES
     ('library_path', ''),
@@ -314,6 +321,39 @@ impl Database {
             .collect();
         
         Ok(entries)
+    }
+
+    // ========== Categories ==========
+
+    pub fn get_skill_categories(&self) -> Result<std::collections::HashMap<String, String>, String> {
+        let conn = self.conn.lock().map_err(|e| e.to_string())?;
+        let mut stmt = conn
+            .prepare("SELECT skill_hash, category FROM skill_categories")
+            .map_err(|e| e.to_string())?;
+        
+        let mut map = std::collections::HashMap::new();
+        let rows = stmt
+            .query_map([], |row| {
+                Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
+            })
+            .map_err(|e| e.to_string())?;
+        
+        for row in rows {
+            if let Ok((hash, category)) = row {
+                map.insert(hash, category);
+            }
+        }
+        
+        Ok(map)
+    }
+
+    pub fn set_skill_category(&self, skill_hash: &str, category: &str) -> Result<(), String> {
+        let conn = self.conn.lock().map_err(|e| e.to_string())?;
+        conn.execute(
+            "INSERT OR REPLACE INTO skill_categories (skill_hash, category, updated_at) VALUES (?, ?, datetime('now'))",
+            rusqlite::params![skill_hash, category],
+        ).map_err(|e| e.to_string())?;
+        Ok(())
     }
 }
 

@@ -98,6 +98,7 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             commands::get_all_skills,
+            commands::set_skill_category,
             commands::search_skills,
             commands::get_skill_content,
             commands::set_library_path,

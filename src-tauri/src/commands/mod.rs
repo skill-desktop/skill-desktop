@@ -81,7 +81,10 @@ pub struct LibraryState {
 /// Get all skills from the library directory
 /// Scans for skill directories containing SKILL.md files
 #[tauri::command]
-pub async fn get_all_skills(library_state: State<'_, LibraryState>) -> Result<Vec<Skill>, String> {
+pub async fn get_all_skills(
+    library_state: State<'_, LibraryState>,
+    db_state: State<'_, DatabaseState>,
+) -> Result<Vec<Skill>, String> {
     let library_path = {
         let guard = library_state.path.lock().map_err(|e| e.to_string())?;
         guard.clone()
@@ -91,40 +94,13 @@ pub async fn get_all_skills(library_state: State<'_, LibraryState>) -> Result<Ve
         return Ok(vec![]);
     };
 
-    if !library_path.exists() {
-        return Ok(vec![]);
-    }
-
-    let mut skills = Vec::new();
-    let mut visited_dirs = std::collections::HashSet::new();
-
-    // Walk through the library directory looking for skill directories
-    for entry in WalkDir::new(&library_path)
-        .follow_links(true)
-        .into_iter()
-        .filter_map(|e| e.ok())
-    {
-        let path = entry.path();
-
-        // Check if this is a SKILL.md file
-        if path.is_file() && is_skill_file(path) {
-            // Get the parent directory (skill directory)
-            if let Some(skill_dir) = path.parent() {
-                // Skip if we've already processed this directory
-                let dir_str = skill_dir.to_string_lossy().to_string();
-                if visited_dirs.contains(&dir_str) {
-                    continue;
-                }
-                visited_dirs.insert(dir_str);
-                
-                // Create skill from directory
-                match create_skill_from_directory(skill_dir, None) {
-                    Ok(skill) => skills.push(skill),
-                    Err(e) => {
-                        tracing::warn!("Failed to parse skill directory {:?}: {}", skill_dir, e);
-                        continue;
-                    }
-                }
+    let mut skills = get_all_skills_internal(&library_path)?;
+    
+    // Enrich with categories
+    if let Ok(categories) = db_state.0.get_skill_categories() {
+        for skill in &mut skills {
+            if let Some(cat) = categories.get(&skill.hash) {
+                skill.category = Some(cat.clone());
             }
         }
     }
@@ -132,13 +108,25 @@ pub async fn get_all_skills(library_state: State<'_, LibraryState>) -> Result<Ve
     Ok(skills)
 }
 
+/// Set skill category
+#[tauri::command]
+pub async fn set_skill_category(
+    hash: String,
+    category: String,
+    db_state: State<'_, DatabaseState>,
+) -> Result<(), String> {
+    db_state.0.set_skill_category(&hash, &category)?;
+    Ok(())
+}
+
 /// Search skills by query
 #[tauri::command]
 pub async fn search_skills(
     query: String,
     library_state: State<'_, LibraryState>,
+    db_state: State<'_, DatabaseState>,
 ) -> Result<Vec<Skill>, String> {
-    let all_skills = get_all_skills(library_state).await?;
+    let all_skills = get_all_skills(library_state, db_state).await?;
 
     let query = query.to_lowercase();
     let filtered: Vec<Skill> = all_skills
@@ -147,6 +135,7 @@ pub async fn search_skills(
             skill.name.to_lowercase().contains(&query)
                 || skill.description.to_lowercase().contains(&query)
                 || skill.tags.iter().any(|t| t.to_lowercase().contains(&query))
+                || skill.category.as_ref().map_or(false, |c| c.to_lowercase().contains(&query))
         })
         .collect();
 
@@ -158,8 +147,9 @@ pub async fn search_skills(
 pub async fn get_skill_content(
     hash: String,
     library_state: State<'_, LibraryState>,
+    db_state: State<'_, DatabaseState>,
 ) -> Result<String, String> {
-    let all_skills = get_all_skills(library_state).await?;
+    let all_skills = get_all_skills(library_state, db_state).await?;
 
     let skill = all_skills
         .into_iter()

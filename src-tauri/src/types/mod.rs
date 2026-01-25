@@ -156,6 +156,9 @@ pub struct Skill {
     pub created_at: String,
     /// Last update timestamp
     pub updated_at: String,
+    /// Category (optional, from database)
+    #[serde(default)]
+    pub category: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
