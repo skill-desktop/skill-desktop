@@ -1,7 +1,10 @@
 {
   "name": "skill-desktop",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.2.0",
+  "pnpm": {
+    "ignoredBuiltDependencies": ["esbuild"]
+  },
   "type": "module",
   "scripts": {
     "dev": "vite",
