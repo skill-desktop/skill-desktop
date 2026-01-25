@@ -133,8 +133,7 @@
     "updateAvailable": "アップデートあり",
     "tabs": {
       "overview": "概要",
-      "content": "コンテンツ",
-      "source": "ソース"
+      "security": "セキュリティ"
     },
     "fileTree": "ディレクトリ構造",
     "files": "ファイル",

@@ -1,15 +1,13 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
-import { FolderTree, File, Folder, FolderOpen, ChevronRight, ChevronDown, AlertTriangle, BookOpen, Tag, Shield, Code } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { FolderTree, File, Folder, FolderOpen, ChevronRight, ChevronDown, BookOpen, Tag } from "lucide-react";
 import { Badge, Markdown } from "@/components/ui";
-import { getPermissionLevel, getSkillRiskLevel } from "@/types";
 import type { Skill, SkillResource } from "@/types";
 import { Section } from "./Section";
-import { RiskAnalysisSection } from "./RiskAnalysisSection";
 
 interface OverviewTabProps {
   skill: Skill;
+  onOpenFile?: (filePath: string) => void;
 }
 
 // File tree node type
@@ -103,7 +101,9 @@ const TreeNodeItem: React.FC<{
   level: number;
   expandedFolders: Set<string>;
   onToggleFolder: (path: string) => void;
-}> = ({ node, level, expandedFolders, onToggleFolder }) => {
+  skillDir: string;
+  onOpenFile?: (filePath: string) => void;
+}> = ({ node, level, expandedFolders, onToggleFolder, skillDir, onOpenFile }) => {
   const isExpanded = expandedFolders.has(node.path);
   const paddingLeft = level * 16;
   
@@ -112,7 +112,7 @@ const TreeNodeItem: React.FC<{
       <div>
         <button
           onClick={() => onToggleFolder(node.path)}
-          className="flex w-full items-center gap-1.5 py-1 px-2 text-xs hover:bg-bg-tertiary rounded transition-colors"
+          className="flex w-full items-center gap-1.5 py-1 px-2 text-xs hover:bg-bg-elevated rounded transition-colors"
           style={{ paddingLeft }}
         >
           {isExpanded ? (
@@ -139,6 +139,8 @@ const TreeNodeItem: React.FC<{
                 level={level + 1}
                 expandedFolders={expandedFolders}
                 onToggleFolder={onToggleFolder}
+                skillDir={skillDir}
+                onOpenFile={onOpenFile}
               />
             ))}
           </div>
@@ -147,28 +149,34 @@ const TreeNodeItem: React.FC<{
     );
   }
   
-  // File node
+  // File node - clickable to open editor
+  const handleClick = () => {
+    if (onOpenFile) {
+      // Build full path: skillDir + node.path
+      const fullPath = `${skillDir}/${node.path}`;
+      onOpenFile(fullPath);
+    }
+  };
+  
   return (
-    <div
-      className="flex items-center gap-1.5 py-1 px-2 text-xs hover:bg-bg-tertiary rounded transition-colors"
+    <button
+      onClick={handleClick}
+      className="flex w-full items-center gap-1.5 py-1 px-2 text-xs hover:bg-accent-blue/10 hover:text-accent-blue rounded transition-colors cursor-pointer"
       style={{ paddingLeft: paddingLeft + 16 }}
     >
       <File className="h-3.5 w-3.5 text-text-muted shrink-0" />
-      <span className="text-text-secondary truncate flex-1">{node.name}</span>
+      <span className="truncate flex-1 text-left">{node.name}</span>
       {node.resource && (
         <span className="text-text-muted text-[10px]">
           {formatFileSize(node.resource.size)}
         </span>
       )}
-    </div>
+    </button>
   );
 };
 
-export const OverviewTab: React.FC<OverviewTabProps> = ({ skill }) => {
+export const OverviewTab: React.FC<OverviewTabProps> = ({ skill, onOpenFile }) => {
   const { t } = useTranslation();
-  
-  // Get overall risk level considering both permissions and code analysis
-  const overallRiskLevel = getSkillRiskLevel(skill);
   
   // Build file tree
   const fileTree = React.useMemo(() => buildFileTree(skill), [skill]);
@@ -224,6 +232,8 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({ skill }) => {
               level={0}
               expandedFolders={expandedFolders}
               onToggleFolder={toggleFolder}
+              skillDir={skill.skillDir}
+              onOpenFile={onOpenFile}
             />
           ))}
         </div>
@@ -248,89 +258,6 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({ skill }) => {
             ))}
           </div>
         </Section>
-      )}
-
-      {/* Permissions */}
-      <Section title={t("skillDetail.permissions")} icon={<Shield className="h-3.5 w-3.5" />}>
-        {skill.permissions.length > 0 ? (
-          <div className="space-y-2">
-            {skill.permissions.map((permission) => {
-              const level = getPermissionLevel(permission);
-              return (
-                <div
-                  key={permission}
-                  className="flex items-center justify-between"
-                >
-                  <div className="flex items-center gap-2">
-                    <span
-                      className={cn(
-                        "h-2 w-2 rounded-full",
-                        level === "low" && "bg-permission-low",
-                        level === "medium" && "bg-permission-medium",
-                        level === "high" && "bg-permission-high"
-                      )}
-                    />
-                    <span className="text-xs text-text-primary">
-                      {permission}
-                    </span>
-                  </div>
-                  <Badge variant={level} className="text-[10px]">
-                    {level === "low"
-                      ? t("skillDetail.lowRisk")
-                      : level === "medium"
-                      ? t("skillDetail.mediumRisk")
-                      : t("skillDetail.highRisk")}
-                  </Badge>
-                </div>
-              );
-            })}
-          </div>
-        ) : (
-          <p className="text-xs text-text-muted">{t("skillDetail.noPermissions")}</p>
-        )}
-      </Section>
-
-      {/* Risk Analysis from code scanning */}
-      {skill.riskAnalysis && (
-        <RiskAnalysisSection riskAnalysis={skill.riskAnalysis} />
-      )}
-
-      {/* Parameters */}
-      {skill.parameters.length > 0 && (
-        <Section title={t("skillDetail.parameters")} icon={<Code className="h-3.5 w-3.5" />}>
-          <div className="space-y-3">
-            {skill.parameters.map((param) => (
-              <div key={param.name} className="rounded-md border border-border-muted bg-bg-tertiary p-2">
-                <div className="flex items-center gap-2">
-                  <code className="text-xs font-medium text-accent-blue">
-                    {param.name}
-                  </code>
-                  <span className="text-[10px] text-text-muted px-1.5 py-0.5 rounded bg-bg-elevated">
-                    {param.type}
-                  </span>
-                  {param.required && (
-                    <span className="text-[10px] text-accent-red">
-                      {t("skillDetail.required")}
-                    </span>
-                  )}
-                </div>
-                <p className="text-[11px] text-text-secondary mt-1">
-                  {param.description}
-                </p>
-              </div>
-            ))}
-          </div>
-        </Section>
-      )}
-
-      {/* Warning for high-risk (from permissions or code analysis) */}
-      {overallRiskLevel === "high" && !skill.riskAnalysis && (
-        <div className="mt-4 flex items-start gap-2 rounded-md border border-permission-high/50 bg-permission-high/10 p-3">
-          <AlertTriangle className="h-4 w-4 text-permission-high shrink-0 mt-0.5" />
-          <p className="text-xs text-permission-high">
-            {t("skillDetail.highRiskWarning")}
-          </p>
-        </div>
       )}
     </>
   );

@@ -4,7 +4,6 @@ import {
   X,
   Folder,
   Trash2,
-  FileText,
   Loader2,
   Copy,
   Check,
@@ -15,12 +14,12 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAppStore } from "@/stores";
-import { useDeleteSkill, useShowInFolder, useSkillContent, useQuarantinedSkills, useSetSkillQuarantine, useCheckSkillUpdate } from "@/hooks";
+import { useDeleteSkill, useShowInFolder, useQuarantinedSkills, useSetSkillQuarantine, useCheckSkillUpdate } from "@/hooks";
 import { useImportSkillFromUrl } from "@/hooks/useImport";
 import { Button, ScrollArea, Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui";
 import { FileEditorDialog } from "@/components/editor/FileEditorDialog";
 import type { Skill } from "@/types";
-import { TabButton, OverviewTab, ContentTab, SourceTab } from "./detail";
+import { TabButton, OverviewTab, SecurityTab } from "./detail";
 
 interface SkillDetailProps {
   skill: Skill | null;
@@ -31,14 +30,13 @@ export const SkillDetail: React.FC<SkillDetailProps> = ({ skill }) => {
   const { setSelectedSkillHash, detailPanelOpen, setDetailPanelOpen } =
     useAppStore();
   const [showDeleteConfirm, setShowDeleteConfirm] = React.useState(false);
-  const [activeTab, setActiveTab] = React.useState<"overview" | "content" | "source">("overview");
+  const [activeTab, setActiveTab] = React.useState<"overview" | "security">("overview");
   const [copied, setCopied] = React.useState(false);
   const [editorOpen, setEditorOpen] = React.useState(false);
+  const [editingFilePath, setEditingFilePath] = React.useState<string>("");
 
   const deleteSkillMutation = useDeleteSkill();
   const showInFolderMutation = useShowInFolder();
-  // const openFileMutation = useOpenFile(); // Removed as we use internal editor
-  const { data: skillContent } = useSkillContent(skill?.hash || null);
   const { data: quarantinedHashes = [] } = useQuarantinedSkills();
   const setQuarantineMutation = useSetSkillQuarantine();
   const checkUpdateMutation = useCheckSkillUpdate();
@@ -84,7 +82,8 @@ export const SkillDetail: React.FC<SkillDetailProps> = ({ skill }) => {
     setDetailPanelOpen(false);
   };
 
-  const handleViewSource = () => {
+  const handleOpenFile = (filePath: string) => {
+    setEditingFilePath(filePath);
     setEditorOpen(true);
   };
 
@@ -182,25 +181,18 @@ export const SkillDetail: React.FC<SkillDetailProps> = ({ skill }) => {
               {t("skillDetail.tabs.overview")}
             </TabButton>
             <TabButton
-              active={activeTab === "content"}
-              onClick={() => setActiveTab("content")}
+              active={activeTab === "security"}
+              onClick={() => setActiveTab("security")}
             >
-              {t("skillDetail.tabs.content")}
-            </TabButton>
-            <TabButton
-              active={activeTab === "source"}
-              onClick={() => setActiveTab("source")}
-            >
-              {t("skillDetail.tabs.source")}
+              {t("skillDetail.tabs.security")}
             </TabButton>
           </div>
         </div>
 
         {/* Content */}
         <ScrollArea className="flex-1 p-4">
-          {activeTab === "overview" && <OverviewTab skill={skill} />}
-          {activeTab === "content" && <ContentTab content={skillContent} />}
-          {activeTab === "source" && <SourceTab skill={skill} content={skillContent} />}
+          {activeTab === "overview" && <OverviewTab skill={skill} onOpenFile={handleOpenFile} />}
+          {activeTab === "security" && <SecurityTab skill={skill} />}
         </ScrollArea>
 
         {/* Quarantine status banner */}
@@ -224,15 +216,6 @@ export const SkillDetail: React.FC<SkillDetailProps> = ({ skill }) => {
 
         {/* Actions */}
         <div className="flex items-center gap-2 border-t border-border-default p-4">
-          <Button
-            variant="secondary"
-            size="sm"
-            className="flex-1"
-            onClick={handleViewSource}
-          >
-            <FileText className="h-3.5 w-3.5 mr-1.5" />
-            {t("skillDetail.actions.edit")}
-          </Button>
           <Button
             variant="secondary"
             size="sm"
@@ -361,7 +344,7 @@ export const SkillDetail: React.FC<SkillDetailProps> = ({ skill }) => {
       <FileEditorDialog
         open={editorOpen}
         onOpenChange={setEditorOpen}
-        filePath={skill.localPath}
+        filePath={editingFilePath}
       />
     </>
   );

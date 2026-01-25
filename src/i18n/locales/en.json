@@ -137,8 +137,7 @@
     "historyImported": "Imported",
     "tabs": {
       "overview": "Overview",
-      "content": "Content",
-      "source": "Source"
+      "security": "Security"
     },
     "fileTree": "File Structure",
     "files": "files",

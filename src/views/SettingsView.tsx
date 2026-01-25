@@ -363,26 +363,28 @@ export const SettingsView: React.FC = () => {
   return (
     <div className="flex h-full">
       {/* Left sidebar menu */}
-      <div className="w-56 border-r border-border-default bg-bg-secondary/50 p-4">
-        <h2 className="text-sm font-semibold text-text-primary mb-4 px-2">
-          {t("settings.title")}
-        </h2>
-        <nav className="space-y-1">
+      <div className="w-72 border-r border-border-default bg-bg-secondary">
+        <div className="border-b border-border-default p-3">
+          <h2 className="text-sm font-medium text-text-primary">
+            {t("settings.title")}
+          </h2>
+        </div>
+        <ScrollArea className="h-[calc(100%-49px)]">
           {menuItems.map((item) => (
             <button
               key={item.id}
               onClick={() => setActiveSection(item.id)}
-              className={`w-full flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors ${
+              className={`w-full px-3 py-2 text-left text-sm transition-colors flex items-center gap-3 ${
                 activeSection === item.id
-                  ? "bg-accent-blue/10 text-accent-blue"
-                  : "text-text-secondary hover:bg-bg-tertiary hover:text-text-primary"
+                  ? "bg-bg-tertiary text-text-primary border-l-2 border-accent-blue"
+                  : "text-text-secondary hover:bg-bg-tertiary hover:text-text-primary border-l-2 border-transparent"
               }`}
             >
               {item.icon}
               <span>{t(item.labelKey)}</span>
             </button>
           ))}
-        </nav>
+        </ScrollArea>
       </div>
 
       {/* Right content area */}

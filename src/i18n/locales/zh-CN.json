@@ -137,8 +137,7 @@
     "historyImported": "导入",
     "tabs": {
       "overview": "概览",
-      "content": "内容",
-      "source": "源码"
+      "security": "权限与风险"
     },
     "fileTree": "目录结构",
     "files": "个文件",

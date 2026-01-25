@@ -1,7 +1,5 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
-import { Check } from "lucide-react";
-import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui";
 import { useSkillVisibilityMap } from "@/hooks";
 import type { Space } from "@/types";
@@ -29,30 +27,26 @@ export const SpaceListItem: React.FC<SpaceListItemProps> = ({
 
   return (
     <button
-      className={cn(
-        "flex w-full items-center justify-between p-3 text-left transition-colors hover:bg-bg-tertiary",
-        isSelected && "bg-bg-tertiary"
-      )}
+      className={`w-full px-3 py-2 text-left text-sm transition-colors ${
+        isSelected
+          ? "bg-bg-tertiary text-text-primary border-l-2 border-accent-blue"
+          : "text-text-secondary hover:bg-bg-tertiary hover:text-text-primary border-l-2 border-transparent"
+      }`}
       onClick={onSelect}
     >
-      <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-2">
-          <span className="text-sm font-medium text-text-primary truncate">
-            {space.name}
-          </span>
-          {space.isDefault && (
-            <Badge variant="blue" className="text-[10px]">
-              {t("common.default")}
-            </Badge>
-          )}
-        </div>
-        <span className="text-xs text-text-muted">
-          {visibleCount} / {totalSkills} {t("common.skills")}
+      <div className="flex items-center gap-2">
+        <span className="font-medium truncate flex-1">
+          {space.name}
         </span>
+        {space.isDefault && (
+          <Badge variant="blue" className="text-[10px]">
+            {t("common.default")}
+          </Badge>
+        )}
       </div>
-      {isSelected && (
-        <Check className="h-4 w-4 text-accent-blue shrink-0" />
-      )}
+      <div className="text-xs text-text-muted">
+        {visibleCount} / {totalSkills} {t("common.skills")}
+      </div>
     </button>
   );
 };

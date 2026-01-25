@@ -115,8 +115,7 @@
     "highRiskWarning": "此技能需要高風險權限。請確保您信任來源後再啟用。",
     "tabs": {
       "overview": "概覽",
-      "content": "內容",
-      "source": "原始碼"
+      "security": "權限與風險"
     },
     "fileTree": "目錄結構",
     "files": "個檔案",
