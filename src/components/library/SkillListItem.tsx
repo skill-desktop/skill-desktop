@@ -45,11 +45,11 @@ export const SkillListItem: React.FC<SkillListItemProps> = ({
   return (
     <div
       className={cn(
-        "flex items-center gap-4 px-4 py-3 cursor-pointer transition-colors hover:bg-bg-tertiary border-l-2",
+        "flex cursor-pointer items-center gap-4 border-l-2 px-4 py-3 transition-colors hover:bg-bg-tertiary",
         selectionMode && isSelectedForBatch
-          ? "bg-accent-blue/10 border-l-accent-blue"
-          : isSelected 
-          ? "bg-bg-tertiary border-l-accent-blue" 
+          ? "border-l-accent-blue bg-accent-blue/10"
+          : isSelected
+          ? "border-l-accent-blue bg-bg-tertiary"
           : isQuarantined
           ? "border-l-accent-yellow/70"
           : hasHighRisk
@@ -58,7 +58,6 @@ export const SkillListItem: React.FC<SkillListItemProps> = ({
       )}
       onClick={handleClick}
     >
-      {/* Selection checkbox or Visibility toggle */}
       {selectionMode ? (
         <div onClick={(e) => e.stopPropagation()}>
           <input
@@ -72,70 +71,69 @@ export const SkillListItem: React.FC<SkillListItemProps> = ({
         <div onClick={(e) => e.stopPropagation()}>
           <Switch
             checked={isVisible}
-            onCheckedChange={(checked) => {
-              onVisibilityChange(checked);
-            }}
+            onCheckedChange={(checked) => onVisibilityChange(checked)}
           />
         </div>
       ) : null}
 
-      {/* Risk/Quarantine indicator */}
       {isQuarantined ? (
-        <ShieldAlert className="w-4 h-4 text-accent-yellow shrink-0" />
+        <ShieldAlert
+          className="h-4 w-4 shrink-0 text-accent-yellow"
+          aria-label="quarantined"
+        />
       ) : (
-        <div className={cn(
-          "w-2 h-2 rounded-full shrink-0",
-          hasHighRisk 
-            ? "bg-permission-high"
-            : skill.permissions.some(p => getPermissionLevel(p) === "medium")
-            ? "bg-permission-medium"
-            : skill.permissions.length > 0
-            ? "bg-permission-low"
-            : "bg-text-muted/30"
-        )} />
+        <div
+          aria-hidden
+          className={cn(
+            "h-2 w-2 shrink-0 rounded-full",
+            hasHighRisk
+              ? "bg-permission-high"
+              : skill.permissions.some((p) => getPermissionLevel(p) === "medium")
+              ? "bg-permission-medium"
+              : skill.permissions.length > 0
+              ? "bg-permission-low"
+              : "bg-text-muted/30"
+          )}
+        />
       )}
 
-      {/* Name and author */}
       <div className="w-44 min-w-0">
-        <span className="text-sm font-medium text-text-primary truncate block">
+        <span className="block truncate text-sm font-medium text-text-primary">
           {skill.name}
         </span>
         {skill.author && (
-          <span className="text-[10px] text-text-muted truncate block">
+          <span className="block truncate text-xs text-text-muted">
             {skill.author}
           </span>
         )}
       </div>
 
-      {/* Description */}
-      <div className="flex-1 min-w-0">
-        <span className="text-xs text-text-secondary truncate block">
+      <div className="min-w-0 flex-1">
+        <span className="block truncate text-xs text-text-secondary">
           {skill.description || t("skillCard.noDescription")}
         </span>
       </div>
 
-      {/* Tags (first 2) */}
-      <div className="flex items-center gap-1 shrink-0 w-32">
+      <div className="flex w-32 shrink-0 items-center gap-1">
         {skill.tags.slice(0, 2).map((tag) => (
           <span
             key={tag}
-            className="text-[10px] text-text-muted px-1.5 py-0.5 rounded bg-bg-tertiary truncate"
+            className="truncate rounded bg-bg-tertiary px-1.5 py-0.5 text-[10px] text-text-muted"
           >
             {tag}
           </span>
         ))}
       </div>
 
-      {/* Permissions */}
-      <div className="flex items-center gap-1 shrink-0 w-36">
-        <Shield className="h-3 w-3 text-text-muted shrink-0" />
+      <div className="flex w-36 shrink-0 items-center gap-1">
+        <Shield className="h-3 w-3 shrink-0 text-text-muted" />
         {skill.permissions.length > 0 ? (
           <>
             {skill.permissions.slice(0, 2).map((permission) => (
               <Badge
                 key={permission}
                 variant={getPermissionLevel(permission)}
-                className="text-[9px] px-1.5 py-0"
+                className="px-1.5 py-0 text-[10px]"
               >
                 {permission}
               </Badge>
@@ -151,18 +149,14 @@ export const SkillListItem: React.FC<SkillListItemProps> = ({
         )}
       </div>
 
-      {/* Indicators */}
-      <div className="flex items-center gap-2 shrink-0 w-12 justify-end">
+      <div className="flex w-12 shrink-0 items-center justify-end gap-2 text-text-muted">
         {skill.isDownloaded && (
           <Download className="h-3 w-3 text-accent-blue" />
         )}
-        {skill.sourceUrl && (
-          <ExternalLink className="h-3 w-3 text-text-muted" />
-        )}
+        {skill.sourceUrl && <ExternalLink className="h-3 w-3" />}
       </div>
 
-      {/* Version */}
-      <span className="text-[10px] text-text-muted w-14 text-right shrink-0 px-1.5 py-0.5 rounded bg-bg-tertiary">
+      <span className="w-14 shrink-0 rounded bg-bg-tertiary px-1.5 py-0.5 text-right font-mono text-[10px] text-text-muted">
         v{skill.version}
       </span>
     </div>

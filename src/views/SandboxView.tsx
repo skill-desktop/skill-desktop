@@ -1,7 +1,19 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
 import { Play, RotateCcw, AlertTriangle, CheckCircle, XCircle, Loader2, ChevronDown, ChevronRight, Clock, FileCode2, Terminal } from "lucide-react";
-import { Button, Input, ScrollArea, Badge } from "@/components/ui";
+import {
+  Button,
+  Input,
+  Badge,
+  SidePanel,
+  SideNavItem,
+  EmptyState,
+  Textarea,
+  Alert,
+  Section,
+  ButtonGroup,
+} from "@/components/ui";
+import { cn } from "@/lib/utils";
 import { useSkills, useSkillScripts, useExecuteScript } from "@/hooks";
 import type { Skill, Parameter } from "@/types";
 import { getPermissionLevel } from "@/types";
@@ -162,251 +174,244 @@ export const SandboxView: React.FC = () => {
 
   return (
     <div className="flex h-full">
-      {/* Skill selector */}
-      <div className="w-72 border-r border-border-default bg-bg-secondary">
-        <div className="border-b border-border-default p-3">
-          <h2 className="text-sm font-medium text-text-primary">{t("sandbox.selectSkill")}</h2>
-        </div>
-        <ScrollArea className="h-[calc(100%-49px)]">
-          {skills.length === 0 ? (
-            <div className="p-4 text-center text-sm text-text-muted">
-              {t("sandbox.noSkills")}
-            </div>
-          ) : (
-            skills.map((skill) => (
-              <button
-                key={skill.hash}
-                className={`w-full px-3 py-2 text-left text-sm transition-colors ${
-                  selectedSkill?.hash === skill.hash
-                    ? "bg-bg-tertiary text-text-primary border-l-2 border-accent-blue"
-                    : "text-text-secondary hover:bg-bg-tertiary hover:text-text-primary border-l-2 border-transparent"
-                }`}
-                onClick={() => setSelectedSkill(skill)}
-              >
-                <div className="flex items-center gap-2">
-                  <div className="font-medium truncate flex-1">{skill.name}</div>
-                  {skill.resources.scripts.length > 0 && (
-                    <FileCode2 className="h-3.5 w-3.5 text-accent-blue shrink-0" />
-                  )}
-                </div>
-                <div className="text-xs text-text-muted truncate">
+      <SidePanel title={t("sandbox.selectSkill")}>
+        {skills.length === 0 ? (
+          <EmptyState
+            variant="compact"
+            title={t("sandbox.noSkills")}
+          />
+        ) : (
+          skills.map((skill) => (
+            <SideNavItem
+              key={skill.hash}
+              label={skill.name}
+              meta={
+                <>
                   {skill.parameters.length} {t("sandbox.parameters")}
                   {skill.resources.scripts.length > 0 && (
                     <span className="ml-2">• {skill.resources.scripts.length} scripts</span>
                   )}
-                </div>
-              </button>
-            ))
-          )}
-        </ScrollArea>
-      </div>
+                </>
+              }
+              trailing={
+                skill.resources.scripts.length > 0 ? (
+                  <FileCode2 className="h-3.5 w-3.5 text-accent-blue" />
+                ) : null
+              }
+              active={selectedSkill?.hash === skill.hash}
+              onClick={() => setSelectedSkill(skill)}
+            />
+          ))
+        )}
+      </SidePanel>
 
-      {/* Main content */}
-      <div className="flex-1 flex flex-col">
+      <div className="flex flex-1 flex-col overflow-hidden">
         {selectedSkill ? (
           <>
-            {/* Header */}
-            <div className="border-b border-border-default p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h2 className="text-lg font-semibold text-text-primary">{selectedSkill.name}</h2>
-                  <p className="text-sm text-text-muted">{selectedSkill.description}</p>
-                </div>
-                <div className="flex items-center gap-2">
+            <header className="flex shrink-0 items-start justify-between gap-4 border-b border-border-default px-6 py-4">
+              <div className="min-w-0">
+                <h2 className="truncate text-lg font-semibold text-text-primary">
+                  {selectedSkill.name}
+                </h2>
+                {selectedSkill.description && (
+                  <p className="mt-1 text-sm text-text-muted">{selectedSkill.description}</p>
+                )}
+              </div>
+              {selectedSkill.permissions.length > 0 && (
+                <div className="flex shrink-0 flex-wrap items-center gap-1.5">
                   {selectedSkill.permissions.map((permission) => (
                     <Badge key={permission} variant={getPermissionLevel(permission)}>
                       {permission}
                     </Badge>
                   ))}
                 </div>
-              </div>
-            </div>
+              )}
+            </header>
 
-            {/* Tabs for parameters and scripts */}
-            <div className="flex-1 overflow-auto p-4">
-              <div className="max-w-2xl">
-                {/* Tab buttons */}
-                <div className="flex gap-1 mb-4 border-b border-border-default pb-1">
-                  <button
+            <div className="flex-1 overflow-y-auto px-6 py-5">
+              <div className="mx-auto max-w-2xl space-y-6">
+                <ButtonGroup>
+                  <Button
+                    variant={activeTab === "params" ? "secondary" : "ghost"}
+                    size="sm"
                     onClick={() => setActiveTab("params")}
-                    className={`px-3 py-1.5 text-sm font-medium rounded-t-md transition-colors ${
-                      activeTab === "params"
-                        ? "bg-bg-tertiary text-text-primary"
-                        : "text-text-muted hover:text-text-primary"
-                    }`}
                   >
                     {t("sandbox.parameterInput")}
-                  </button>
-                  {scripts.length > 0 && (
-                    <button
-                      onClick={() => setActiveTab("scripts")}
-                      className={`px-3 py-1.5 text-sm font-medium rounded-t-md transition-colors flex items-center gap-1.5 ${
-                        activeTab === "scripts"
-                          ? "bg-bg-tertiary text-text-primary"
-                          : "text-text-muted hover:text-text-primary"
-                      }`}
-                    >
-                      <FileCode2 className="h-3.5 w-3.5" />
-                      Scripts ({scripts.length})
-                    </button>
-                  )}
-                </div>
-
-                {/* Tab content: Parameters */}
-                {activeTab === "params" && (
-                  <>
-                    {selectedSkill.parameters.length === 0 ? (
-                      <p className="text-sm text-text-muted">{t("sandbox.noParameters")}</p>
-                    ) : (
-                      <div className="space-y-4">
-                        {selectedSkill.parameters.map((param) => (
-                          <ParameterInput
-                            key={param.name}
-                            param={param}
-                            value={paramValues[param.name] || ""}
-                            onChange={(value) => handleParamChange(param.name, value)}
-                          />
-                        ))}
-                      </div>
+                    {selectedSkill.parameters.length > 0 && (
+                      <span className="ml-1.5 text-text-muted tabular-nums">
+                        {selectedSkill.parameters.length}
+                      </span>
                     )}
-                  </>
-                )}
+                  </Button>
+                  {scripts.length > 0 && (
+                    <Button
+                      variant={activeTab === "scripts" ? "secondary" : "ghost"}
+                      size="sm"
+                      onClick={() => setActiveTab("scripts")}
+                    >
+                      <FileCode2 className="mr-1 h-3.5 w-3.5" />
+                      Scripts
+                      <span className="ml-1.5 text-text-muted tabular-nums">{scripts.length}</span>
+                    </Button>
+                  )}
+                </ButtonGroup>
 
-                {/* Tab content: Scripts */}
+                {activeTab === "params" &&
+                  (selectedSkill.parameters.length === 0 ? (
+                    <p className="text-sm text-text-muted">{t("sandbox.noParameters")}</p>
+                  ) : (
+                    <div className="space-y-4">
+                      {selectedSkill.parameters.map((param) => (
+                        <ParameterInput
+                          key={param.name}
+                          param={param}
+                          value={paramValues[param.name] || ""}
+                          onChange={(value) => handleParamChange(param.name, value)}
+                        />
+                      ))}
+                    </div>
+                  ))}
+
                 {activeTab === "scripts" && (
-                  <>
+                  <div className="space-y-3">
                     <div className="space-y-2">
                       {scripts.map((script) => (
                         <button
                           key={script}
-                          onClick={() => setSelectedScript(script === selectedScript ? null : script)}
-                          className={`w-full flex items-center gap-3 px-3 py-2 rounded-md border transition-colors ${
+                          onClick={() =>
+                            setSelectedScript(script === selectedScript ? null : script)
+                          }
+                          className={cn(
+                            "flex w-full items-center gap-3 rounded-md border px-3 py-2 transition-colors",
                             selectedScript === script
                               ? "border-accent-blue bg-accent-blue/10"
                               : "border-border-default hover:bg-bg-tertiary"
-                          }`}
+                          )}
                         >
                           <Terminal className="h-4 w-4 text-text-muted" />
-                          <span className="text-sm font-mono text-text-primary">{script}</span>
+                          <span className="truncate font-mono text-sm text-text-primary">
+                            {script}
+                          </span>
                         </button>
                       ))}
                     </div>
                     {selectedScript && (
-                      <p className="text-xs text-text-muted mt-3">
-                        Selected script: <code className="bg-bg-tertiary px-1 rounded">{selectedScript}</code>
+                      <p className="text-xs text-text-muted">
+                        Selected script:{" "}
+                        <code className="rounded bg-bg-tertiary px-1 font-mono">
+                          {selectedScript}
+                        </code>
                       </p>
                     )}
-                  </>
+                  </div>
                 )}
 
-                {/* Action buttons */}
-                <div className="flex items-center gap-2 mt-6">
-                  <Button
-                    onClick={handleExecute}
-                    disabled={!isValid || isExecuting}
-                  >
+                <div className="flex items-center gap-2">
+                  <Button onClick={handleExecute} disabled={!isValid || isExecuting}>
                     {isExecuting ? (
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                     ) : (
-                      <Play className="h-4 w-4 mr-2" />
+                      <Play className="mr-2 h-4 w-4" />
                     )}
                     {selectedScript ? `Execute ${selectedScript}` : t("sandbox.execute")}
                   </Button>
                   <Button variant="secondary" onClick={handleReset}>
-                    <RotateCcw className="h-4 w-4 mr-2" />
+                    <RotateCcw className="mr-2 h-4 w-4" />
                     {t("sandbox.reset")}
                   </Button>
                 </div>
 
-                {/* High-risk warning dialog */}
                 {showConfirmDialog && (
-                  <div className="mt-4 p-4 rounded-lg border border-accent-yellow bg-accent-yellow/10">
-                    <div className="flex items-start gap-3">
-                      <AlertTriangle className="h-5 w-5 text-accent-yellow shrink-0 mt-0.5" />
-                      <div className="flex-1">
-                        <h4 className="text-sm font-medium text-text-primary">{t("sandbox.highRiskWarning")}</h4>
-                        <p className="text-sm text-text-secondary mt-1">{t("sandbox.highRiskDescription")}</p>
-                        <div className="flex gap-2 mt-3">
-                          <Button size="sm" onClick={handleExecute}>
-                            {t("sandbox.confirmExecute")}
-                          </Button>
-                          <Button variant="secondary" size="sm" onClick={() => setShowConfirmDialog(false)}>
-                            {t("common.cancel")}
-                          </Button>
-                        </div>
+                  <Alert
+                    tone="warning"
+                    icon={<AlertTriangle className="h-3.5 w-3.5" />}
+                    className="text-sm"
+                  >
+                    <div className="space-y-2 text-text-primary">
+                      <p className="font-medium">{t("sandbox.highRiskWarning")}</p>
+                      <p className="text-text-secondary">{t("sandbox.highRiskDescription")}</p>
+                      <div className="flex gap-2 pt-1">
+                        <Button size="sm" onClick={handleExecute}>
+                          {t("sandbox.confirmExecute")}
+                        </Button>
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          onClick={() => setShowConfirmDialog(false)}
+                        >
+                          {t("common.cancel")}
+                        </Button>
                       </div>
                     </div>
-                  </div>
+                  </Alert>
                 )}
 
-                {/* Execution result */}
                 {executionResult && (
-                  <div className="mt-6">
-                    <h3 className="text-sm font-medium text-text-primary mb-2 flex items-center gap-2">
-                      {t("sandbox.executionResult")}
-                      <span className="text-xs text-text-muted">
-                        {executionResult.durationMs}ms
-                      </span>
-                      {executionResult.exitCode !== null && (
-                        <span className="text-xs text-text-muted">
-                          (exit code: {executionResult.exitCode})
+                  <Section
+                    title={
+                      <span className="flex items-center gap-2">
+                        {t("sandbox.executionResult")}
+                        <span className="text-xs font-normal text-text-muted tabular-nums">
+                          {executionResult.durationMs}ms
                         </span>
-                      )}
-                    </h3>
+                        {executionResult.exitCode !== null && (
+                          <span className="text-xs font-normal text-text-muted">
+                            (exit {executionResult.exitCode})
+                          </span>
+                        )}
+                      </span>
+                    }
+                  >
                     <div
-                      className={`rounded-lg border p-4 ${
+                      className={cn(
+                        "rounded-lg border p-4",
                         executionResult.success
                           ? "border-accent-green/30 bg-accent-green/5"
                           : "border-accent-red/30 bg-accent-red/5"
-                      }`}
+                      )}
                     >
-                      <div className="flex items-center gap-2 mb-2">
+                      <div className="mb-2 flex items-center gap-2">
                         {executionResult.success ? (
                           <CheckCircle className="h-4 w-4 text-accent-green" />
                         ) : (
                           <XCircle className="h-4 w-4 text-accent-red" />
                         )}
                         <span className="text-sm font-medium">
-                          {executionResult.success ? t("sandbox.success") : t("sandbox.failed")}
+                          {executionResult.success
+                            ? t("sandbox.success")
+                            : t("sandbox.failed")}
                         </span>
                       </div>
                       {executionResult.stdout && (
-                        <div className="mb-2">
-                          <div className="text-xs text-text-muted mb-1">stdout:</div>
-                          <pre className="text-xs font-mono bg-bg-primary p-3 rounded overflow-x-auto whitespace-pre-wrap">
-                            {executionResult.stdout}
-                          </pre>
-                        </div>
+                        <OutputBlock label="stdout" content={executionResult.stdout} />
                       )}
                       {executionResult.stderr && (
-                        <div>
-                          <div className="text-xs text-text-muted mb-1">stderr:</div>
-                          <pre className="text-xs font-mono bg-bg-primary p-3 rounded overflow-x-auto whitespace-pre-wrap text-accent-red">
-                            {executionResult.stderr}
-                          </pre>
-                        </div>
+                        <OutputBlock
+                          label="stderr"
+                          content={executionResult.stderr}
+                          tone="error"
+                        />
                       )}
                       {!executionResult.stdout && !executionResult.stderr && (
-                        <pre className="text-xs font-mono bg-bg-primary p-3 rounded text-text-muted">
+                        <pre className="rounded bg-bg-primary p-3 font-mono text-xs text-text-muted">
                           (no output)
                         </pre>
                       )}
                     </div>
-                  </div>
+                  </Section>
                 )}
 
-                {/* Execution history */}
                 {executionHistory.length > 0 && (
-                  <div className="mt-6">
-                    <h3 className="text-sm font-medium text-text-primary mb-2">{t("sandbox.history")}</h3>
+                  <Section title={t("sandbox.history")}>
                     <div className="space-y-2">
                       {executionHistory.map((entry, index) => (
                         <div
                           key={index}
-                          className="border border-border-default rounded-lg overflow-hidden"
+                          className="overflow-hidden rounded-lg border border-border-default"
                         >
                           <button
-                            className="w-full flex items-center gap-2 px-3 py-2 text-left hover:bg-bg-tertiary"
+                            type="button"
+                            className="flex w-full items-center gap-2 px-3 py-2 text-left transition-colors hover:bg-bg-tertiary"
                             onClick={() => toggleHistoryExpansion(index)}
                           >
                             {expandedHistory.has(index) ? (
@@ -419,51 +424,73 @@ export const SandboxView: React.FC = () => {
                             ) : (
                               <XCircle className="h-4 w-4 text-accent-red" />
                             )}
-                            <span className="text-sm text-text-primary flex-1">
+                            <span className="min-w-0 flex-1 truncate text-sm text-text-primary">
                               {entry.skillName}
                               {entry.scriptPath && (
-                                <span className="text-text-muted ml-1">/ {entry.scriptPath}</span>
+                                <span className="ml-1 text-text-muted">/ {entry.scriptPath}</span>
                               )}
                             </span>
-                            <span className="text-xs text-text-muted flex items-center gap-1">
+                            <span className="flex shrink-0 items-center gap-1 text-xs text-text-muted tabular-nums">
                               <Clock className="h-3 w-3" />
                               {entry.result.durationMs}ms
                             </span>
                           </button>
                           {expandedHistory.has(index) && (
-                            <div className="px-3 pb-3">
-                              <div className="text-xs text-text-muted mb-1">
+                            <div className="space-y-2 border-t border-border-muted px-3 pb-3 pt-2">
+                              <div className="text-xs text-text-muted">
                                 {new Date(entry.timestamp).toLocaleString()}
                               </div>
                               {entry.result.stdout && (
-                                <pre className="text-xs font-mono bg-bg-primary p-2 rounded overflow-x-auto whitespace-pre-wrap">
-                                  {entry.result.stdout}
-                                </pre>
+                                <OutputBlock label="stdout" content={entry.result.stdout} />
                               )}
                               {entry.result.stderr && (
-                                <pre className="text-xs font-mono bg-bg-primary p-2 rounded overflow-x-auto whitespace-pre-wrap text-accent-red mt-1">
-                                  {entry.result.stderr}
-                                </pre>
+                                <OutputBlock
+                                  label="stderr"
+                                  content={entry.result.stderr}
+                                  tone="error"
+                                />
                               )}
                             </div>
                           )}
                         </div>
                       ))}
                     </div>
-                  </div>
+                  </Section>
                 )}
               </div>
             </div>
           </>
         ) : (
-          <div className="flex-1 flex items-center justify-center text-text-muted">
-            <p>{t("sandbox.selectSkillPrompt")}</p>
-          </div>
+          <EmptyState
+            className="flex-1"
+            variant="compact"
+            title={t("sandbox.selectSkillPrompt")}
+          />
         )}
       </div>
     </div>
   );
 };
+
+interface OutputBlockProps {
+  label: string;
+  content: string;
+  tone?: "default" | "error";
+}
+
+const OutputBlock: React.FC<OutputBlockProps> = ({ label, content, tone = "default" }) => (
+  <div className="space-y-1">
+    <div className="text-xs uppercase tracking-wide text-text-muted">{label}</div>
+    <pre
+      className={cn(
+        "overflow-x-auto whitespace-pre-wrap rounded bg-bg-primary p-3 font-mono text-xs",
+        tone === "error" ? "text-accent-red" : "text-text-primary"
+      )}
+    >
+      {content}
+    </pre>
+  </div>
+);
 
 // Parameter input component
 interface ParameterInputProps {
@@ -496,11 +523,12 @@ const ParameterInput: React.FC<ParameterInputProps> = ({ param, value, onChange 
           <option value="false">false</option>
         </select>
       ) : param.type === "object" || param.type === "array" ? (
-        <textarea
+        <Textarea
+          mono
           value={value}
           onChange={(e) => onChange(e.target.value)}
           placeholder={`${t("sandbox.enterJson")} ${param.type}`}
-          className="w-full min-h-[80px] rounded-md border border-border-default bg-bg-secondary px-3 py-2 text-sm text-text-primary font-mono focus:border-accent-blue focus:outline-none"
+          className="min-h-[80px]"
         />
       ) : (
         <Input

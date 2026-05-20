@@ -1,53 +1,156 @@
 name: Release
 
+# Triggered automatically when you push a `vX.Y.Z` tag.
+# Also exposes a manual `workflow_dispatch` entry so you can re-run the release
+# for an existing tag without having to delete and re-push it.
+#
+# Build matrix (matches the user-facing platforms we ship binaries for):
+#   - macOS  Apple Silicon (aarch64-apple-darwin)
+#   - Windows x64           (x86_64-pc-windows-msvc)
+#   - Linux  x64            (x86_64-unknown-linux-gnu)
+#   - Linux  arm64          (aarch64-unknown-linux-gnu, built on a native ARM runner)
+#
+# Flow:
+#   1. `draft-release` creates (or reuses) a draft GitHub Release for the tag.
+#      Doing this once up-front avoids the race where every matrix job tries to
+#      create the same release concurrently.
+#   2. `build` runs each platform in parallel, builds with tauri-action, and
+#      uploads its bundles to the draft.
+#   3. `publish-release` flips the draft to a real release once every build job
+#      has succeeded. If any build fails the draft is left in place so you can
+#      inspect/restart.
+
 on:
   push:
     tags:
       - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Existing tag to release (e.g. v0.2.0)'
+        required: true
 
 permissions:
   contents: write
 
 jobs:
+  # ---------------------------------------------------------------------------
+  # 1. Pre-create a draft release once so the matrix jobs can all upload to it.
+  # ---------------------------------------------------------------------------
+  draft-release:
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.resolve.outputs.tag }}
+      version: ${{ steps.resolve.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Resolve tag/version
+        id: resolve
+        shell: bash
+        env:
+          REF_NAME: ${{ github.ref_name }}
+          REF: ${{ github.ref }}
+          INPUT_TAG: ${{ inputs.tag }}
+        run: |
+          set -euo pipefail
+          if [[ "$REF" == refs/tags/* ]]; then
+            TAG="$REF_NAME"
+          else
+            TAG="$INPUT_TAG"
+          fi
+          if [[ -z "$TAG" ]]; then
+            echo "::error::Could not resolve a release tag (REF=$REF, INPUT=$INPUT_TAG)."
+            exit 1
+          fi
+          # Defensive: tags are user-controlled to a degree, so reject anything
+          # that isn't a plain version-like identifier before we splice it into
+          # gh CLI calls or release notes.
+          if ! [[ "$TAG" =~ ^v[A-Za-z0-9._+-]+$ ]]; then
+            echo "::error::Refusing to release tag '$TAG': must match ^v[A-Za-z0-9._+-]+$"
+            exit 1
+          fi
+          VERSION="${TAG#v}"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "Releasing tag=$TAG version=$VERSION"
+
+      - name: Create or update draft release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          SHA: ${{ github.sha }}
+          TAG: ${{ steps.resolve.outputs.tag }}
+          VERSION: ${{ steps.resolve.outputs.version }}
+        run: |
+          set -euo pipefail
+          # If a release already exists we reuse it so manual re-runs append to
+          # the same draft; otherwise we create a fresh one with the standard
+          # download table.
+          if gh release view "$TAG" --repo "$REPO" >/dev/null 2>&1; then
+            echo "Release $TAG already exists; reusing."
+            exit 0
+          fi
+          NOTES_FILE="$(mktemp)"
+          {
+            echo "## Downloads"
+            echo
+            echo "| Platform | Architecture | File |"
+            echo "|----------|--------------|------|"
+            echo "| macOS | Apple Silicon (arm64) | \`Skill Desktop_${VERSION}_aarch64.dmg\` |"
+            echo "| Windows | x64 | \`Skill Desktop_${VERSION}_x64-setup.exe\` / \`Skill Desktop_${VERSION}_x64_en-US.msi\` |"
+            echo "| Linux | x64 | \`skill-desktop_${VERSION}_amd64.deb\` / \`skill-desktop_${VERSION}_amd64.AppImage\` |"
+            echo "| Linux | arm64 | \`skill-desktop_${VERSION}_arm64.deb\` |"
+            echo
+            echo "## What's Changed"
+            echo
+            echo "See the full changelog at https://github.com/${REPO}/commits/${TAG}"
+          } > "$NOTES_FILE"
+          gh release create "$TAG" \
+            --repo "$REPO" \
+            --title "Skill Desktop $TAG" \
+            --notes-file "$NOTES_FILE" \
+            --draft \
+            --target "$SHA"
+
+  # ---------------------------------------------------------------------------
+  # 2. Build every platform and upload its bundles into the draft.
+  # ---------------------------------------------------------------------------
   build:
+    needs: draft-release
     strategy:
       fail-fast: false
       matrix:
         include:
-          # macOS Intel
-          - platform: macos-15
-            target: x86_64-apple-darwin
-            name: macos-intel
-          # macOS ARM (Apple Silicon)
-          - platform: macos-latest
+          - name: macos-arm64
+            platform: macos-latest          # GitHub's macos-latest is Apple Silicon
             target: aarch64-apple-darwin
-            name: macos-arm
-          # Windows Intel
-          - platform: windows-latest
+            extra-args: ''
+
+          - name: windows-amd64
+            platform: windows-latest
             target: x86_64-pc-windows-msvc
-            name: windows-intel
-          # Windows ARM
-          - platform: windows-latest
-            target: aarch64-pc-windows-msvc
-            name: windows-arm
-          # Linux Intel
-          - platform: ubuntu-22.04
+            extra-args: ''
+
+          - name: linux-amd64
+            platform: ubuntu-22.04
             target: x86_64-unknown-linux-gnu
-            name: linux-intel
+            extra-args: ''
+
+          - name: linux-arm64
+            # Native ARM Linux runner (GA on public repos since 2024). Avoids
+            # cross-compilation + multi-arch apt sources entirely.
+            platform: ubuntu-22.04-arm
+            target: aarch64-unknown-linux-gnu
+            # Tauri's bundled appimagetool defaults to the x86_64 binary; the
+            # ARM path is still rough, so we only ship .deb + .rpm here. .deb
+            # covers Debian/Ubuntu/Mint on ARM which is the long tail of users.
+            extra-args: '--bundles deb,rpm'
 
     runs-on: ${{ matrix.platform }}
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Get version from tag
-        id: get_version
-        shell: bash
-        run: |
-          VERSION=${GITHUB_REF_NAME#v}
-          echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
-          echo "Version: $VERSION"
+      - uses: actions/checkout@v4
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -58,100 +161,138 @@ jobs:
         uses: pnpm/action-setup@v3
         with:
           version: 9
+          run_install: false
 
-      - name: Install Rust stable
+      - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
           targets: ${{ matrix.target }}
 
-      # Linux dependencies
+      # --- Linux system dependencies (same package set on both x64 and arm64
+      # runners; the runner image picks the right architecture automatically). ---
       - name: Install Linux dependencies
-        if: matrix.platform == 'ubuntu-22.04'
+        if: startsWith(matrix.platform, 'ubuntu')
         run: |
           sudo apt-get update
-          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
+          sudo apt-get install -y --no-install-recommends \
+            libwebkit2gtk-4.1-dev \
+            libappindicator3-dev \
+            librsvg2-dev \
+            libgtk-3-dev \
+            libssl-dev \
+            patchelf \
+            file \
+            wget
 
-      # Windows ARM setup
-      - name: Setup Windows ARM target
-        if: matrix.platform == 'windows-latest' && matrix.target == 'aarch64-pc-windows-msvc'
-        run: |
-          rustup target add aarch64-pc-windows-msvc
-
-      - name: Update version in config files
-        shell: bash
-        run: |
-          VERSION=${{ steps.get_version.outputs.VERSION }}
-          # Update package.json
-          if [[ "$RUNNER_OS" == "Windows" ]]; then
-            sed -i "s/\"version\": \"[^\"]*\"/\"version\": \"$VERSION\"/" package.json
-            sed -i "s/\"version\": \"[^\"]*\"/\"version\": \"$VERSION\"/" src-tauri/tauri.conf.json
-            sed -i "s/^version = \"[^\"]*\"/version = \"$VERSION\"/" src-tauri/Cargo.toml
-          else
-            sed -i '' "s/\"version\": \"[^\"]*\"/\"version\": \"$VERSION\"/" package.json
-            sed -i '' "s/\"version\": \"[^\"]*\"/\"version\": \"$VERSION\"/" src-tauri/tauri.conf.json
-            sed -i '' "s/^version = \"[^\"]*\"/version = \"$VERSION\"/" src-tauri/Cargo.toml
-          fi
-          echo "Updated version to $VERSION"
-
-      - name: Setup pnpm cache
+      - name: Cache pnpm store
         uses: actions/cache@v4
         with:
           path: |
             ~/.local/share/pnpm/store
             ~/Library/pnpm/store
             ~/AppData/Local/pnpm/store
-          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
+          key: ${{ runner.os }}-${{ runner.arch }}-pnpm-${{ hashFiles('**/pnpm-lock.yaml') }}
           restore-keys: |
-            ${{ runner.os }}-pnpm-store-
+            ${{ runner.os }}-${{ runner.arch }}-pnpm-
 
-      - name: Setup Rust cache
+      - name: Cache Rust build
         uses: Swatinem/rust-cache@v2
         with:
           workspaces: './src-tauri -> target'
+          # Separate cache per target so e.g. linux-amd64 and linux-arm64 don't
+          # poison each other.
           shared-key: ${{ matrix.target }}
 
-      - name: Install frontend dependencies
-        run: pnpm install
+      # --- Stamp the tag's version into the three places it lives. Using node
+      # (always available on every runner image) keeps this portable; sed
+      # required separate Linux/macOS flag handling and silently no-op'd on
+      # malformed input. ---
+      - name: Sync version from tag
+        shell: bash
+        env:
+          VERSION: ${{ needs.draft-release.outputs.version }}
+        run: |
+          set -euo pipefail
+          node -e "
+            const fs = require('fs');
+            const version = process.env.VERSION;
+            if (!version) { throw new Error('VERSION not set'); }
 
-      - name: Build frontend
-        run: pnpm build
+            const updateJson = (p) => {
+              const j = JSON.parse(fs.readFileSync(p, 'utf8'));
+              j.version = version;
+              fs.writeFileSync(p, JSON.stringify(j, null, 2) + '\n');
+              console.log('Updated', p, '->', version);
+            };
+            updateJson('package.json');
+            updateJson('src-tauri/tauri.conf.json');
+
+            const cargoPath = 'src-tauri/Cargo.toml';
+            const cargo = fs.readFileSync(cargoPath, 'utf8');
+            const updated = cargo.replace(
+              /^version\s*=\s*\"[^\"]*\"/m,
+              'version = \"' + version + '\"'
+            );
+            if (cargo === updated) {
+              throw new Error('Failed to update version in ' + cargoPath);
+            }
+            fs.writeFileSync(cargoPath, updated);
+            console.log('Updated', cargoPath, '->', version);
+          "
+
+      - name: Install frontend dependencies
+        run: pnpm install --frozen-lockfile
 
       - name: Build Tauri app
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Optional updater signing — only used if the secret is set in the repo.
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          # Optional Apple notarisation — only effective if all three secrets are set.
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          # Optional Windows code signing.
+          TAURI_CERT_BASE64: ${{ secrets.TAURI_CERT_BASE64 }}
+          TAURI_CERT_PASSWORD: ${{ secrets.TAURI_CERT_PASSWORD }}
         with:
-          tagName: ${{ github.ref_name }}
-          releaseName: 'Skill Desktop ${{ github.ref_name }}'
-          releaseBody: |
-            ## Downloads
-
-            | Platform | Architecture | Download |
-            |----------|--------------|----------|
-            | macOS | Apple Silicon (ARM64) | [Skill.Desktop_${{ steps.get_version.outputs.VERSION }}_aarch64.dmg](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/Skill.Desktop_${{ steps.get_version.outputs.VERSION }}_aarch64.dmg) |
-            | macOS | Intel (x64) | [Skill.Desktop_${{ steps.get_version.outputs.VERSION }}_x64.dmg](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/Skill.Desktop_${{ steps.get_version.outputs.VERSION }}_x64.dmg) |
-            | Windows | Intel (x64) | [Skill.Desktop_${{ steps.get_version.outputs.VERSION }}_x64-setup.exe](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/Skill.Desktop_${{ steps.get_version.outputs.VERSION }}_x64-setup.exe) |
-            | Windows | ARM64 | [Skill.Desktop_${{ steps.get_version.outputs.VERSION }}_arm64-setup.exe](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/Skill.Desktop_${{ steps.get_version.outputs.VERSION }}_arm64-setup.exe) |
-            | Linux | Intel (x64) | [skill-desktop_${{ steps.get_version.outputs.VERSION }}_amd64.deb](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/skill-desktop_${{ steps.get_version.outputs.VERSION }}_amd64.deb) / [skill-desktop_${{ steps.get_version.outputs.VERSION }}_amd64.AppImage](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/skill-desktop_${{ steps.get_version.outputs.VERSION }}_amd64.AppImage) |
-
-            ## What's Changed
-
-            See the [CHANGELOG](https://github.com/${{ github.repository }}/blob/main/CHANGELOG.md) for details.
+          # Tauri-action uploads bundles to the release identified by `tagName`.
+          # The release was created up-front by `draft-release`, so this just
+          # adds artifacts to it. We deliberately keep `releaseDraft: true` so
+          # half-built releases are not visible to users.
+          tagName: ${{ needs.draft-release.outputs.tag }}
+          releaseName: Skill Desktop ${{ needs.draft-release.outputs.tag }}
           releaseDraft: true
           prerelease: false
-          args: --target ${{ matrix.target }}
+          includeUpdaterJson: false
+          args: --target ${{ matrix.target }} ${{ matrix.extra-args }}
 
-  # Create a combined release after all builds complete
+  # ---------------------------------------------------------------------------
+  # 3. Promote the draft to a real (published) release once every build is green.
+  # ---------------------------------------------------------------------------
   publish-release:
-    needs: build
+    needs: [draft-release, build]
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - name: Publish release
-        uses: softprops/action-gh-release@v2
-        with:
-          draft: false
-          prerelease: ${{ contains(github.ref_name, '-') }}
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          TAG: ${{ needs.draft-release.outputs.tag }}
+        run: |
+          set -euo pipefail
+          # Anything with a `-` in the tag (e.g. v1.0.0-rc.1) is treated as a
+          # pre-release so it stays out of "latest".
+          IS_PRE="false"
+          if [[ "$TAG" == *-* ]]; then
+            IS_PRE="true"
+          fi
+          gh release edit "$TAG" \
+            --repo "$REPO" \
+            --draft=false \
+            --prerelease="$IS_PRE"
+          echo "Published release $TAG (prerelease=$IS_PRE)"

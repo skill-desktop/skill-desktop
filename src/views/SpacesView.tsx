@@ -1,8 +1,13 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
-import { Plus, Loader2 } from "lucide-react";
+import { Plus } from "lucide-react";
 import { invoke } from "@tauri-apps/api/core";
-import { Button, ScrollArea } from "@/components/ui";
+import {
+  Button,
+  SidePanel,
+  LoadingSpinner,
+  EmptyState,
+} from "@/components/ui";
 import {
   SpaceListItem,
   SpaceDetail,
@@ -67,10 +72,13 @@ export const SpacesView: React.FC = () => {
   // Get visibility map for selected space
   const { data: visibilityMap = {} } = useSkillVisibilityMap(currentSpaceId);
 
-  // Count visible skills for current space
-  const visibleSkillCount = Object.keys(visibilityMap).length > 0
-    ? Object.values(visibilityMap).filter(Boolean).length
-    : skills.length;
+  // Count visible skills. Match backend semantics in `get_visible_skills`: any skill
+  // missing from the visibility map defaults to visible. This way, after the user
+  // toggles a single skill off, the count for the remaining skills stays correct.
+  const visibleSkillCount = React.useMemo(
+    () => skills.filter((s) => visibilityMap[s.hash] ?? true).length,
+    [skills, visibilityMap]
+  );
 
   const selectedSpace = spaces.find((s) => s.id === currentSpaceId);
 
@@ -249,20 +257,15 @@ export const SpacesView: React.FC = () => {
   };
 
   if (isLoading) {
-    return (
-      <div className="flex h-full items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-text-muted" />
-      </div>
-    );
+    return <LoadingSpinner fullHeight size="lg" />;
   }
 
   return (
     <>
       <div className="flex h-full">
-        {/* Space list */}
-        <div className="w-72 border-r border-border-default bg-bg-secondary">
-          <div className="flex items-center justify-between border-b border-border-default p-3">
-            <h2 className="text-sm font-medium text-text-primary">{t("spaces.title")}</h2>
+        <SidePanel
+          title={t("spaces.title")}
+          actions={
             <Button
               variant="ghost"
               size="icon"
@@ -275,22 +278,19 @@ export const SpacesView: React.FC = () => {
             >
               <Plus className="h-4 w-4" />
             </Button>
-          </div>
+          }
+        >
+          {spaces.map((space) => (
+            <SpaceListItem
+              key={space.id}
+              space={space}
+              isSelected={currentSpaceId === space.id}
+              totalSkills={skills.length}
+              onSelect={() => setCurrentSpaceId(space.id)}
+            />
+          ))}
+        </SidePanel>
 
-          <ScrollArea className="h-[calc(100%-49px)]">
-            {spaces.map((space) => (
-              <SpaceListItem
-                key={space.id}
-                space={space}
-                isSelected={currentSpaceId === space.id}
-                totalSkills={skills.length}
-                onSelect={() => setCurrentSpaceId(space.id)}
-              />
-            ))}
-          </ScrollArea>
-        </div>
-
-        {/* Space detail */}
         {selectedSpace ? (
           <SpaceDetail
             space={selectedSpace}
@@ -302,9 +302,11 @@ export const SpacesView: React.FC = () => {
             onManageSkills={() => setShowSkillsDialog(true)}
           />
         ) : (
-          <div className="flex flex-1 items-center justify-center text-text-muted">
-            <p>{t("spaces.selectSpace")}</p>
-          </div>
+          <EmptyState
+            className="flex-1"
+            variant="compact"
+            title={t("spaces.selectSpace")}
+          />
         )}
       </div>
 

@@ -170,10 +170,15 @@ fn scan_directory_resources(dir: &Path, skill_dir: &Path, resource_type: &str) -
     resources
 }
 
-/// Create a Skill struct from a skill directory
+/// Create a Skill struct from a skill directory.
+///
+/// `library_root` (optional) is used to compute the stable `skill_id` as the relative
+/// directory path from the library root. If omitted, `skill_id` falls back to the
+/// directory's basename.
 pub fn create_skill_from_directory(
     skill_dir: &Path,
     source_url: Option<String>,
+    library_root: Option<&Path>,
 ) -> Result<Skill, String> {
     let skill_md_path = skill_dir.join("SKILL.md");
     
@@ -196,8 +201,12 @@ pub fn create_skill_from_directory(
     
     // Perform risk analysis on SKILL.md and all scripts
     let risk_analysis = analyze_skill_directory(skill_dir);
+
+    // Stable identifier: relative path from library root, normalized to forward slashes.
+    let skill_id = compute_skill_id(skill_dir, library_root);
     
     Ok(Skill {
+        skill_id,
         hash,
         filename: "SKILL.md".to_string(),
         local_path: skill_md_path.to_string_lossy().to_string(),
@@ -222,16 +231,69 @@ pub fn create_skill_from_directory(
     })
 }
 
-/// Analyze risk for an entire skill directory
+/// Compute the stable `skill_id` as the relative directory path from `library_root`,
+/// normalized to forward slashes. Falls back to the directory basename when there is
+/// no library root or the skill is outside it.
+pub fn compute_skill_id(skill_dir: &Path, library_root: Option<&Path>) -> String {
+    if let Some(root) = library_root {
+        if let Ok(rel) = skill_dir.strip_prefix(root) {
+            let id = rel.to_string_lossy().replace('\\', "/");
+            if !id.is_empty() {
+                return id;
+            }
+        }
+    }
+    skill_dir
+        .file_name()
+        .map(|n| n.to_string_lossy().to_string())
+        .unwrap_or_default()
+}
+
+/// Directory names that never contain skill content; skip when walking.
+pub(crate) const IGNORE_DIR_NAMES: &[&str] = &[
+    ".git", ".svn", ".hg",
+    "node_modules", "target", "dist", "build", "out",
+    ".venv", "venv", "env", "__pycache__", ".pytest_cache",
+    ".next", ".nuxt", ".cache", ".turbo",
+    ".DS_Store",
+];
+
+/// Analyze risk across the whole skill directory: SKILL.md plus every file under
+/// scripts/, references/, assets/, and root-level extras. Ignored directories and
+/// excessively large files are skipped to keep scanning bounded.
 fn analyze_skill_directory(skill_dir: &Path) -> Option<crate::types::RiskAnalysis> {
     let mut all_risks = Vec::new();
     let mut has_executable_code = false;
     let mut highest_level: Option<RiskLevel> = None;
-    
-    // Analyze SKILL.md
-    let skill_md_path = skill_dir.join("SKILL.md");
-    if let Ok(content) = fs::read_to_string(&skill_md_path) {
-        let analysis = analyze_file(&skill_md_path, &content);
+
+    const MAX_FILE_BYTES: u64 = 2 * 1024 * 1024; // skip files larger than 2MB
+
+    for entry in WalkDir::new(skill_dir)
+        .max_depth(6)
+        .into_iter()
+        .filter_entry(|e| {
+            let name = e.file_name().to_string_lossy();
+            !IGNORE_DIR_NAMES.iter().any(|d| name == *d)
+        })
+        .filter_map(|e| e.ok())
+    {
+        let path = entry.path();
+        if !path.is_file() {
+            continue;
+        }
+
+        // Skip oversized files (likely assets, not code)
+        if let Ok(meta) = fs::metadata(path) {
+            if meta.len() > MAX_FILE_BYTES {
+                continue;
+            }
+        }
+
+        let Ok(content) = fs::read_to_string(path) else {
+            continue;
+        };
+
+        let analysis = analyze_file(path, &content);
         if analysis.is_executable_code {
             has_executable_code = true;
         }
@@ -240,32 +302,7 @@ fn analyze_skill_directory(skill_dir: &Path) -> Option<crate::types::RiskAnalysi
             all_risks.push(risk);
         }
     }
-    
-    // Analyze all scripts
-    let scripts_dir = skill_dir.join("scripts");
-    if scripts_dir.exists() {
-        for entry in WalkDir::new(&scripts_dir)
-            .into_iter()
-            .filter_map(|e| e.ok())
-        {
-            let path = entry.path();
-            if !path.is_file() {
-                continue;
-            }
-            
-            if let Ok(content) = fs::read_to_string(path) {
-                let analysis = analyze_file(path, &content);
-                if analysis.is_executable_code {
-                    has_executable_code = true;
-                }
-                for risk in analysis.detected_risks {
-                    update_highest_level(&mut highest_level, risk.level);
-                    all_risks.push(risk);
-                }
-            }
-        }
-    }
-    
+
     if has_executable_code || !all_risks.is_empty() {
         Some(crate::types::RiskAnalysis {
             overall_level: highest_level.map(|l| match l {
@@ -304,57 +341,9 @@ fn update_highest_level(current: &mut Option<RiskLevel>, new: RiskLevel) {
     }
 }
 
+/// Current time as RFC 3339 / ISO 8601 UTC string, backed by `chrono`.
 fn chrono_now() -> String {
-    use std::time::{SystemTime, UNIX_EPOCH};
-    let duration = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .unwrap_or_default();
-    let secs = duration.as_secs() as i64;
-    
-    let days = secs / 86400;
-    let time_secs = secs % 86400;
-    
-    let mut year = 1970;
-    let mut remaining_days = days;
-    
-    loop {
-        let days_in_year = if is_leap_year(year) { 366 } else { 365 };
-        if remaining_days < days_in_year {
-            break;
-        }
-        remaining_days -= days_in_year;
-        year += 1;
-    }
-    
-    let is_leap = is_leap_year(year);
-    let days_in_months: [i64; 12] = if is_leap {
-        [31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
-    } else {
-        [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
-    };
-    
-    let mut month = 1;
-    for days_in_month in days_in_months.iter() {
-        if remaining_days < *days_in_month {
-            break;
-        }
-        remaining_days -= days_in_month;
-        month += 1;
-    }
-    
-    let day = remaining_days + 1;
-    let hour = time_secs / 3600;
-    let minute = (time_secs % 3600) / 60;
-    let second = time_secs % 60;
-    
-    format!(
-        "{:04}-{:02}-{:02}T{:02}:{:02}:{:02}Z",
-        year, month, day, hour, minute, second
-    )
-}
-
-fn is_leap_year(year: i64) -> bool {
-    (year % 4 == 0 && year % 100 != 0) || (year % 400 == 0)
+    chrono::Utc::now().format("%Y-%m-%dT%H:%M:%SZ").to_string()
 }
 
 #[cfg(test)]
@@ -394,5 +383,78 @@ license: MIT
         // For now, just test the function exists
         let path = Path::new("/nonexistent");
         assert!(!is_skill_directory(path));
+    }
+
+    #[test]
+    fn test_compute_skill_id_basename_when_no_root() {
+        let id = compute_skill_id(Path::new("/tmp/lib/web-search"), None);
+        assert_eq!(id, "web-search");
+    }
+
+    #[test]
+    fn test_compute_skill_id_relative_path() {
+        let root = Path::new("/tmp/lib");
+        let id = compute_skill_id(Path::new("/tmp/lib/web-search"), Some(root));
+        assert_eq!(id, "web-search");
+    }
+
+    #[test]
+    fn test_compute_skill_id_nested_relative_path() {
+        // Nested skills should produce "category/name", not just "name".
+        // This is what protects two skills with the same dir name in different categories
+        // from colliding on the same database row.
+        let root = Path::new("/tmp/lib");
+        let id = compute_skill_id(Path::new("/tmp/lib/research/web-search"), Some(root));
+        assert_eq!(id, "research/web-search");
+    }
+
+    #[test]
+    fn test_compute_skill_id_outside_root_falls_back_to_basename() {
+        let root = Path::new("/tmp/lib");
+        let id = compute_skill_id(Path::new("/elsewhere/web-search"), Some(root));
+        assert_eq!(id, "web-search");
+    }
+
+    #[test]
+    fn test_parse_allowed_tools_as_string() {
+        // Per Agent Skills spec, allowed-tools is a space-separated string.
+        let content = r#"---
+name: tools-string
+description: test
+allowed-tools: Bash Read Write
+---
+"#;
+        let m = parse_front_matter(content).unwrap();
+        assert_eq!(m.allowed_tools, vec!["Bash", "Read", "Write"]);
+    }
+
+    #[test]
+    fn test_parse_allowed_tools_as_array() {
+        // We also accept the legacy/community list form.
+        let content = r#"---
+name: tools-array
+description: test
+allowed-tools:
+  - Bash
+  - Read
+---
+"#;
+        let m = parse_front_matter(content).unwrap();
+        assert_eq!(m.allowed_tools, vec!["Bash", "Read"]);
+    }
+
+    #[test]
+    fn test_parse_compatibility_field() {
+        let content = r#"---
+name: compat
+description: test
+compatibility: Requires Python 3.14+ and uv
+---
+"#;
+        let m = parse_front_matter(content).unwrap();
+        assert_eq!(
+            m.compatibility,
+            Some("Requires Python 3.14+ and uv".to_string())
+        );
     }
 }

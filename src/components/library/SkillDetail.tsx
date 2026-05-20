@@ -11,13 +11,15 @@ import {
   ShieldAlert,
   RefreshCw,
   Download,
+  Share2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAppStore } from "@/stores";
-import { useDeleteSkill, useShowInFolder, useQuarantinedSkills, useSetSkillQuarantine, useCheckSkillUpdate } from "@/hooks";
+import { useDeleteSkill, useShowInFolder, useQuarantinedSkills, useSetSkillQuarantine, useCheckSkillUpdate, useSkillInstallations } from "@/hooks";
 import { useImportSkillFromUrl } from "@/hooks/useImport";
-import { Button, ScrollArea, Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui";
+import { Button, ScrollArea, ConfirmDialog } from "@/components/ui";
 import { FileEditorDialog } from "@/components/editor/FileEditorDialog";
+import { InstallSkillDialog } from "./InstallSkillDialog";
 import type { Skill } from "@/types";
 import { TabButton, OverviewTab, SecurityTab } from "./detail";
 
@@ -34,6 +36,7 @@ export const SkillDetail: React.FC<SkillDetailProps> = ({ skill }) => {
   const [copied, setCopied] = React.useState(false);
   const [editorOpen, setEditorOpen] = React.useState(false);
   const [editingFilePath, setEditingFilePath] = React.useState<string>("");
+  const [installDialogOpen, setInstallDialogOpen] = React.useState(false);
 
   const deleteSkillMutation = useDeleteSkill();
   const showInFolderMutation = useShowInFolder();
@@ -41,6 +44,7 @@ export const SkillDetail: React.FC<SkillDetailProps> = ({ skill }) => {
   const setQuarantineMutation = useSetSkillQuarantine();
   const checkUpdateMutation = useCheckSkillUpdate();
   const importSkillMutation = useImportSkillFromUrl();
+  const { data: installations = [] } = useSkillInstallations(skill?.skillId ?? null);
   
   // Update check state
   const [updateAvailable, setUpdateAvailable] = React.useState(false);
@@ -217,18 +221,32 @@ export const SkillDetail: React.FC<SkillDetailProps> = ({ skill }) => {
         {/* Actions */}
         <div className="flex items-center gap-2 border-t border-border-default p-4">
           <Button
-            variant="secondary"
+            variant="default"
             size="sm"
             className="flex-1"
+            onClick={() => setInstallDialogOpen(true)}
+            title={t("skillDetail.actions.installTitle", "Install to AI tool")}
+          >
+            <Share2 className="h-3.5 w-3.5 mr-1.5" />
+            {installations.length > 0
+              ? t("skillDetail.actions.installedCount", {
+                  count: installations.length,
+                  defaultValue: "Installed ({{count}})",
+                })
+              : t("skillDetail.actions.install", "Install")}
+          </Button>
+          <Button
+            variant="secondary"
+            size="sm"
             onClick={handleShowInFinder}
             disabled={showInFolderMutation.isPending}
+            title={t("skillDetail.actions.reveal")}
           >
             {showInFolderMutation.isPending ? (
-              <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
             ) : (
-              <Folder className="h-3.5 w-3.5 mr-1.5" />
+              <Folder className="h-3.5 w-3.5" />
             )}
-            {t("skillDetail.actions.reveal")}
           </Button>
           {canCheckUpdate && (
             <Button
@@ -273,78 +291,44 @@ export const SkillDetail: React.FC<SkillDetailProps> = ({ skill }) => {
         </div>
       </aside>
 
-      {/* Delete confirmation dialog */}
-      <Dialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>{t("skillDetail.deleteConfirm.title")}</DialogTitle>
-            <DialogDescription>
-              {t("skillDetail.deleteConfirm.description", { name: skill.name })}
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={() => setShowDeleteConfirm(false)}
-            >
-              {t("common.cancel")}
-            </Button>
-            <Button
-              variant="destructive"
-              size="sm"
-              onClick={handleDelete}
-              disabled={deleteSkillMutation.isPending}
-            >
-              {deleteSkillMutation.isPending ? (
-                <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
-              ) : (
-                <Trash2 className="h-3.5 w-3.5 mr-1.5" />
-              )}
-              {t("common.delete")}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <ConfirmDialog
+        open={showDeleteConfirm}
+        onOpenChange={setShowDeleteConfirm}
+        title={t("skillDetail.deleteConfirm.title")}
+        description={t("skillDetail.deleteConfirm.description", { name: skill.name })}
+        tone="danger"
+        confirmLabel={t("common.delete")}
+        confirmIcon={<Trash2 className="h-3.5 w-3.5" />}
+        cancelLabel={t("common.cancel")}
+        isPending={deleteSkillMutation.isPending}
+        onConfirm={handleDelete}
+      />
 
-      {/* Update confirmation dialog */}
-      <Dialog open={showUpdateDialog} onOpenChange={setShowUpdateDialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>{t("skillDetail.updateConfirm.title")}</DialogTitle>
-            <DialogDescription>
-              {t("skillDetail.updateConfirm.description", { name: skill.name })}
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={() => setShowUpdateDialog(false)}
-            >
-              {t("common.cancel")}
-            </Button>
-            <Button
-              size="sm"
-              onClick={handleApplyUpdate}
-              disabled={importSkillMutation.isPending}
-            >
-              {importSkillMutation.isPending ? (
-                <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
-              ) : (
-                <Download className="h-3.5 w-3.5 mr-1.5" />
-              )}
-              {t("skillDetail.actions.update")}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <ConfirmDialog
+        open={showUpdateDialog}
+        onOpenChange={setShowUpdateDialog}
+        title={t("skillDetail.updateConfirm.title")}
+        description={t("skillDetail.updateConfirm.description", { name: skill.name })}
+        confirmLabel={t("skillDetail.actions.update")}
+        confirmIcon={<Download className="h-3.5 w-3.5" />}
+        cancelLabel={t("common.cancel")}
+        isPending={importSkillMutation.isPending}
+        onConfirm={handleApplyUpdate}
+      />
+
       
       {/* File Editor Dialog */}
       <FileEditorDialog
         open={editorOpen}
         onOpenChange={setEditorOpen}
         filePath={editingFilePath}
+      />
+
+      {/* Install to AI Tool */}
+      <InstallSkillDialog
+        open={installDialogOpen}
+        onOpenChange={setInstallDialogOpen}
+        skill={skill}
       />
     </>
   );

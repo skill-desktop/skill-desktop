@@ -78,7 +78,10 @@ export interface SkillResources {
  */
 export interface Skill {
   // ========== Internal identifiers ==========
-  /** SHA-256 hash of SKILL.md contents */
+  /** Stable identifier: relative path from library root to the skill directory.
+   * Does NOT change when SKILL.md content is edited. Persisted in DB. */
+  skillId: string;
+  /** SHA-256 hash of SKILL.md contents (content fingerprint; changes on every edit) */
   hash: string;
   /** Filename (always "SKILL.md" for standard skills) */
   filename: string;
@@ -98,6 +101,8 @@ export interface Skill {
   // ========== Optional fields per Agent Skills spec ==========
   /** License information (e.g., "MIT", "Complete terms in LICENSE.txt") */
   license?: string;
+  /** Environment / compatibility requirements (1-500 chars). */
+  compatibility?: string;
   /** Allowed tools for this skill */
   allowedTools: string[];
   

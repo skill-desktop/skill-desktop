@@ -14,7 +14,16 @@ import {
   Terminal,
 } from "lucide-react";
 import { invoke } from "@tauri-apps/api/core";
-import { Button, Input, Switch, ScrollArea } from "@/components/ui";
+import {
+  Button,
+  Input,
+  Switch,
+  ScrollArea,
+  Section,
+  SettingRow,
+  SidePanel,
+  SideNavItem,
+} from "@/components/ui";
 import { LanguageDropdown } from "@/components/language";
 import { useSettingsStore } from "@/stores";
 import {
@@ -28,25 +37,20 @@ import {
 import type { SupportedLanguage } from "@/i18n";
 import { LLMSettingsPanel, CLISettingsPanel } from "@/components/settings";
 
-// Constants for external links
 const DOCUMENTATION_URL = "https://github.com/anthropics/skill-desktop#readme";
 const REPORT_ISSUE_URL = "https://github.com/anthropics/skill-desktop/issues/new";
 
-// Helper to open URL using Tauri opener plugin
 async function openUrl(url: string): Promise<void> {
   try {
     await invoke("plugin:opener|open_url", { url });
   } catch (error) {
-    // Fallback to window.open if Tauri plugin fails
     console.error("Failed to open URL via Tauri:", error);
     window.open(url, "_blank");
   }
 }
 
-// Helper to open folder dialog via Tauri command
 async function openFolderDialog(): Promise<string | null> {
   try {
-    // Use Tauri's dialog plugin through invoke
     const result = await invoke<string | null>("plugin:dialog|open", {
       options: {
         directory: true,
@@ -61,7 +65,6 @@ async function openFolderDialog(): Promise<string | null> {
   }
 }
 
-// Settings menu items
 type SettingsSection = "appearance" | "library" | "security" | "llm" | "cli" | "about";
 
 interface MenuItem {
@@ -95,7 +98,6 @@ export const SettingsView: React.FC = () => {
     setConfirmDangerousCommands,
   } = useSettingsStore();
 
-  // Backend hooks
   const { data: backendLibraryPath } = useLibraryPath();
   const setLibraryPathMutation = useSetLibraryPath();
   const rescanMutation = useRescanLibrary();
@@ -103,22 +105,17 @@ export const SettingsView: React.FC = () => {
   const { data: defaultPaths } = useDefaultPaths();
   const ensureDefaultPathMutation = useEnsureDefaultSkillPath();
 
-  // Sync local state with backend on mount
   React.useEffect(() => {
     if (backendLibraryPath && backendLibraryPath !== libraryPath) {
       setLibraryPath(backendLibraryPath);
     }
   }, [backendLibraryPath, libraryPath, setLibraryPath]);
 
-  // Handle folder selection
   const handleSelectFolder = async () => {
     try {
       const selected = await openFolderDialog();
-
       if (selected && typeof selected === "string") {
-        // Update local state
         setLibraryPath(selected);
-        // Update backend
         await setLibraryPathMutation.mutateAsync(selected);
       }
     } catch (error) {
@@ -126,12 +123,10 @@ export const SettingsView: React.FC = () => {
     }
   };
 
-  // Handle manual path input
   const handlePathChange = async (path: string) => {
     setLibraryPath(path);
   };
 
-  // Handle use default path
   const handleUseDefaultPath = async () => {
     try {
       const path = await ensureDefaultPathMutation.mutateAsync();
@@ -142,7 +137,6 @@ export const SettingsView: React.FC = () => {
     }
   };
 
-  // Handle path blur (save to backend)
   const handlePathBlur = async () => {
     if (libraryPath) {
       try {
@@ -153,7 +147,6 @@ export const SettingsView: React.FC = () => {
     }
   };
 
-  // Handle rescan
   const handleRescan = async () => {
     try {
       await rescanMutation.mutateAsync();
@@ -162,10 +155,8 @@ export const SettingsView: React.FC = () => {
     }
   };
 
-  // Handle language change
   const handleLanguageChange = async (newLanguage: SupportedLanguage) => {
     setLanguage(newLanguage);
-    // Save to backend
     try {
       await updateAppSettingMutation.mutateAsync({
         key: "language",
@@ -176,28 +167,15 @@ export const SettingsView: React.FC = () => {
     }
   };
 
-  // Handle check for updates
   const handleCheckUpdates = async () => {
-    // For now, open the releases page
     await openUrl("https://github.com/anthropics/skill-desktop/releases");
   };
 
-  // Handle open documentation
-  const handleOpenDocumentation = async () => {
-    await openUrl(DOCUMENTATION_URL);
-  };
-
-  // Handle report issue
-  const handleReportIssue = async () => {
-    await openUrl(REPORT_ISSUE_URL);
-  };
-
-  // Render content based on active section
   const renderContent = () => {
     switch (activeSection) {
       case "appearance":
         return (
-          <Section title={t("settings.appearance.title")}>
+          <Section title={t("settings.appearance.title")} titleSize="lg">
             <SettingRow
               label={t("settings.appearance.theme")}
               description={t("settings.appearance.themeDesc")}
@@ -207,7 +185,7 @@ export const SettingsView: React.FC = () => {
                 onChange={(e) =>
                   setTheme(e.target.value as "dark" | "light" | "system")
                 }
-                className="h-9 rounded-md border border-border-default bg-bg-secondary px-3 text-sm text-text-primary focus:border-accent-blue focus:outline-none"
+                className="h-9 rounded-md border border-border-default bg-bg-secondary px-3 text-sm text-text-primary focus:border-accent-blue focus:outline-none focus:ring-1 focus:ring-accent-blue"
               >
                 <option value="dark">{t("settings.appearance.dark")}</option>
                 <option value="light">{t("settings.appearance.light")}</option>
@@ -229,10 +207,11 @@ export const SettingsView: React.FC = () => {
 
       case "library":
         return (
-          <Section title={t("settings.library.title")}>
+          <Section title={t("settings.library.title")} titleSize="lg">
             <SettingRow
               label={t("settings.library.directory")}
               description={t("settings.library.directoryDesc")}
+              stacked
             >
               <div className="flex flex-col gap-2">
                 <div className="flex items-center gap-2">
@@ -262,11 +241,11 @@ export const SettingsView: React.FC = () => {
                     size="sm"
                     onClick={handleUseDefaultPath}
                     disabled={ensureDefaultPathMutation.isPending}
-                    className="text-xs text-text-muted hover:text-accent-blue self-start"
+                    className="self-start text-xs text-text-muted hover:text-accent-blue"
                   >
-                    {ensureDefaultPathMutation.isPending ? (
-                      <Loader2 className="h-3 w-3 mr-1 animate-spin" />
-                    ) : null}
+                    {ensureDefaultPathMutation.isPending && (
+                      <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+                    )}
                     {t("settings.library.useDefault", { path: defaultPaths.skillLibraryPath })}
                   </Button>
                 )}
@@ -284,11 +263,11 @@ export const SettingsView: React.FC = () => {
                 disabled={rescanMutation.isPending || !libraryPath}
               >
                 {rescanMutation.isPending ? (
-                  <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+                  <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
                 ) : rescanMutation.isSuccess ? (
-                  <Check className="h-3.5 w-3.5 mr-1.5" />
+                  <Check className="mr-1.5 h-3.5 w-3.5" />
                 ) : (
-                  <RefreshCw className="h-3.5 w-3.5 mr-1.5" />
+                  <RefreshCw className="mr-1.5 h-3.5 w-3.5" />
                 )}
                 {rescanMutation.isPending
                   ? t("settings.library.scanning")
@@ -309,7 +288,7 @@ export const SettingsView: React.FC = () => {
 
       case "security":
         return (
-          <Section title={t("settings.security.title")}>
+          <Section title={t("settings.security.title")} titleSize="lg">
             <SettingRow
               label={t("settings.security.confirmDangerous")}
               description={t("settings.security.confirmDangerousDesc")}
@@ -330,7 +309,7 @@ export const SettingsView: React.FC = () => {
 
       case "about":
         return (
-          <Section title={t("settings.about.title")}>
+          <Section title={t("settings.about.title")} titleSize="lg">
             <div className="space-y-2 text-sm">
               <p className="text-text-primary">
                 {t("app.name")} <span className="text-text-muted">v0.1.0</span>
@@ -338,17 +317,17 @@ export const SettingsView: React.FC = () => {
               <p className="text-text-secondary">{t("app.description")}</p>
             </div>
 
-            <div className="flex items-center gap-2 mt-4">
+            <div className="mt-4 flex flex-wrap items-center gap-2">
               <Button variant="secondary" size="sm" onClick={handleCheckUpdates}>
-                <RefreshCw className="h-3.5 w-3.5 mr-1.5" />
+                <RefreshCw className="mr-1.5 h-3.5 w-3.5" />
                 {t("settings.about.checkUpdates")}
               </Button>
-              <Button variant="secondary" size="sm" onClick={handleOpenDocumentation}>
-                <ExternalLink className="h-3.5 w-3.5 mr-1.5" />
+              <Button variant="secondary" size="sm" onClick={() => openUrl(DOCUMENTATION_URL)}>
+                <ExternalLink className="mr-1.5 h-3.5 w-3.5" />
                 {t("settings.about.documentation")}
               </Button>
-              <Button variant="secondary" size="sm" onClick={handleReportIssue}>
-                <ExternalLink className="h-3.5 w-3.5 mr-1.5" />
+              <Button variant="secondary" size="sm" onClick={() => openUrl(REPORT_ISSUE_URL)}>
+                <ExternalLink className="mr-1.5 h-3.5 w-3.5" />
                 {t("settings.about.reportIssue")}
               </Button>
             </div>
@@ -362,67 +341,21 @@ export const SettingsView: React.FC = () => {
 
   return (
     <div className="flex h-full">
-      {/* Left sidebar menu */}
-      <div className="w-72 border-r border-border-default bg-bg-secondary">
-        <div className="border-b border-border-default p-3">
-          <h2 className="text-sm font-medium text-text-primary">
-            {t("settings.title")}
-          </h2>
-        </div>
-        <ScrollArea className="h-[calc(100%-49px)]">
-          {menuItems.map((item) => (
-            <button
-              key={item.id}
-              onClick={() => setActiveSection(item.id)}
-              className={`w-full px-3 py-2 text-left text-sm transition-colors flex items-center gap-3 ${
-                activeSection === item.id
-                  ? "bg-bg-tertiary text-text-primary border-l-2 border-accent-blue"
-                  : "text-text-secondary hover:bg-bg-tertiary hover:text-text-primary border-l-2 border-transparent"
-              }`}
-            >
-              {item.icon}
-              <span>{t(item.labelKey)}</span>
-            </button>
-          ))}
-        </ScrollArea>
-      </div>
+      <SidePanel title={t("settings.title")}>
+        {menuItems.map((item) => (
+          <SideNavItem
+            key={item.id}
+            icon={item.icon}
+            label={t(item.labelKey)}
+            active={activeSection === item.id}
+            onClick={() => setActiveSection(item.id)}
+          />
+        ))}
+      </SidePanel>
 
-      {/* Right content area */}
       <ScrollArea className="flex-1">
-        <div className="max-w-2xl p-6">{renderContent()}</div>
+        <div className="mx-auto max-w-2xl p-6">{renderContent()}</div>
       </ScrollArea>
     </div>
   );
 };
-
-const Section: React.FC<{ title: string; children: React.ReactNode }> = ({
-  title,
-  children,
-}) => (
-  <div>
-    <h2 className="text-lg font-semibold text-text-primary mb-6">{title}</h2>
-    <div className="space-y-6">{children}</div>
-  </div>
-);
-
-interface SettingRowProps {
-  label: string;
-  description?: string;
-  children: React.ReactNode;
-}
-
-const SettingRow: React.FC<SettingRowProps> = ({
-  label,
-  description,
-  children,
-}) => (
-  <div className="flex items-center justify-between py-3 border-b border-border-default last:border-b-0">
-    <div className="flex-1 mr-4">
-      <p className="text-sm font-medium text-text-primary">{label}</p>
-      {description && (
-        <p className="text-xs text-text-muted mt-1">{description}</p>
-      )}
-    </div>
-    <div className="flex-shrink-0">{children}</div>
-  </div>
-);

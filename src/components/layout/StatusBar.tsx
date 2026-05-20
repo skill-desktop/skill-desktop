@@ -16,10 +16,14 @@ export const StatusBar: React.FC = () => {
   const { data: isWatching = false } = useIsFileWatcherRunning();
   const { data: visibilityMap = {} } = useSkillVisibilityMap(currentSpaceId);
 
-  // Calculate visible skills count for current space
+  // Visible skill count for the current space. Matches backend semantics in
+  // `get_visible_skills`: any skill not present in the visibility map is
+  // visible by default; only entries explicitly set to `false` are hidden.
   const visibleSkillCount = React.useMemo(() => {
-    if (Object.keys(visibilityMap).length === 0) return skills.length;
-    return Object.values(visibilityMap).filter(Boolean).length;
+    const explicitlyHidden = Object.values(visibilityMap).filter(
+      (v) => v === false
+    ).length;
+    return Math.max(0, skills.length - explicitlyHidden);
   }, [visibilityMap, skills.length]);
 
   // Determine current status

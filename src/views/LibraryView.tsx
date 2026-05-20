@@ -5,7 +5,26 @@ import { invoke } from "@tauri-apps/api/core";
 import { useAppStore, useSettingsStore } from "@/stores";
 import { useSkills, useSearchSkills, useDeleteSkillsBatch, useQuarantinedSkills, useSetSkillQuarantine, useSpaces, useSetBulkSkillVisibility, useExportSkillsBatch, useExportSkillsBatchJson, useSetSkillCategory } from "@/hooks";
 import { SkillList, SkillDetail, CreateSkillDialog, ImportSkillDialog } from "@/components/library";
-import { Skeleton, Button, Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, ScrollArea, DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, Input } from "@/components/ui";
+import {
+  Skeleton,
+  Button,
+  ButtonGroup,
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+  ScrollArea,
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  Input,
+  ConfirmDialog,
+  EmptyState,
+  Separator,
+} from "@/components/ui";
 import type { Skill } from "@/types";
 
 type FilterMode = "all" | "quarantined" | "safe";
@@ -265,155 +284,170 @@ export const LibraryView: React.FC = () => {
   };
 
 
-  // Show empty state if no library path is set
   if (!libraryPath) {
     return (
-      <div className="flex h-full flex-col items-center justify-center p-8 text-center">
-        <div className="flex h-20 w-20 items-center justify-center rounded-full bg-bg-tertiary mb-6">
-          <Folder className="h-10 w-10 text-text-muted" />
-        </div>
-        <h3 className="text-lg font-medium text-text-primary mb-2">{t("library.noLibraryPath")}</h3>
-        <p className="text-sm text-text-muted max-w-sm mb-6">
-          {t("library.noLibraryPathDesc")}
-        </p>
-        <Button onClick={() => setCurrentView("settings")}>
-          {t("library.goToSettings")}
-        </Button>
-      </div>
+      <EmptyState
+        icon={<Folder className="h-10 w-10" />}
+        title={t("library.noLibraryPath")}
+        description={t("library.noLibraryPathDesc")}
+        action={
+          <Button onClick={() => setCurrentView("settings")}>
+            {t("library.goToSettings")}
+          </Button>
+        }
+      />
     );
   }
 
-  // Show loading state
   if (isLoading) {
     return (
-      <div className="flex h-full">
-        <div className="flex-1 p-4">
-          <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-4">
-            {[1, 2, 3, 4, 5, 6].map((i) => (
-              <Skeleton key={i} className="h-24 rounded-lg" />
-            ))}
-          </div>
+      <div className="p-4">
+        <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-4">
+          {[1, 2, 3, 4, 5, 6].map((i) => (
+            <Skeleton key={i} className="h-24 rounded-lg" />
+          ))}
         </div>
       </div>
     );
   }
 
-  // Show error state
   if (error) {
     return (
-      <div className="flex h-full flex-col items-center justify-center text-text-muted">
-        <div className="text-4xl mb-4">⚠️</div>
-        <p className="text-sm">{t("library.failedToLoad")}</p>
-        <p className="text-xs mt-1">{String(error)}</p>
-      </div>
+      <EmptyState
+        variant="error"
+        icon={<ShieldAlert className="h-10 w-10" />}
+        title={t("library.failedToLoad")}
+        description={String(error)}
+      />
     );
   }
 
   return (
     <>
       <div className="flex h-full flex-col">
-        {/* Filter toolbar */}
         {!selectionMode && (
-          <div className="flex items-center justify-between border-b border-border-default bg-bg-secondary px-4 py-2">
+          <div className="flex h-12 shrink-0 items-center justify-between gap-3 border-b border-border-default bg-bg-secondary px-4">
             <div className="flex items-center gap-2">
               <Filter className="h-3.5 w-3.5 text-text-muted" />
-              <div className="flex items-center gap-1">
+              <ButtonGroup>
                 <Button
                   variant={filterMode === "all" ? "secondary" : "ghost"}
                   size="sm"
                   onClick={() => setFilterMode("all")}
                 >
-                  {t("library.filter.all")} ({allSkills.length})
+                  {t("library.filter.all")}
+                  <span className="ml-1 text-text-muted tabular-nums">
+                    {allSkills.length}
+                  </span>
                 </Button>
                 <Button
                   variant={filterMode === "safe" ? "secondary" : "ghost"}
                   size="sm"
                   onClick={() => setFilterMode("safe")}
                 >
-                  <Shield className="h-3.5 w-3.5 mr-1" />
-                  {t("library.filter.safe")} ({allSkills.length - quarantinedCount})
+                  <Shield className="mr-1 h-3.5 w-3.5" />
+                  {t("library.filter.safe")}
+                  <span className="ml-1 text-text-muted tabular-nums">
+                    {allSkills.length - quarantinedCount}
+                  </span>
                 </Button>
                 <Button
                   variant={filterMode === "quarantined" ? "secondary" : "ghost"}
                   size="sm"
                   onClick={() => setFilterMode("quarantined")}
                 >
-                  <ShieldAlert className="h-3.5 w-3.5 mr-1" />
-                  {t("library.filter.quarantine")} ({quarantinedCount})
+                  <ShieldAlert className="mr-1 h-3.5 w-3.5" />
+                  {t("library.filter.quarantine")}
+                  <span className="ml-1 text-text-muted tabular-nums">
+                    {quarantinedCount}
+                  </span>
                 </Button>
-              </div>
+              </ButtonGroup>
             </div>
             <div className="flex items-center gap-2">
-              {/* Sort dropdown */}
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" size="sm">
-                    <ArrowUpDown className="h-3.5 w-3.5 mr-1.5" />
+                    <ArrowUpDown className="mr-1.5 h-3.5 w-3.5" />
                     {t("library.sort.label")}
                     {sortDirection === "asc" ? (
-                      <ArrowUp className="h-3 w-3 ml-1" />
+                      <ArrowUp className="ml-1 h-3 w-3" />
                     ) : (
-                      <ArrowDown className="h-3 w-3 ml-1" />
+                      <ArrowDown className="ml-1 h-3 w-3" />
                     )}
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
-                  <DropdownMenuItem 
+                  <DropdownMenuItem
                     onClick={() => handleSortChange("name")}
                     className={sortField === "name" ? "bg-bg-tertiary" : ""}
                   >
                     {t("library.sort.name")}
-                    {sortField === "name" && (sortDirection === "asc" ? <ArrowUp className="h-3 w-3 ml-auto" /> : <ArrowDown className="h-3 w-3 ml-auto" />)}
+                    {sortField === "name" &&
+                      (sortDirection === "asc" ? (
+                        <ArrowUp className="ml-auto h-3 w-3" />
+                      ) : (
+                        <ArrowDown className="ml-auto h-3 w-3" />
+                      ))}
                   </DropdownMenuItem>
-                  <DropdownMenuItem 
+                  <DropdownMenuItem
                     onClick={() => handleSortChange("createdAt")}
                     className={sortField === "createdAt" ? "bg-bg-tertiary" : ""}
                   >
                     {t("library.sort.createdAt")}
-                    {sortField === "createdAt" && (sortDirection === "asc" ? <ArrowUp className="h-3 w-3 ml-auto" /> : <ArrowDown className="h-3 w-3 ml-auto" />)}
+                    {sortField === "createdAt" &&
+                      (sortDirection === "asc" ? (
+                        <ArrowUp className="ml-auto h-3 w-3" />
+                      ) : (
+                        <ArrowDown className="ml-auto h-3 w-3" />
+                      ))}
                   </DropdownMenuItem>
-                  <DropdownMenuItem 
+                  <DropdownMenuItem
                     onClick={() => handleSortChange("updatedAt")}
                     className={sortField === "updatedAt" ? "bg-bg-tertiary" : ""}
                   >
                     {t("library.sort.updatedAt")}
-                    {sortField === "updatedAt" && (sortDirection === "asc" ? <ArrowUp className="h-3 w-3 ml-auto" /> : <ArrowDown className="h-3 w-3 ml-auto" />)}
+                    {sortField === "updatedAt" &&
+                      (sortDirection === "asc" ? (
+                        <ArrowUp className="ml-auto h-3 w-3" />
+                      ) : (
+                        <ArrowDown className="ml-auto h-3 w-3" />
+                      ))}
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
-              <DropdownMenuSeparator className="h-4 w-px bg-border-default" />
+              <Separator orientation="vertical" className="h-5" />
               <Button
                 variant="outline"
                 size="sm"
                 onClick={() => setShowImportSkillDialog(true)}
               >
-                <Import className="h-3.5 w-3.5 mr-1.5" />
+                <Import className="mr-1.5 h-3.5 w-3.5" />
                 {t("library.importSkill")}
               </Button>
-              <Button
-                size="sm"
-                onClick={() => setShowCreateSkillDialog(true)}
-              >
-                <Plus className="h-3.5 w-3.5 mr-1.5" />
+              <Button size="sm" onClick={() => setShowCreateSkillDialog(true)}>
+                <Plus className="mr-1.5 h-3.5 w-3.5" />
                 {t("library.createSkill")}
               </Button>
             </div>
           </div>
         )}
-        
-        {/* Batch operation toolbar */}
+
         {selectionMode && (
-          <div className="flex items-center justify-between border-b border-border-default bg-bg-tertiary px-4 py-2">
-            <div className="flex items-center gap-4">
-              <span className="text-sm text-text-primary">
+          <div className="flex h-12 shrink-0 items-center justify-between gap-3 border-b border-border-default bg-accent-blue/10 px-4">
+            <div className="flex items-center gap-3">
+              <span className="text-sm font-medium text-text-primary">
                 {t("library.selection.selected", { count: selectedHashes.size })}
               </span>
-              <Button variant="ghost" size="sm" onClick={selectAll}>
-                {t("common.selectAll")}
-              </Button>
-              <Button variant="ghost" size="sm" onClick={deselectAll}>
-                {t("common.deselectAll")}
-              </Button>
+              <Separator orientation="vertical" className="h-4" />
+              <ButtonGroup>
+                <Button variant="ghost" size="sm" onClick={selectAll}>
+                  {t("common.selectAll")}
+                </Button>
+                <Button variant="ghost" size="sm" onClick={deselectAll}>
+                  {t("common.deselectAll")}
+                </Button>
+              </ButtonGroup>
             </div>
             <div className="flex items-center gap-2">
               <Button
@@ -422,7 +456,7 @@ export const LibraryView: React.FC = () => {
                 onClick={() => setShowAddToSpaceDialog(true)}
                 disabled={selectedHashes.size === 0 || spaces.length === 0}
               >
-                <FolderPlus className="h-3.5 w-3.5 mr-1.5" />
+                <FolderPlus className="mr-1.5 h-3.5 w-3.5" />
                 {t("library.selection.addToSpace")}
               </Button>
               <Button
@@ -431,7 +465,7 @@ export const LibraryView: React.FC = () => {
                 onClick={() => setShowExportDialog(true)}
                 disabled={selectedHashes.size === 0}
               >
-                <Download className="h-3.5 w-3.5 mr-1.5" />
+                <Download className="mr-1.5 h-3.5 w-3.5" />
                 {t("library.selection.export")}
               </Button>
               <Button
@@ -440,20 +474,21 @@ export const LibraryView: React.FC = () => {
                 onClick={() => setShowQuarantineConfirm(true)}
                 disabled={selectedHashes.size === 0}
               >
-                <ShieldAlert className="h-3.5 w-3.5 mr-1.5" />
+                <ShieldAlert className="mr-1.5 h-3.5 w-3.5" />
                 {t("library.selection.quarantine")}
               </Button>
+              <Separator orientation="vertical" className="h-5" />
               <Button
                 variant="destructive"
                 size="sm"
                 onClick={() => setShowDeleteConfirm(true)}
                 disabled={selectedHashes.size === 0}
               >
-                <Trash2 className="h-3.5 w-3.5 mr-1.5" />
+                <Trash2 className="mr-1.5 h-3.5 w-3.5" />
                 {t("library.selection.delete")} ({selectedHashes.size})
               </Button>
               <Button variant="ghost" size="sm" onClick={cancelSelectionMode}>
-                <X className="h-3.5 w-3.5 mr-1.5" />
+                <X className="mr-1.5 h-3.5 w-3.5" />
                 {t("common.cancel")}
               </Button>
             </div>
@@ -480,48 +515,26 @@ export const LibraryView: React.FC = () => {
         </div>
       </div>
 
-      {/* Batch Delete Confirmation Dialog */}
-      <Dialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>{t("library.deleteConfirm.title", { count: selectedHashes.size })}</DialogTitle>
-            <DialogDescription>
-              {t("library.deleteConfirm.description", { count: selectedHashes.size })}
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={() => setShowDeleteConfirm(false)}
-            >
-              {t("common.cancel")}
-            </Button>
-            <Button
-              variant="destructive"
-              size="sm"
-              onClick={handleBatchDelete}
-              disabled={deleteSkillsBatchMutation.isPending}
-            >
-              {deleteSkillsBatchMutation.isPending ? (
-                <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
-              ) : (
-                <Trash2 className="h-3.5 w-3.5 mr-1.5" />
-              )}
-              {t("common.delete")}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <ConfirmDialog
+        open={showDeleteConfirm}
+        onOpenChange={setShowDeleteConfirm}
+        title={t("library.deleteConfirm.title", { count: selectedHashes.size })}
+        description={t("library.deleteConfirm.description", { count: selectedHashes.size })}
+        tone="danger"
+        confirmLabel={t("common.delete")}
+        confirmIcon={<Trash2 className="h-3.5 w-3.5" />}
+        cancelLabel={t("common.cancel")}
+        isPending={deleteSkillsBatchMutation.isPending}
+        onConfirm={handleBatchDelete}
+      />
 
-      {/* Quarantine Confirmation Dialog */}
+      {/* Quarantine confirm — two-button confirm. Custom because the dialog needs
+          a tri-state result (mark safe / mark quarantined / cancel), so the
+          generic ConfirmDialog wouldn't cleanly fit. */}
       <Dialog open={showQuarantineConfirm} onOpenChange={setShowQuarantineConfirm}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>{t("library.quarantineConfirm.title", { count: selectedHashes.size })}</DialogTitle>
-            <DialogDescription>
-              {t("library.quarantineConfirm.description", { count: selectedHashes.size })}
-            </DialogDescription>
           </DialogHeader>
           <DialogFooter>
             <Button
@@ -530,7 +543,7 @@ export const LibraryView: React.FC = () => {
               onClick={() => handleBatchQuarantine(false)}
               disabled={setQuarantineMutation.isPending}
             >
-              <Shield className="h-3.5 w-3.5 mr-1.5" />
+              <Shield className="mr-1.5 h-3.5 w-3.5" />
               {t("library.quarantineConfirm.markAsSafe")}
             </Button>
             <Button
@@ -539,9 +552,9 @@ export const LibraryView: React.FC = () => {
               disabled={setQuarantineMutation.isPending}
             >
               {setQuarantineMutation.isPending ? (
-                <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+                <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
               ) : (
-                <ShieldAlert className="h-3.5 w-3.5 mr-1.5" />
+                <ShieldAlert className="mr-1.5 h-3.5 w-3.5" />
               )}
               {t("library.selection.quarantine")}
             </Button>

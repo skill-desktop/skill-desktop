@@ -162,7 +162,10 @@
       "edit": "编辑",
       "reveal": "显示",
       "checkUpdate": "检查更新",
-      "update": "更新"
+      "update": "更新",
+      "install": "安装",
+      "installTitle": "安装到 AI 工具",
+      "installedCount": "已安装 ({{count}})"
     },
     "updateAvailable": "有可用更新",
     "deleteConfirm": {
@@ -205,7 +208,13 @@
       "exportMcpConfig": "导出 MCP 配置",
       "syncSymlinks": "同步符号链接",
       "syncing": "同步中...",
-      "syncedSkills": "已同步 {{count}} 个技能"
+      "syncedSkills": "已同步 {{count}} 个技能",
+      "applyToActiveDir": "应用到活动目录"
+    },
+    "sync": {
+      "success": "已链接 {{created}} 个技能到活动目录",
+      "partialFailure": "已链接 {{created}} 个，{{failed}} 个失败",
+      "needActiveDir": "请在空间设置中指定活动目录后再同步链接。"
     },
     "manageSkillsDialog": {
       "title": "管理「{{name}}」的技能",
@@ -226,6 +235,13 @@
       "mcpTitle": "MCP 服务器配置",
       "genericTitle": "通用配置"
     }
+  },
+  "installSkill": {
+    "title": "安装到 AI 工具",
+    "description": "通过软链接将该技能安装到目标 AI 工具的技能目录。工具下次启动时即可发现该技能。",
+    "install": "安装",
+    "uninstall": "卸载",
+    "alreadyInLibrary": "该技能已经在你的技能库中"
   },
   "hub": {
     "title": "导入技能",

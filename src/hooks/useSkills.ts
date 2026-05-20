@@ -78,7 +78,14 @@ export function useDeleteSkill() {
       await invoke("delete_skill", { hash });
     },
     onSuccess: () => {
+      // The backend also cleans up installation records and visibility rows are now
+      // orphaned (the hash no longer exists). Invalidate every related cache so the
+      // UI doesn't keep showing data for a skill that's already gone.
       queryClient.invalidateQueries({ queryKey: skillKeys.all });
+      queryClient.invalidateQueries({ queryKey: ["spaces"] });
+      queryClient.invalidateQueries({ queryKey: ["visibility"] });
+      queryClient.invalidateQueries({ queryKey: ["visible-skills"] });
+      queryClient.invalidateQueries({ queryKey: ["install-installations"] });
     },
   });
 }
@@ -97,6 +104,10 @@ export function useDeleteSkillsBatch() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: skillKeys.all });
+      queryClient.invalidateQueries({ queryKey: ["spaces"] });
+      queryClient.invalidateQueries({ queryKey: ["visibility"] });
+      queryClient.invalidateQueries({ queryKey: ["visible-skills"] });
+      queryClient.invalidateQueries({ queryKey: ["install-installations"] });
     },
   });
 }

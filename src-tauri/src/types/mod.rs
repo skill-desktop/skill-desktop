@@ -93,7 +93,12 @@ pub struct RiskAnalysis {
 #[serde(rename_all = "camelCase")]
 pub struct Skill {
     // ========== Internal identifiers ==========
-    /// SHA-256 hash of SKILL.md contents
+    /// Stable identifier: relative path from library root to the skill directory.
+    /// Persisted in the database and does NOT change when SKILL.md content is edited.
+    /// Example: "web-search" or "research/web-search".
+    #[serde(default)]
+    pub skill_id: String,
+    /// SHA-256 hash of SKILL.md contents (content fingerprint; changes on every edit)
     pub hash: String,
     /// Filename (always "SKILL.md" for standard skills)
     pub filename: String,
@@ -175,46 +180,93 @@ pub struct Space {
     pub updated_at: String,
 }
 
-/// Metadata parsed from SKILL.md front matter
+/// Metadata parsed from SKILL.md front matter.
 /// Based on Agent Skills Specification: https://agentskills.io/specification
-/// 
-/// Allowed frontmatter properties: name, description, license, allowed-tools, metadata
+///
+/// Spec-defined frontmatter: name, description, license, compatibility, allowed-tools, metadata.
+/// Extended fields (version, author, tags, permissions, parameters) are project-internal and
+/// should ideally live inside `metadata`, but we accept them at the top level for backwards
+/// compatibility with existing skills.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SkillMetadata {
-    /// Required: Skill name (1-64 chars, lowercase alphanumeric and hyphens)
-    /// Must match directory name exactly
+    /// Required: Skill name (1-64 chars, lowercase alphanumeric and hyphens).
+    /// Must match directory name exactly.
     pub name: String,
-    /// Required: Description of what the skill does and when to use it (1-1024 chars)
-    /// This is the primary triggering mechanism - include both what the skill does
-    /// and specific triggers/contexts for when to use it
+    /// Required: Description of what the skill does and when to use it (1-1024 chars).
     #[serde(default)]
     pub description: String,
     /// Optional: License information (e.g., "MIT", "Apache-2.0", "Complete terms in LICENSE.txt")
     #[serde(default)]
     pub license: Option<String>,
-    /// Optional: Allowed tools for this skill
-    #[serde(default, rename = "allowed-tools")]
+    /// Optional: Compatibility / environment requirements (1-500 chars).
+    /// E.g. "Requires Python 3.14+ and uv", "Designed for Claude Code".
+    #[serde(default)]
+    pub compatibility: Option<String>,
+    /// Optional: Allowed tools. Per spec this is a space-separated string, but many
+    /// existing skills use a YAML list. We accept either form.
+    #[serde(default, rename = "allowed-tools", deserialize_with = "deserialize_allowed_tools")]
     pub allowed_tools: Vec<String>,
-    /// Optional: Additional metadata
+    /// Optional: Additional metadata (free-form key-value map per spec).
     #[serde(default)]
     pub metadata: Option<serde_json::Value>,
-    
+
     // ========== Extended fields (not in official spec, for internal use) ==========
-    /// Optional: Version string (internal use)
     #[serde(default = "default_version")]
     pub version: String,
-    /// Optional: Author name (internal use)
     #[serde(default)]
     pub author: Option<String>,
-    /// Optional: Tags for categorization (internal use)
     #[serde(default)]
     pub tags: Vec<String>,
-    /// Optional: Required permissions (internal use)
     #[serde(default)]
     pub permissions: Vec<String>,
-    /// Optional: Input parameters (internal use)
     #[serde(default)]
     pub parameters: Vec<Parameter>,
+}
+
+/// Deserialize `allowed-tools` accepting either a space-separated string (spec form)
+/// or a YAML/JSON list of strings (legacy form). Empty/missing yields an empty vec.
+fn deserialize_allowed_tools<'de, D>(deserializer: D) -> Result<Vec<String>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    use serde::de::{self, Visitor};
+    use std::fmt;
+
+    struct AllowedToolsVisitor;
+
+    impl<'de> Visitor<'de> for AllowedToolsVisitor {
+        type Value = Vec<String>;
+
+        fn expecting(&self, f: &mut fmt::Formatter) -> fmt::Result {
+            f.write_str("a space-separated string or a list of strings")
+        }
+
+        fn visit_str<E: de::Error>(self, v: &str) -> Result<Self::Value, E> {
+            Ok(v.split_whitespace().map(|s| s.to_string()).collect())
+        }
+
+        fn visit_string<E: de::Error>(self, v: String) -> Result<Self::Value, E> {
+            self.visit_str(&v)
+        }
+
+        fn visit_seq<A: de::SeqAccess<'de>>(self, mut seq: A) -> Result<Self::Value, A::Error> {
+            let mut out = Vec::new();
+            while let Some(item) = seq.next_element::<String>()? {
+                out.push(item);
+            }
+            Ok(out)
+        }
+
+        fn visit_unit<E: de::Error>(self) -> Result<Self::Value, E> {
+            Ok(Vec::new())
+        }
+
+        fn visit_none<E: de::Error>(self) -> Result<Self::Value, E> {
+            Ok(Vec::new())
+        }
+    }
+
+    deserializer.deserialize_any(AllowedToolsVisitor)
 }
 
 fn default_version() -> String {

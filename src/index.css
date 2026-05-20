@@ -2,40 +2,45 @@
 @plugin "@tailwindcss/typography";
 
 @theme {
-  /* 背景色 */
+  /* Surface colors (background levels, dark to light) */
   --color-bg-primary: #0d1117;
   --color-bg-secondary: #161b22;
   --color-bg-tertiary: #21262d;
   --color-bg-elevated: #30363d;
 
-  /* 边框色 */
+  /* Borders */
   --color-border-default: #30363d;
   --color-border-muted: #21262d;
+  --color-border-hover: #484f58;
 
-  /* 文字色 */
+  /* Text */
   --color-text-primary: #e6edf3;
   --color-text-secondary: #8b949e;
   --color-text-muted: #6e7681;
 
-  /* 强调色 */
+  /* Accents (semantic) */
   --color-accent-blue: #58a6ff;
   --color-accent-green: #3fb950;
   --color-accent-yellow: #d29922;
   --color-accent-red: #f85149;
   --color-accent-purple: #a371f7;
 
-  /* 权限等级色 */
+  /* Permission levels — kept as separate tokens so callers can express
+     "danger" without being coupled to red, and the palette can shift
+     independently of the generic accents. */
   --color-permission-low: #3fb950;
   --color-permission-medium: #d29922;
   --color-permission-high: #f85149;
 
-  /* 字体 */
+  /* Typography */
   --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
   --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+
+  /* Effects */
+  --shadow-elevated: 0 4px 20px -4px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(48, 54, 61, 0.5);
 }
 
 @layer base {
-  /* 全局样式重置 */
   * {
     box-sizing: border-box;
     margin: 0;
@@ -58,15 +63,19 @@
     background-color: var(--color-bg-primary);
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
-    /* 禁止文本选择，使应用更专业 */
+    /* Disable text selection at the shell level so the desktop app feels
+       native; inputs / pre / .selectable re-enable it below. */
     user-select: none;
     -webkit-user-select: none;
   }
 
-  /* 滚动条样式 */
+  /* Scrollbars — thin, low-contrast track with a clearer thumb on hover.
+     Note: webkit-scrollbar pseudos can't be combined with combinators like
+     `>` (the CSS spec forbids it), so we do everything via the pseudo's own
+     hover state. */
   ::-webkit-scrollbar {
-    width: 8px;
-    height: 8px;
+    width: 10px;
+    height: 10px;
   }
 
   ::-webkit-scrollbar-track {
@@ -74,36 +83,41 @@
   }
 
   ::-webkit-scrollbar-thumb {
-    background: var(--color-border-default);
-    border-radius: 4px;
+    background-color: var(--color-border-default);
+    border: 2px solid transparent;
+    background-clip: padding-box;
+    border-radius: 999px;
   }
 
   ::-webkit-scrollbar-thumb:hover {
-    background: var(--color-text-muted);
+    background-color: var(--color-border-hover);
+    background-clip: padding-box;
   }
 
-  /* 选中文本样式 */
+  ::-webkit-scrollbar-corner {
+    background: transparent;
+  }
+
   ::selection {
-    background: var(--color-accent-blue);
-    color: white;
+    background: color-mix(in srgb, var(--color-accent-blue) 60%, transparent);
+    color: var(--color-text-primary);
   }
 
-  /* 焦点样式 */
   :focus-visible {
     outline: 2px solid var(--color-accent-blue);
     outline-offset: 2px;
+    border-radius: 4px;
   }
 
-  /* 按钮基础样式重置 */
   button {
     font-family: inherit;
     font-size: inherit;
     cursor: pointer;
     border: none;
     background: none;
+    color: inherit;
   }
 
-  /* 输入框基础样式重置 */
   input:not([type="checkbox"]):not([type="radio"]),
   textarea {
     font-family: inherit;
@@ -111,19 +125,17 @@
     border: none;
     outline: none;
     background: none;
-    /* 允许输入框内文本选择 */
+    color: inherit;
     user-select: text;
     -webkit-user-select: text;
   }
 
-  /* Checkbox 和 Radio 样式 */
   input[type="checkbox"],
   input[type="radio"] {
     accent-color: var(--color-accent-blue);
     cursor: pointer;
   }
 
-  /* 允许代码块和预格式化文本选择 */
   pre,
   code,
   .prose,
@@ -133,7 +145,6 @@
     -webkit-user-select: text;
   }
 
-  /* 链接样式重置 */
   a {
     color: var(--color-accent-blue);
     text-decoration: none;
@@ -145,9 +156,14 @@
 }
 
 @layer utilities {
-  /* 禁用用户选择（用于拖拽区域） */
+  /* Explicit no-select helper for drag handles / window chrome. */
   .select-none {
     user-select: none;
     -webkit-user-select: none;
+  }
+
+  /* Subtle inset divider that respects the surface palette. */
+  .divider {
+    border-color: var(--color-border-muted);
   }
 }

@@ -4,7 +4,7 @@ import { Search, RefreshCw, LayoutGrid, List, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAppStore, useSettingsStore } from "@/stores";
 import { useRescanLibrary } from "@/hooks";
-import { Button, Input } from "@/components/ui";
+import { Button, Input, Kbd } from "@/components/ui";
 
 export const Header: React.FC = () => {
   const { t } = useTranslation();
@@ -56,9 +56,7 @@ export const Header: React.FC = () => {
               onChange={(e) => setSearchQuery(e.target.value)}
               className="h-7 w-64 pl-8 text-xs"
             />
-            <kbd className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 rounded border border-border-default bg-bg-tertiary px-1.5 text-[10px] text-text-muted">
-              ⌘K
-            </kbd>
+            <Kbd className="absolute right-2.5 top-1/2 -translate-y-1/2">⌘K</Kbd>
           </div>
         )}
 

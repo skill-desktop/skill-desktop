@@ -162,7 +162,10 @@
       "edit": "Edit",
       "reveal": "Reveal",
       "checkUpdate": "Check for Updates",
-      "update": "Update"
+      "update": "Update",
+      "install": "Install",
+      "installTitle": "Install to AI tool",
+      "installedCount": "Installed ({{count}})"
     },
     "updateAvailable": "Update available",
     "deleteConfirm": {
@@ -205,7 +208,13 @@
       "exportMcpConfig": "Export MCP Config",
       "syncSymlinks": "Sync Symlinks",
       "syncing": "Syncing...",
-      "syncedSkills": "Synced {{count}} skills"
+      "syncedSkills": "Synced {{count}} skills",
+      "applyToActiveDir": "Apply to Active directory"
+    },
+    "sync": {
+      "success": "Linked {{created}} skill(s) to active directory",
+      "partialFailure": "Linked {{created}} skill(s); {{failed}} failed",
+      "needActiveDir": "Set an Active directory in the space settings to enable symlink sync."
     },
     "manageSkillsDialog": {
       "title": "Manage Skills for {{name}}",
@@ -226,6 +235,13 @@
       "mcpTitle": "MCP Server Configuration",
       "genericTitle": "Generic Configuration"
     }
+  },
+  "installSkill": {
+    "title": "Install to AI tool",
+    "description": "Creates a symbolic link from this skill into the target tool's skills directory. The tool will discover the skill on next launch.",
+    "install": "Install",
+    "uninstall": "Uninstall",
+    "alreadyInLibrary": "Already in your skill library"
   },
   "hub": {
     "title": "Import Skill",

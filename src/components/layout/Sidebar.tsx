@@ -13,7 +13,7 @@ import {
 import { cn } from "@/lib/utils";
 import { useAppStore } from "@/stores";
 import { useSpaces, useSetSkillVisibility } from "@/hooks";
-import { Button } from "@/components/ui";
+import { Button, SideNavItem } from "@/components/ui";
 import { SKILL_DRAG_TYPE } from "@/components/library/SkillCard";
 
 type View = "library" | "spaces" | "sandbox" | "aitools" | "settings";
@@ -73,6 +73,31 @@ export const Sidebar: React.FC = () => {
     }
   };
 
+  const renderNavButton = (
+    id: View,
+    label: string,
+    icon: React.ReactNode
+  ) => {
+    const active = currentView === id;
+    return (
+      <button
+        type="button"
+        onClick={() => setCurrentView(id)}
+        title={sidebarCollapsed ? label : undefined}
+        className={cn(
+          "flex w-full items-center border-l-2 py-2 text-sm transition-colors",
+          sidebarCollapsed ? "justify-center px-0" : "gap-3 px-3",
+          active
+            ? "border-accent-blue bg-bg-tertiary text-text-primary"
+            : "border-transparent text-text-secondary hover:bg-bg-tertiary hover:text-text-primary"
+        )}
+      >
+        <span className="flex h-4 w-4 items-center justify-center">{icon}</span>
+        {!sidebarCollapsed && <span className="truncate">{label}</span>}
+      </button>
+    );
+  };
+
   return (
     <aside
       className={cn(
@@ -80,10 +105,14 @@ export const Sidebar: React.FC = () => {
         sidebarCollapsed ? "w-12" : "w-52"
       )}
     >
-      {/* Logo and collapse button */}
-      <div className="flex h-10 items-center justify-between border-b border-border-default px-3">
+      <div
+        className={cn(
+          "flex h-10 shrink-0 items-center border-b border-border-default",
+          sidebarCollapsed ? "justify-center px-0" : "justify-between px-3"
+        )}
+      >
         {!sidebarCollapsed && (
-          <span className="text-sm font-semibold text-text-primary">
+          <span className="truncate text-sm font-semibold text-text-primary">
             {t("app.name")}
           </span>
         )}
@@ -92,6 +121,7 @@ export const Sidebar: React.FC = () => {
           size="icon"
           className="h-6 w-6"
           onClick={toggleSidebar}
+          title={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
         >
           {sidebarCollapsed ? (
             <ChevronRight className="h-4 w-4" />
@@ -101,78 +131,50 @@ export const Sidebar: React.FC = () => {
         </Button>
       </div>
 
-      {/* Navigation */}
       <nav className="flex-1 overflow-y-auto py-2">
         {navItems.map((item) => (
           <React.Fragment key={item.id}>
-            <button
-              onClick={() => setCurrentView(item.id)}
-              className={cn(
-                "flex w-full items-center gap-3 px-3 py-2 text-sm transition-colors",
-                currentView === item.id
-                  ? "border-l-2 border-accent-blue bg-bg-tertiary text-text-primary"
-                  : "border-l-2 border-transparent text-text-secondary hover:bg-bg-tertiary hover:text-text-primary"
-              )}
-            >
-              {item.icon}
-              {!sidebarCollapsed && <span>{item.label}</span>}
-            </button>
+            {renderNavButton(item.id, item.label, item.icon)}
 
-            {/* Show spaces submenu - always visible for drag & drop, expanded when spaces view is selected */}
-            {item.id === "spaces" && !sidebarCollapsed && (
-              <div className={cn(
-                "ml-4 border-l border-border-muted",
-                currentView !== "spaces" && "hidden group-hover:block"
-              )}>
-                {spaces.map((space) => (
-                  <button
-                    key={space.id}
-                    onClick={() => {
-                      setCurrentSpaceId(space.id);
-                      if (currentView !== "spaces") {
-                        setCurrentView("spaces");
+            {item.id === "spaces" &&
+              !sidebarCollapsed &&
+              currentView === "spaces" && (
+                <div className="ml-4 mt-0.5 border-l border-border-muted">
+                  {spaces.map((space) => (
+                    <SideNavItem
+                      key={space.id}
+                      label={space.name}
+                      active={currentSpaceId === space.id}
+                      dragOver={dragOverSpaceId === space.id}
+                      trailing={
+                        currentSpaceId === space.id ? (
+                          <Check className="h-3 w-3 text-accent-blue" />
+                        ) : null
                       }
-                    }}
-                    onDragOver={(e) => handleDragOver(e, space.id)}
-                    onDragLeave={handleDragLeave}
-                    onDrop={(e) => handleDrop(e, space.id)}
-                    className={cn(
-                      "flex w-full items-center justify-between px-3 py-1.5 text-xs transition-colors",
-                      dragOverSpaceId === space.id
-                        ? "bg-accent-blue/20 text-text-primary ring-1 ring-accent-blue"
-                        : currentSpaceId === space.id
-                        ? "text-text-primary bg-bg-tertiary"
-                        : "text-text-secondary hover:bg-bg-tertiary hover:text-text-primary"
-                    )}
-                  >
-                    <span className="truncate">{space.name}</span>
-                    <div className="flex items-center gap-1">
-                      {currentSpaceId === space.id && (
-                        <Check className="h-3 w-3 text-accent-blue" />
-                      )}
-                    </div>
-                  </button>
-                ))}
-              </div>
-            )}
+                      className="py-1.5 text-xs"
+                      onClick={() => {
+                        setCurrentSpaceId(space.id);
+                        if (currentView !== "spaces") {
+                          setCurrentView("spaces");
+                        }
+                      }}
+                      onDragOver={(e) => handleDragOver(e, space.id)}
+                      onDragLeave={handleDragLeave}
+                      onDrop={(e) => handleDrop(e, space.id)}
+                    />
+                  ))}
+                </div>
+              )}
           </React.Fragment>
         ))}
       </nav>
 
-      {/* Settings at bottom */}
-      <div className="border-t border-border-default py-2">
-        <button
-          onClick={() => setCurrentView("settings")}
-          className={cn(
-            "flex w-full items-center gap-3 px-3 py-2 text-sm transition-colors",
-            currentView === "settings"
-              ? "border-l-2 border-accent-blue bg-bg-tertiary text-text-primary"
-              : "border-l-2 border-transparent text-text-secondary hover:bg-bg-tertiary hover:text-text-primary"
-          )}
-        >
+      <div className="shrink-0 border-t border-border-default py-2">
+        {renderNavButton(
+          "settings",
+          t("nav.settings"),
           <Settings className="h-4 w-4" />
-          {!sidebarCollapsed && <span>{t("nav.settings")}</span>}
-        </button>
+        )}
       </div>
     </aside>
   );

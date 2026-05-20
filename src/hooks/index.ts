@@ -133,6 +133,19 @@ export {
   type ExecutionHistoryEntry,
 } from "./useSandbox";
 
+// Install to AI Tool hooks
+export {
+  useInstallTargets,
+  useInstallSkillToTool,
+  useUninstallSkillFromTool,
+  useSkillInstallations,
+  installKeys,
+  type InstallTargetKind,
+  type InstallTargetInfo,
+  type InstallSkillResult,
+  type SkillInstallation,
+} from "./useInstall";
+
 // AI Tools hooks
 export {
   useAIToolsConfig,

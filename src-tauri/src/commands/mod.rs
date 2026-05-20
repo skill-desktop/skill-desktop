@@ -25,22 +25,24 @@ pub struct DefaultPaths {
     pub os_name: String,
 }
 
-/// Get default paths based on Tauri's app data directory
-/// The skill library is stored under {app_data_dir}/data/skills
+/// Default paths shown in the UI ("Use Default" button).
+///
+/// Skill library defaults to ~/.agents/skills/ (the cross-tool Agent Skills convention),
+/// falling back to the sandboxed app data directory only if $HOME is unavailable.
 #[tauri::command]
 pub fn get_default_paths(app_handle: AppHandle) -> Result<DefaultPaths, String> {
-    // Get Tauri's app data directory
     let app_data_dir = app_handle
         .path()
         .app_data_dir()
         .map_err(|e| format!("Failed to get app data directory: {}", e))?;
 
-    // Skill library is stored under {app_data_dir}/data/skills
     let data_path = app_data_dir.join("data");
-    let skill_path = data_path.join("skills");
     let config_path = app_data_dir.join("config");
 
-    // Determine OS name
+    let skill_path = dirs::home_dir()
+        .map(|h| h.join(".agents").join("skills"))
+        .unwrap_or_else(|| data_path.join("skills"));
+
     let os_name = if cfg!(target_os = "windows") {
         "windows"
     } else if cfg!(target_os = "macos") {
@@ -59,7 +61,8 @@ pub fn get_default_paths(app_handle: AppHandle) -> Result<DefaultPaths, String> 
     })
 }
 
-/// Ensure the default skill directory exists and return the path
+/// Ensure the default skill directory exists and return the path.
+/// Uses the same default resolution as `get_default_paths` (prefers ~/.agents/skills/).
 #[tauri::command]
 pub fn ensure_default_skill_path(app_handle: AppHandle) -> Result<String, String> {
     let paths = get_default_paths(app_handle)?;
@@ -95,27 +98,32 @@ pub async fn get_all_skills(
     };
 
     let mut skills = get_all_skills_internal(&library_path)?;
-    
-    // Enrich with categories
-    if let Ok(categories) = db_state.0.get_skill_categories() {
-        for skill in &mut skills {
-            if let Some(cat) = categories.get(&skill.hash) {
-                skill.category = Some(cat.clone());
-            }
+
+    // Enrich with categories: prefer skill_id (stable) over skill_hash (changes on edit).
+    let categories_by_id = db_state.0.get_skill_categories_by_id().unwrap_or_default();
+    let categories_by_hash = db_state.0.get_skill_categories().unwrap_or_default();
+    for skill in &mut skills {
+        if let Some(cat) = categories_by_id.get(&skill.skill_id) {
+            skill.category = Some(cat.clone());
+        } else if let Some(cat) = categories_by_hash.get(&skill.hash) {
+            skill.category = Some(cat.clone());
         }
     }
 
     Ok(skills)
 }
 
-/// Set skill category
+/// Set skill category. Persists both legacy `skill_hash` and the stable `skill_id`
+/// so the assignment survives future SKILL.md edits.
 #[tauri::command]
 pub async fn set_skill_category(
     hash: String,
     category: String,
+    library_state: State<'_, LibraryState>,
     db_state: State<'_, DatabaseState>,
 ) -> Result<(), String> {
-    db_state.0.set_skill_category(&hash, &category)?;
+    let skill_id = resolve_skill_id_from_hash(&hash, &library_state).ok();
+    db_state.0.set_skill_category_full(&hash, skill_id.as_deref(), &category)?;
     Ok(())
 }
 
@@ -251,60 +259,10 @@ impl Default for VisibilityState {
     }
 }
 
+/// Current time as RFC 3339 / ISO 8601 UTC string ("2026-05-20T14:23:11Z").
+/// Backed by `chrono` — replaces an old hand-rolled date algorithm that was easy to get wrong.
 fn chrono_now() -> String {
-    use std::time::{SystemTime, UNIX_EPOCH};
-    let duration = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .unwrap_or_default();
-    let secs = duration.as_secs() as i64;
-    
-    // Calculate date components correctly
-    // Days since epoch
-    let days = secs / 86400;
-    let time_secs = secs % 86400;
-    
-    // Calculate year, month, day using a proper algorithm
-    let mut year = 1970;
-    let mut remaining_days = days;
-    
-    loop {
-        let days_in_year = if is_leap_year(year) { 366 } else { 365 };
-        if remaining_days < days_in_year {
-            break;
-        }
-        remaining_days -= days_in_year;
-        year += 1;
-    }
-    
-    let is_leap = is_leap_year(year);
-    let days_in_months: [i64; 12] = if is_leap {
-        [31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
-    } else {
-        [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
-    };
-    
-    let mut month = 1;
-    for days_in_month in days_in_months.iter() {
-        if remaining_days < *days_in_month {
-            break;
-        }
-        remaining_days -= days_in_month;
-        month += 1;
-    }
-    
-    let day = remaining_days + 1;
-    let hour = time_secs / 3600;
-    let minute = (time_secs % 3600) / 60;
-    let second = time_secs % 60;
-    
-    format!(
-        "{:04}-{:02}-{:02}T{:02}:{:02}:{:02}Z",
-        year, month, day, hour, minute, second
-    )
-}
-
-fn is_leap_year(year: i64) -> bool {
-    (year % 4 == 0 && year % 100 != 0) || (year % 400 == 0)
+    chrono::Utc::now().format("%Y-%m-%dT%H:%M:%SZ").to_string()
 }
 
 /// Get all spaces
@@ -464,17 +422,23 @@ pub async fn sync_space(
     sync_space_links(&lib_path, &act_path, &enabled_skills)
 }
 
-/// Delete a skill file
+/// Delete a skill: removes the entire skill directory (SKILL.md + scripts/ + references/ + assets/).
+/// The skill directory must reside under the library path; we refuse to delete anything outside.
+///
+/// Also cleans up any installation records pointing at this skill so the database
+/// doesn't end up with orphan rows (and any dangling symlinks in AI tool directories
+/// are removed best-effort).
 #[tauri::command]
 pub async fn delete_skill(
     hash: String,
     library_state: State<'_, LibraryState>,
+    db_state: State<'_, DatabaseState>,
 ) -> Result<(), String> {
     let library_path = {
         let guard = library_state.path.lock().map_err(|e| e.to_string())?;
         guard.clone().ok_or("Library path not set")?
     };
-    
+
     let all_skills = get_all_skills_internal(&library_path)?;
 
     let skill = all_skills
@@ -482,37 +446,108 @@ pub async fn delete_skill(
         .find(|s| s.hash == hash)
         .ok_or("Skill not found")?;
 
-    std::fs::remove_file(&skill.local_path).map_err(|e| e.to_string())
+    let skill_id = skill.skill_id.clone();
+    delete_skill_directory(&PathBuf::from(&skill.skill_dir), &library_path)?;
+    cleanup_skill_installations(&db_state, &skill_id);
+    Ok(())
 }
 
-/// Delete multiple skill files
+/// Delete multiple skills, each as the entire skill directory.
 #[tauri::command]
 pub async fn delete_skills_batch(
     hashes: Vec<String>,
     library_state: State<'_, LibraryState>,
+    db_state: State<'_, DatabaseState>,
 ) -> Result<BatchDeleteResult, String> {
     let library_path = {
         let guard = library_state.path.lock().map_err(|e| e.to_string())?;
         guard.clone().ok_or("Library path not set")?
     };
-    
+
     let all_skills = get_all_skills_internal(&library_path)?;
-    
+
     let mut deleted = 0;
     let mut failed: Vec<(String, String)> = Vec::new();
-    
+
     for hash in hashes {
         if let Some(skill) = all_skills.iter().find(|s| s.hash == hash) {
-            match std::fs::remove_file(&skill.local_path) {
-                Ok(_) => deleted += 1,
-                Err(e) => failed.push((skill.name.clone(), e.to_string())),
+            match delete_skill_directory(&PathBuf::from(&skill.skill_dir), &library_path) {
+                Ok(_) => {
+                    deleted += 1;
+                    cleanup_skill_installations(&db_state, &skill.skill_id);
+                }
+                Err(e) => failed.push((skill.name.clone(), e)),
             }
         } else {
             failed.push((hash, "Skill not found".to_string()));
         }
     }
-    
+
     Ok(BatchDeleteResult { deleted, failed })
+}
+
+/// Best-effort cleanup of installation records and dangling symlinks for a deleted skill.
+/// Failures here are logged but never bubbled up — the actual skill deletion has already
+/// succeeded by this point and we don't want to surface a confusing error to the user.
+fn cleanup_skill_installations(db_state: &State<'_, DatabaseState>, skill_id: &str) {
+    let installations = match db_state.0.list_installations_for_skill(skill_id) {
+        Ok(rows) => rows,
+        Err(e) => {
+            tracing::warn!("Could not list installations for {}: {}", skill_id, e);
+            return;
+        }
+    };
+
+    for inst in installations {
+        let linked = std::path::PathBuf::from(&inst.linked_path);
+        // Only ever remove links — never real directories. If it's not a symlink we
+        // leave it alone (it might be a user file that happens to share the name).
+        if linked.is_symlink() {
+            #[cfg(windows)]
+            {
+                if linked.metadata().map(|m| m.is_dir()).unwrap_or(false) {
+                    let _ = std::fs::remove_dir(&linked);
+                } else {
+                    let _ = std::fs::remove_file(&linked);
+                }
+            }
+            #[cfg(unix)]
+            {
+                let _ = std::fs::remove_file(&linked);
+            }
+        }
+        if let Err(e) = db_state.0.remove_installation(skill_id, &inst.target_path) {
+            tracing::warn!("Could not remove install record {}: {}", inst.target_path, e);
+        }
+    }
+}
+
+/// Helper: delete a skill directory, but only if it is a strict descendant of the library root.
+/// This prevents accidental deletion of arbitrary paths.
+fn delete_skill_directory(skill_dir: &PathBuf, library_path: &PathBuf) -> Result<(), String> {
+    if !skill_dir.exists() {
+        return Err(format!("Skill directory does not exist: {}", skill_dir.display()));
+    }
+
+    // Canonicalize both paths so symlinks/relative segments don't fool the safety check.
+    let canon_skill = std::fs::canonicalize(skill_dir)
+        .map_err(|e| format!("Failed to resolve skill directory: {}", e))?;
+    let canon_library = std::fs::canonicalize(library_path)
+        .map_err(|e| format!("Failed to resolve library directory: {}", e))?;
+
+    if !canon_skill.starts_with(&canon_library) {
+        return Err(format!(
+            "Refusing to delete {}: not inside library {}",
+            canon_skill.display(),
+            canon_library.display()
+        ));
+    }
+
+    if canon_skill == canon_library {
+        return Err("Refusing to delete the library root itself".to_string());
+    }
+
+    std::fs::remove_dir_all(&canon_skill).map_err(|e| e.to_string())
 }
 
 #[derive(Debug, Clone, serde::Serialize)]
@@ -535,43 +570,83 @@ impl Default for QuarantineState {
     }
 }
 
-/// Set quarantine status for a skill
+/// Set quarantine status for a skill.
+/// Persists both `skill_hash` (legacy) and `skill_id` (stable) so the setting survives
+/// future edits to SKILL.md.
 #[tauri::command]
 pub async fn set_skill_quarantine(
     hash: String,
     is_quarantined: bool,
+    library_state: State<'_, LibraryState>,
     quarantine_state: State<'_, QuarantineState>,
     db_state: State<'_, DatabaseState>,
 ) -> Result<(), String> {
-    // Persist to database first
-    db_state.0.set_skill_quarantine(&hash, is_quarantined)?;
-    
-    // Then update in-memory cache
+    let skill_id = resolve_skill_id_from_hash(&hash, &library_state).ok();
+
+    db_state.0.set_skill_quarantine_full(&hash, skill_id.as_deref(), is_quarantined)?;
+
     let mut quarantined = quarantine_state.quarantined.lock().map_err(|e| e.to_string())?;
-    
     if is_quarantined {
         quarantined.insert(hash);
     } else {
         quarantined.remove(&hash);
     }
-    
+
     Ok(())
 }
 
-/// Get quarantine status for all skills
+/// Get the set of quarantined skill hashes for the current library.
+/// Includes both legacy `skill_hash` entries and entries that have been migrated to
+/// `skill_id` (we resolve `skill_id` back to the current hash via the library scan).
 #[tauri::command]
 pub async fn get_quarantined_skills(
+    library_state: State<'_, LibraryState>,
     quarantine_state: State<'_, QuarantineState>,
     db_state: State<'_, DatabaseState>,
 ) -> Result<Vec<String>, String> {
-    // Try to get from database (source of truth)
-    let db_quarantined = db_state.0.get_quarantined_skills()?;
-    
-    // Update in-memory cache
-    let mut quarantined = quarantine_state.quarantined.lock().map_err(|e| e.to_string())?;
-    *quarantined = db_quarantined.iter().cloned().collect();
-    
-    Ok(db_quarantined)
+    let mut hashes: std::collections::HashSet<String> =
+        db_state.0.get_quarantined_skills()?.into_iter().collect();
+
+    // Map quarantined skill_ids back to current hashes.
+    let ids = db_state.0.get_quarantined_skill_ids().unwrap_or_default();
+    if !ids.is_empty() {
+        if let Some(library_path) = {
+            let guard = library_state.path.lock().map_err(|e| e.to_string())?;
+            guard.clone()
+        } {
+            if let Ok(skills) = get_all_skills_internal(&library_path) {
+                let id_set: std::collections::HashSet<_> = ids.into_iter().collect();
+                for s in &skills {
+                    if id_set.contains(&s.skill_id) {
+                        hashes.insert(s.hash.clone());
+                    }
+                }
+            }
+        }
+    }
+
+    let out: Vec<String> = hashes.into_iter().collect();
+
+    let mut cache = quarantine_state.quarantined.lock().map_err(|e| e.to_string())?;
+    *cache = out.iter().cloned().collect();
+
+    Ok(out)
+}
+
+/// Resolve a skill's `skill_id` given its content hash. Returns Err if not found.
+fn resolve_skill_id_from_hash(
+    hash: &str,
+    library_state: &State<'_, LibraryState>,
+) -> Result<String, String> {
+    let library_path = {
+        let guard = library_state.path.lock().map_err(|e| e.to_string())?;
+        guard.clone().ok_or("Library path not set")?
+    };
+    let all = get_all_skills_internal(&library_path)?;
+    all.into_iter()
+        .find(|s| s.hash == hash)
+        .map(|s| s.skill_id)
+        .ok_or_else(|| format!("Skill with hash {} not found", hash))
 }
 
 /// Show file in system file manager (Finder on macOS)
@@ -745,22 +820,28 @@ pub async fn import_skill_from_url(
     let metadata = crate::scanner::parse_front_matter(&content)
         .ok_or("Failed to parse skill metadata")?;
 
+    // Sanitize the upstream name to defend against path traversal and invalid chars.
+    let safe_name = sanitize_skill_name(&metadata.name)?;
+
     // Create skill directory
-    let skill_dir = library_path.join(&metadata.name);
+    let skill_dir = library_path.join(&safe_name);
     if skill_dir.exists() {
-        return Err(format!("A skill with name '{}' already exists", metadata.name));
+        return Err(format!("A skill with name '{}' already exists", safe_name));
     }
-    
+
     std::fs::create_dir_all(&skill_dir)
         .map_err(|e| format!("Failed to create skill directory: {}", e))?;
 
-    // Write SKILL.md file
+    // Patch the frontmatter so the on-disk `name:` matches the sanitized directory.
+    // Falling back to the raw content keeps imports working even if the upstream
+    // file has odd frontmatter that we couldn't round-trip through serde_yaml.
+    let final_content =
+        rewrite_skill_md_name(&content, &safe_name).unwrap_or_else(|_| content.clone());
     let skill_md_path = skill_dir.join("SKILL.md");
-    std::fs::write(&skill_md_path, &content)
+    std::fs::write(&skill_md_path, &final_content)
         .map_err(|e| format!("Failed to write SKILL.md: {}", e))?;
 
-    // Create skill from directory
-    create_skill_from_directory(&skill_dir, Some(url))
+    create_skill_from_directory(&skill_dir, Some(url), Some(&library_path))
 }
 
 #[derive(Debug, Clone, serde::Serialize)]
@@ -796,38 +877,64 @@ pub async fn export_claude_config(
         }
     }
 
-    // Get all skills
+    // Get all skills, filtered to those visible in this space.
     let all_skills = get_all_skills_internal(&library_path)?;
-    
-    // Get visibility map from database
-    let visibility_map = db_state.0.get_visibility_map(&space_id)?;
-    
-    // Filter to visible skills only
-    let skills: Vec<_> = if visibility_map.is_empty() {
-        all_skills
-    } else {
-        all_skills.into_iter()
-            .filter(|s| visibility_map.get(&s.hash).copied().unwrap_or(false))
-            .collect()
-    };
+    let skills = filter_visible_skills(&db_state, &space_id, all_skills);
 
-    // Build MCP servers config
-    let mut mcp_servers = serde_json::Map::new();
+    // Claude Code / Claude Desktop discovers skills by scanning ~/.claude/skills/<name>/.
+    // Each skill directory must contain SKILL.md and may contain scripts/ references/ assets/.
+    // We don't try to "export" a config file here — Claude has no skill config schema.
+    // Instead we **install** each visible skill into ~/.claude/skills/ via a symbolic link
+    // (the same mechanism as `install_skill_to_tool` but in bulk for this space).
+    let target_path = InstallTargetKind::Claude
+        .default_path()
+        .ok_or("Cannot determine home directory")?;
+
+    std::fs::create_dir_all(&target_path)
+        .map_err(|e| format!("Failed to create Claude skills directory: {}", e))?;
+
+    let mut installed = Vec::new();
+    let mut skipped = Vec::new();
 
     for skill in skills {
-        let server_config = serde_json::json!({
-            "command": "skill-runner",
-            "args": [skill.local_path],
-            "env": {}
-        });
-        mcp_servers.insert(skill.name.clone(), server_config);
+        let skill_dir = PathBuf::from(&skill.skill_dir);
+        if !skill_dir.is_dir() {
+            skipped.push(format!("{}: missing on disk", skill.name));
+            continue;
+        }
+        let link_name = match skill_dir.file_name().map(|s| s.to_string_lossy().to_string()) {
+            Some(n) if !n.is_empty() => n,
+            _ => {
+                skipped.push(format!("{}: cannot determine link name", skill.name));
+                continue;
+            }
+        };
+        let linked_path = target_path.join(&link_name);
+        match crate::space::create_symlink(&skill_dir, &linked_path) {
+            Ok(_) => {
+                let _ = db_state.0.record_installation(
+                    &skill.skill_id,
+                    InstallTargetKind::Claude.as_str(),
+                    &target_path.to_string_lossy(),
+                    &linked_path.to_string_lossy(),
+                );
+                installed.push(linked_path.to_string_lossy().to_string());
+            }
+            Err(e) => skipped.push(format!("{}: {}", skill.name, e)),
+        }
     }
 
-    let config = serde_json::json!({
-        "mcpServers": mcp_servers
+    // Return a human-readable report. The frontend dialog already shows the JSON,
+    // so a structured summary is fine here.
+    let report = serde_json::json!({
+        "target_path": target_path.to_string_lossy().to_string(),
+        "installed_count": installed.len(),
+        "installed": installed,
+        "skipped": skipped,
+        "note": "Skills are installed as symlinks into Claude's skills directory. Restart Claude to pick them up.",
     });
 
-    serde_json::to_string_pretty(&config).map_err(|e| e.to_string())
+    serde_json::to_string_pretty(&report).map_err(|e| e.to_string())
 }
 
 /// Export configuration as generic JSON
@@ -854,20 +961,9 @@ pub async fn export_generic_config(
             .ok_or("Space not found")?
     };
 
-    // Get all skills
+    // Get all skills, filtered to those visible in this space.
     let all_skills = get_all_skills_internal(&library_path)?;
-    
-    // Get visibility map from database
-    let visibility_map = db_state.0.get_visibility_map(&space_id)?;
-    
-    // Filter to visible skills only
-    let skills: Vec<_> = if visibility_map.is_empty() {
-        all_skills
-    } else {
-        all_skills.into_iter()
-            .filter(|s| visibility_map.get(&s.hash).copied().unwrap_or(false))
-            .collect()
-    };
+    let skills = filter_visible_skills(&db_state, &space_id, all_skills);
 
     let config = serde_json::json!({
         "space": {
@@ -915,20 +1011,9 @@ pub async fn export_mcp_config(
             .ok_or("Space not found")?
     };
 
-    // Get all skills
+    // Get all skills, filtered to those visible in this space.
     let all_skills = get_all_skills_internal(&library_path)?;
-    
-    // Get visibility map from database
-    let visibility_map = db_state.0.get_visibility_map(&space_id)?;
-    
-    // Filter to visible skills only
-    let skills: Vec<_> = if visibility_map.is_empty() {
-        all_skills
-    } else {
-        all_skills.into_iter()
-            .filter(|s| visibility_map.get(&s.hash).copied().unwrap_or(false))
-            .collect()
-    };
+    let skills = filter_visible_skills(&db_state, &space_id, all_skills);
 
     // Build MCP-compatible tools array
     let tools: Vec<serde_json::Value> = skills.iter().map(|s| {
@@ -973,8 +1058,12 @@ pub async fn export_mcp_config(
     serde_json::to_string_pretty(&config).map_err(|e| e.to_string())
 }
 
-/// Helper function to get all skills without State
-/// Helper function to get all skills without State
+/// Scan the library for skill directories.
+///
+/// Bounded walk per the Agent Skills spec recommendations:
+///   - max depth 6 levels
+///   - skip common build/cache/VCS directories
+///   - follow symlinks (so installed skills via symlink show up)
 fn get_all_skills_internal(library_path: &PathBuf) -> Result<Vec<Skill>, String> {
     if !library_path.exists() {
         return Ok(vec![]);
@@ -983,10 +1072,22 @@ fn get_all_skills_internal(library_path: &PathBuf) -> Result<Vec<Skill>, String>
     let mut skills = Vec::new();
     let mut visited_dirs = std::collections::HashSet::new();
 
-    // Walk through the library directory looking for skill directories
+    const MAX_DEPTH: usize = 6;
+
     for entry in WalkDir::new(library_path)
         .follow_links(true)
+        .max_depth(MAX_DEPTH)
         .into_iter()
+        .filter_entry(|e| {
+            // Always allow the root entry itself
+            if e.depth() == 0 {
+                return true;
+            }
+            let name = e.file_name().to_string_lossy();
+            !crate::scanner::IGNORE_DIR_NAMES
+                .iter()
+                .any(|d| name == *d)
+        })
         .filter_map(|e| e.ok())
     {
         let path = entry.path();
@@ -1003,7 +1104,7 @@ fn get_all_skills_internal(library_path: &PathBuf) -> Result<Vec<Skill>, String>
                 visited_dirs.insert(dir_str);
                 
                 // Create skill from directory
-                match create_skill_from_directory(skill_dir, None) {
+                match create_skill_from_directory(skill_dir, None, Some(library_path.as_path())) {
                     Ok(skill) => skills.push(skill),
                     Err(e) => {
                         tracing::warn!("Failed to parse skill directory {:?}: {}", skill_dir, e);
@@ -1019,32 +1120,37 @@ fn get_all_skills_internal(library_path: &PathBuf) -> Result<Vec<Skill>, String>
 
 // ========== Visibility Commands ==========
 
-/// Set skill visibility in a space
+/// Set skill visibility in a space.
+/// Persists both `skill_hash` (legacy) and `skill_id` (stable) for migration safety.
 #[tauri::command]
 pub async fn set_skill_visibility(
     space_id: String,
     skill_hash: String,
     is_visible: bool,
+    library_state: State<'_, LibraryState>,
     visibility_state: State<'_, VisibilityState>,
     db_state: State<'_, DatabaseState>,
 ) -> Result<(), String> {
+    let skill_id = resolve_skill_id_from_hash(&skill_hash, &library_state).ok();
+
     // Update in-memory state
     let mut guard = visibility_state.mappings.lock().map_err(|e| e.to_string())?;
     let space_skills = guard.entry(space_id.clone()).or_insert_with(std::collections::HashSet::new);
-    
+
     if is_visible {
         space_skills.insert(skill_hash.clone());
     } else {
         space_skills.remove(&skill_hash);
     }
-    
-    // Persist to database
-    db_state.0.set_visibility(&space_id, &skill_hash, is_visible)?;
-    
+
+    // Persist to database with both identifiers
+    db_state.0.set_visibility_full(&space_id, &skill_hash, skill_id.as_deref(), is_visible)?;
+
     Ok(())
 }
 
-/// Get visible skills for a space
+/// Get visible skills for a space.
+/// Prefers visibility lookups keyed by skill_id (stable), falling back to skill_hash.
 #[tauri::command]
 pub async fn get_visible_skills(
     space_id: String,
@@ -1061,61 +1167,144 @@ pub async fn get_visible_skills(
     };
 
     let all_skills = get_all_skills_internal(&library_path)?;
-    
-    // Get visibility map from database
-    let visibility_map = db_state.0.get_visibility_map(&space_id)?;
-    
-    // If no visibility mapping exists for this space, return all skills (default behavior)
-    if visibility_map.is_empty() {
+
+    let by_id = db_state.0.get_visibility_map_by_id(&space_id).unwrap_or_default();
+    let by_hash = db_state.0.get_visibility_map(&space_id).unwrap_or_default();
+
+    if by_id.is_empty() && by_hash.is_empty() {
         return Ok(all_skills);
     }
-    
-    // Filter to only visible skills
+
     let visible_skills: Vec<Skill> = all_skills
         .into_iter()
-        .filter(|s| visibility_map.get(&s.hash).copied().unwrap_or(true))
+        .filter(|s| {
+            if let Some(v) = by_id.get(&s.skill_id) {
+                return *v;
+            }
+            by_hash.get(&s.hash).copied().unwrap_or(true)
+        })
         .collect();
-    
+
     Ok(visible_skills)
 }
 
-/// Get visibility status for all skills in a space
+/// Shared visibility filter, matching `get_visible_skills` semantics:
+/// - look up by stable `skill_id` first
+/// - fall back to legacy `skill_hash`
+/// - default to visible when the skill is not in the map (so newly-added skills appear
+///   without requiring the user to toggle them on)
+///
+/// Used by every command that needs "skills visible in space X" (export_*_config,
+/// install bulk operations, etc.) so they all behave identically.
+fn filter_visible_skills(
+    db_state: &State<'_, DatabaseState>,
+    space_id: &str,
+    all_skills: Vec<Skill>,
+) -> Vec<Skill> {
+    let by_id = db_state.0.get_visibility_map_by_id(space_id).unwrap_or_default();
+    let by_hash = db_state.0.get_visibility_map(space_id).unwrap_or_default();
+
+    if by_id.is_empty() && by_hash.is_empty() {
+        return all_skills;
+    }
+
+    all_skills
+        .into_iter()
+        .filter(|s| {
+            if let Some(v) = by_id.get(&s.skill_id) {
+                return *v;
+            }
+            by_hash.get(&s.hash).copied().unwrap_or(true)
+        })
+        .collect()
+}
+
+/// Get visibility status for all skills in a space, keyed by current hash.
+/// Frontends use this to render checkboxes; we project skill_id-keyed entries back to
+/// the current hash by scanning the library.
 #[tauri::command]
 pub async fn get_skill_visibility_map(
     space_id: String,
+    library_state: State<'_, LibraryState>,
     db_state: State<'_, DatabaseState>,
 ) -> Result<std::collections::HashMap<String, bool>, String> {
-    db_state.0.get_visibility_map(&space_id)
+    let mut map = db_state.0.get_visibility_map(&space_id).unwrap_or_default();
+
+    let by_id = db_state.0.get_visibility_map_by_id(&space_id).unwrap_or_default();
+    if by_id.is_empty() {
+        return Ok(map);
+    }
+
+    let library_path = {
+        let guard = library_state.path.lock().map_err(|e| e.to_string())?;
+        guard.clone()
+    };
+
+    if let Some(lp) = library_path {
+        if let Ok(skills) = get_all_skills_internal(&lp) {
+            for s in skills {
+                if let Some(v) = by_id.get(&s.skill_id) {
+                    map.insert(s.hash, *v);
+                }
+            }
+        }
+    }
+
+    Ok(map)
 }
 
-/// Set visibility for multiple skills at once
+/// Set visibility for multiple skills at once.
+/// Resolves each hash to its skill_id and persists both for migration safety.
 #[tauri::command]
 pub async fn set_bulk_skill_visibility(
     space_id: String,
     skill_hashes: Vec<String>,
     is_visible: bool,
+    library_state: State<'_, LibraryState>,
     visibility_state: State<'_, VisibilityState>,
     db_state: State<'_, DatabaseState>,
 ) -> Result<(), String> {
+    // Build (hash, optional skill_id) pairs.
+    let hash_to_id: std::collections::HashMap<String, String> = {
+        let library_path = {
+            let guard = library_state.path.lock().map_err(|e| e.to_string())?;
+            guard.clone()
+        };
+        match library_path {
+            Some(lp) => get_all_skills_internal(&lp)
+                .unwrap_or_default()
+                .into_iter()
+                .map(|s| (s.hash, s.skill_id))
+                .collect(),
+            None => std::collections::HashMap::new(),
+        }
+    };
+
+    let entries: Vec<(String, Option<String>)> = skill_hashes
+        .iter()
+        .map(|h| (h.clone(), hash_to_id.get(h).cloned()))
+        .collect();
+
     // Update in-memory state
-    let mut guard = visibility_state.mappings.lock().map_err(|e| e.to_string())?;
-    let space_skills = guard.entry(space_id.clone()).or_insert_with(std::collections::HashSet::new);
-    
-    for hash in &skill_hashes {
-        if is_visible {
-            space_skills.insert(hash.clone());
-        } else {
-            space_skills.remove(hash);
+    {
+        let mut guard = visibility_state.mappings.lock().map_err(|e| e.to_string())?;
+        let space_skills = guard.entry(space_id.clone()).or_insert_with(std::collections::HashSet::new);
+        for hash in &skill_hashes {
+            if is_visible {
+                space_skills.insert(hash.clone());
+            } else {
+                space_skills.remove(hash);
+            }
         }
     }
-    
-    // Persist to database
-    db_state.0.set_bulk_visibility(&space_id, &skill_hashes, is_visible)?;
-    
+
+    db_state.0.set_bulk_visibility_full(&space_id, &entries, is_visible)?;
+
     Ok(())
 }
 
-/// Initialize all skills as visible for a space
+/// Initialize all skills as visible for a space. Persists both `skill_hash` and
+/// `skill_id` so the assignment survives later edits to SKILL.md.
 #[tauri::command]
 pub async fn init_space_visibility(
     space_id: String,
@@ -1133,19 +1322,25 @@ pub async fn init_space_visibility(
     };
 
     let all_skills = get_all_skills_internal(&library_path)?;
-    let skill_hashes: Vec<String> = all_skills.iter().map(|s| s.hash.clone()).collect();
-    
-    // Update in-memory state
-    let mut guard = visibility_state.mappings.lock().map_err(|e| e.to_string())?;
-    let space_skills = guard.entry(space_id.clone()).or_insert_with(std::collections::HashSet::new);
-    
-    for skill in all_skills {
-        space_skills.insert(skill.hash);
+
+    // Build (hash, Some(skill_id)) pairs so the database row carries the stable id.
+    let entries: Vec<(String, Option<String>)> = all_skills
+        .iter()
+        .map(|s| (s.hash.clone(), Some(s.skill_id.clone())))
+        .collect();
+
+    {
+        let mut guard = visibility_state.mappings.lock().map_err(|e| e.to_string())?;
+        let space_skills = guard
+            .entry(space_id.clone())
+            .or_insert_with(std::collections::HashSet::new);
+        for skill in &all_skills {
+            space_skills.insert(skill.hash.clone());
+        }
     }
-    
-    // Persist to database
-    db_state.0.set_bulk_visibility(&space_id, &skill_hashes, true)?;
-    
+
+    db_state.0.set_bulk_visibility_full(&space_id, &entries, true)?;
+
     Ok(())
 }
 
@@ -1274,83 +1469,99 @@ pub async fn import_github_skill(
     branch: Option<String>,
     library_state: State<'_, LibraryState>,
 ) -> Result<Skill, String> {
-    let branch = branch.unwrap_or_else(|| "main".to_string());
-    
-    // Get library path
     let library_path = {
         let guard = library_state.path.lock().map_err(|e| e.to_string())?;
         guard.clone().ok_or("Library path not set")?
     };
-    
-    // Determine if we're importing a SKILL.md file or a directory
+    let branch = branch.unwrap_or_else(|| "main".to_string());
+
+    import_github_skill_inner(&owner, &repo, &path, &branch, &library_path).await
+}
+
+/// Stateless helper that does the actual GitHub import work.
+async fn import_github_skill_inner(
+    owner: &str,
+    repo: &str,
+    path: &str,
+    branch: &str,
+    library_path: &PathBuf,
+) -> Result<Skill, String> {
     let is_skill_md = path.ends_with("SKILL.md");
     let skill_dir_path = if is_skill_md {
-        // Get parent directory path
-        std::path::Path::new(&path)
+        std::path::Path::new(path)
             .parent()
             .map(|p| p.to_string_lossy().to_string())
             .unwrap_or_default()
     } else {
-        path.clone()
+        path.to_string()
     };
-    
-    // First, fetch the SKILL.md content to get the skill name
+
     let skill_md_path = if is_skill_md {
-        path.clone()
+        path.to_string()
     } else {
         format!("{}/SKILL.md", path.trim_end_matches('/'))
     };
-    
+
     let raw_url = format!(
         "https://raw.githubusercontent.com/{}/{}/{}/{}",
         owner, repo, branch, skill_md_path
     );
-    
+
     let response = reqwest::get(&raw_url)
         .await
         .map_err(|e| format!("Failed to fetch SKILL.md: {}", e))?;
-    
+
     if !response.status().is_success() {
         return Err(format!("Failed to fetch SKILL.md: HTTP {}", response.status()));
     }
-    
+
     let skill_md_content = response
         .text()
         .await
         .map_err(|e| format!("Failed to read response: {}", e))?;
-    
-    // Parse metadata to get skill name
+
     let metadata = crate::scanner::parse_front_matter(&skill_md_content)
         .ok_or("Failed to parse skill metadata")?;
-    
-    // Create local skill directory
-    let local_skill_dir = library_path.join(&metadata.name);
+
+    // Remote frontmatter is uncontrolled; sanitize before joining with the library path.
+    let safe_name = sanitize_skill_name(&metadata.name)?;
+    let local_skill_dir = library_path.join(&safe_name);
     if local_skill_dir.exists() {
-        return Err(format!("A skill with name '{}' already exists", metadata.name));
+        return Err(format!("A skill with name '{}' already exists", safe_name));
     }
-    
+
     std::fs::create_dir_all(&local_skill_dir)
         .map_err(|e| format!("Failed to create skill directory: {}", e))?;
-    
-    // Write SKILL.md
+
+    // Patch the frontmatter `name` so it matches the directory we just created.
+    let final_content = rewrite_skill_md_name(&skill_md_content, &safe_name)
+        .unwrap_or_else(|_| skill_md_content.clone());
     let local_skill_md = local_skill_dir.join("SKILL.md");
-    std::fs::write(&local_skill_md, &skill_md_content)
+    std::fs::write(&local_skill_md, &final_content)
         .map_err(|e| format!("Failed to write SKILL.md: {}", e))?;
-    
-    // Try to import additional files from the skill directory
-    let _ = import_github_skill_resources(
-        &owner, &repo, &branch, &skill_dir_path, &local_skill_dir
-    ).await;
-    
+
+    // Best-effort: fetch the rest of the skill directory (scripts/, references/, assets/, etc.)
+    let _ = import_github_skill_resources(owner, repo, branch, &skill_dir_path, &local_skill_dir).await;
+
     let source_url = format!(
         "https://github.com/{}/{}/tree/{}/{}",
         owner, repo, branch, skill_dir_path
     );
-    
-    create_skill_from_directory(&local_skill_dir, Some(source_url))
+
+    create_skill_from_directory(&local_skill_dir, Some(source_url), Some(library_path))
 }
 
-/// Helper function to import additional resources from a GitHub skill directory
+/// Recursively download a GitHub skill directory into `local_dir`.
+///
+/// Hardening on top of a naive recursive download:
+/// - hard recursion depth limit (`MAX_DEPTH = 6`), matching the scanner's spec-recommended walk
+/// - skip directories the scanner would also skip (`.git`, `node_modules`, etc.)
+/// - reject any entry whose name contains a path separator or `..` (defence against a
+///   malicious GitHub API response trying to write outside `local_dir`)
+/// - per-file size cap (5 MB) and cumulative download cap to keep storage bounded
+///
+/// Errors are intentionally swallowed for individual files: extras are best-effort, the
+/// import should still succeed once SKILL.md is in place.
 async fn import_github_skill_resources(
     owner: &str,
     repo: &str,
@@ -1358,70 +1569,136 @@ async fn import_github_skill_resources(
     github_path: &str,
     local_dir: &std::path::Path,
 ) -> Result<(), String> {
-    let client = reqwest::Client::new();
-    
-    // Browse the directory
-    let url = format!(
-        "https://api.github.com/repos/{}/{}/contents/{}?ref={}",
-        owner, repo, github_path, branch
-    );
-    
-    let response = client
-        .get(&url)
-        .header("User-Agent", "Skill-Desktop/0.1.0")
-        .header("Accept", "application/vnd.github.v3+json")
-        .send()
-        .await
-        .map_err(|e| format!("Failed to fetch GitHub API: {}", e))?;
-    
-    if !response.status().is_success() {
-        return Ok(()); // Silently fail for additional resources
-    }
-    
-    let entries: Vec<serde_json::Value> = response
-        .json()
-        .await
-        .map_err(|e| format!("Failed to parse response: {}", e))?;
-    
-    for entry in entries {
-        let name = entry["name"].as_str().unwrap_or("");
-        let entry_type = entry["type"].as_str().unwrap_or("");
-        let entry_path = entry["path"].as_str().unwrap_or("");
-        
-        // Skip SKILL.md (already imported)
-        if name == "SKILL.md" {
-            continue;
+    // Cumulative size budget shared across the entire recursive walk.
+    let budget = std::sync::Arc::new(std::sync::atomic::AtomicU64::new(0));
+    import_github_skill_resources_inner(owner, repo, branch, github_path, local_dir, 0, budget).await
+}
+
+/// Maximum recursion depth for GitHub skill resource download.
+const MAX_GH_DEPTH: usize = 6;
+/// Per-file size cap: skip any single file larger than this. Skill scripts/assets are
+/// expected to be small; anything bigger is almost certainly a misconfiguration.
+const MAX_GH_FILE_BYTES: u64 = 5 * 1024 * 1024;
+/// Cumulative byte budget across one skill import.
+const MAX_GH_TOTAL_BYTES: u64 = 50 * 1024 * 1024;
+
+fn import_github_skill_resources_inner<'a>(
+    owner: &'a str,
+    repo: &'a str,
+    branch: &'a str,
+    github_path: &'a str,
+    local_dir: &'a std::path::Path,
+    depth: usize,
+    budget: std::sync::Arc<std::sync::atomic::AtomicU64>,
+) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<(), String>> + Send + 'a>> {
+    Box::pin(async move {
+        if depth > MAX_GH_DEPTH {
+            return Ok(());
         }
-        
-        if entry_type == "dir" {
-            // Create local directory and recurse
-            let local_subdir = local_dir.join(name);
-            let _ = std::fs::create_dir_all(&local_subdir);
-            let _ = Box::pin(import_github_skill_resources(
-                owner, repo, branch, entry_path, &local_subdir
-            )).await;
-        } else if entry_type == "file" {
-            // Download file
-            let raw_url = format!(
-                "https://raw.githubusercontent.com/{}/{}/{}/{}",
-                owner, repo, branch, entry_path
-            );
-            
-            if let Ok(resp) = reqwest::get(&raw_url).await {
-                if resp.status().is_success() {
-                    if let Ok(content) = resp.bytes().await {
-                        let local_file = local_dir.join(name);
-                        let _ = std::fs::write(&local_file, &content);
+
+        let client = reqwest::Client::new();
+        let url = format!(
+            "https://api.github.com/repos/{}/{}/contents/{}?ref={}",
+            owner, repo, github_path, branch
+        );
+
+        let response = match client
+            .get(&url)
+            .header("User-Agent", "Skill-Desktop/0.1.0")
+            .header("Accept", "application/vnd.github.v3+json")
+            .send()
+            .await
+        {
+            Ok(r) if r.status().is_success() => r,
+            _ => return Ok(()),
+        };
+
+        let entries: Vec<serde_json::Value> = match response.json().await {
+            Ok(v) => v,
+            Err(_) => return Ok(()),
+        };
+
+        for entry in entries {
+            let name = entry["name"].as_str().unwrap_or("");
+            let entry_type = entry["type"].as_str().unwrap_or("");
+            let entry_path = entry["path"].as_str().unwrap_or("");
+            let size = entry["size"].as_u64().unwrap_or(0);
+
+            // SKILL.md is downloaded by the caller; everything else falls through.
+            if name == "SKILL.md" {
+                continue;
+            }
+            if name.is_empty() {
+                continue;
+            }
+            // Defence in depth: reject any entry whose name would let us write outside local_dir.
+            if name.contains('/')
+                || name.contains('\\')
+                || name == ".."
+                || name == "."
+                || crate::scanner::IGNORE_DIR_NAMES.contains(&name)
+            {
+                continue;
+            }
+
+            if entry_type == "dir" {
+                let local_subdir = local_dir.join(name);
+                let _ = std::fs::create_dir_all(&local_subdir);
+                let _ = import_github_skill_resources_inner(
+                    owner,
+                    repo,
+                    branch,
+                    entry_path,
+                    &local_subdir,
+                    depth + 1,
+                    std::sync::Arc::clone(&budget),
+                )
+                .await;
+            } else if entry_type == "file" {
+                if size > MAX_GH_FILE_BYTES {
+                    continue;
+                }
+                let used = budget.load(std::sync::atomic::Ordering::Relaxed);
+                if used.saturating_add(size) > MAX_GH_TOTAL_BYTES {
+                    continue;
+                }
+
+                let raw_url = format!(
+                    "https://raw.githubusercontent.com/{}/{}/{}/{}",
+                    owner, repo, branch, entry_path
+                );
+
+                if let Ok(resp) = reqwest::get(&raw_url).await {
+                    if resp.status().is_success() {
+                        if let Ok(content) = resp.bytes().await {
+                            // Final size check against the real response body.
+                            if content.len() as u64 > MAX_GH_FILE_BYTES {
+                                continue;
+                            }
+                            let after =
+                                budget.fetch_add(content.len() as u64, std::sync::atomic::Ordering::Relaxed)
+                                    + content.len() as u64;
+                            if after > MAX_GH_TOTAL_BYTES {
+                                continue;
+                            }
+                            let local_file = local_dir.join(name);
+                            let _ = std::fs::write(&local_file, &content);
+                        }
                     }
                 }
             }
         }
-    }
-    
-    Ok(())
+
+        Ok(())
+    })
 }
 
-/// Import multiple skills from a GitHub directory
+/// Import multiple skills from a GitHub directory.
+///
+/// Each entry that contains a parseable SKILL.md (either directly, or inside a subdirectory)
+/// becomes its own skill directory under `library_path`. We follow the Agent Skills
+/// convention: every skill lives in its own folder with a `SKILL.md` inside, plus optional
+/// scripts/ references/ assets/ subdirectories that we copy alongside.
 #[tauri::command]
 pub async fn import_github_directory(
     owner: String,
@@ -1431,82 +1708,102 @@ pub async fn import_github_directory(
     library_state: State<'_, LibraryState>,
 ) -> Result<ImportResult, String> {
     let branch = branch.unwrap_or_else(|| "main".to_string());
-    
-    // Get library path
+
     let library_path = {
         let guard = library_state.path.lock().map_err(|e| e.to_string())?;
         guard.clone().ok_or("Library path not set")?
     };
-    
-    // Browse directory to get all files
-    let files = browse_github_repo(owner.clone(), repo.clone(), Some(path.clone()), Some(branch.clone())).await?;
-    
+
+    let entries =
+        browse_github_repo(owner.clone(), repo.clone(), Some(path.clone()), Some(branch.clone())).await?;
+
     let mut imported = 0;
     let mut skipped = 0;
     let mut errors: Vec<String> = Vec::new();
-    
-    for file in files {
-        // Only process markdown files
-        if file.file_type != "file" || !file.name.ends_with(".md") {
-            continue;
-        }
-        
-        // Get raw content URL
-        let raw_url = format!(
-            "https://raw.githubusercontent.com/{}/{}/{}/{}",
-            owner, repo, branch, file.path
-        );
-        
-        // Fetch content
-        let response = match reqwest::get(&raw_url).await {
-            Ok(r) => r,
-            Err(e) => {
-                errors.push(format!("{}: {}", file.name, e));
-                continue;
+
+    for entry in entries {
+        match entry.file_type.as_str() {
+            // Each subdirectory is treated as a potential skill: look for its SKILL.md.
+            "dir" => {
+                let res = import_github_skill_inner(
+                    &owner,
+                    &repo,
+                    &entry.path,
+                    &branch,
+                    &library_path,
+                )
+                .await;
+                match res {
+                    Ok(_) => imported += 1,
+                    Err(e) => {
+                        // "already exists" or "no SKILL.md" are common and not really errors.
+                        if e.contains("already exists") || e.contains("Failed to fetch SKILL.md") {
+                            skipped += 1;
+                        } else {
+                            errors.push(format!("{}: {}", entry.path, e));
+                        }
+                    }
+                }
             }
-        };
-        
-        if !response.status().is_success() {
-            errors.push(format!("{}: HTTP {}", file.name, response.status()));
-            continue;
-        }
-        
-        let content = match response.text().await {
-            Ok(c) => c,
-            Err(e) => {
-                errors.push(format!("{}: {}", file.name, e));
-                continue;
+            // A loose .md file: if it parses as a SKILL.md, wrap it in a new skill directory.
+            "file" if entry.name.ends_with(".md") => {
+                match import_loose_md_as_skill(&owner, &repo, &branch, &entry, &library_path).await {
+                    Ok(true) => imported += 1,
+                    Ok(false) => skipped += 1,
+                    Err(e) => errors.push(format!("{}: {}", entry.name, e)),
+                }
             }
-        };
-        
-        // Try to parse metadata - skip files without valid front matter
-        if crate::scanner::parse_front_matter(&content).is_none() {
-            skipped += 1;
-            continue;
+            _ => {}
         }
-        
-        let file_path = library_path.join(&file.name);
-        
-        // Skip if file already exists
-        if file_path.exists() {
-            skipped += 1;
-            continue;
-        }
-        
-        // Write file
-        if let Err(e) = std::fs::write(&file_path, &content) {
-            errors.push(format!("{}: {}", file.name, e));
-            continue;
-        }
-        
-        imported += 1;
     }
-    
-    Ok(ImportResult {
-        imported,
-        skipped,
-        errors,
-    })
+
+    Ok(ImportResult { imported, skipped, errors })
+}
+
+/// Try to import a loose .md file as a standalone skill. Returns Ok(true) on import,
+/// Ok(false) when the file is silently skipped (no frontmatter, name collision, etc.).
+async fn import_loose_md_as_skill(
+    owner: &str,
+    repo: &str,
+    branch: &str,
+    entry: &GitHubFileEntry,
+    library_path: &PathBuf,
+) -> Result<bool, String> {
+    let raw_url = format!(
+        "https://raw.githubusercontent.com/{}/{}/{}/{}",
+        owner, repo, branch, entry.path
+    );
+
+    let response = reqwest::get(&raw_url).await.map_err(|e| e.to_string())?;
+    if !response.status().is_success() {
+        return Err(format!("HTTP {}", response.status()));
+    }
+    let content = response.text().await.map_err(|e| e.to_string())?;
+
+    // Must have valid SKILL.md frontmatter to be a skill.
+    let metadata = match crate::scanner::parse_front_matter(&content) {
+        Some(m) => m,
+        None => return Ok(false),
+    };
+
+    // Sanitize the remote name before joining with the library root.
+    let safe_name = match sanitize_skill_name(&metadata.name) {
+        Ok(n) => n,
+        Err(_) => return Ok(false),
+    };
+    let skill_dir = library_path.join(&safe_name);
+    if skill_dir.exists() {
+        return Ok(false);
+    }
+
+    std::fs::create_dir_all(&skill_dir)
+        .map_err(|e| format!("Failed to create skill directory: {}", e))?;
+    let final_content =
+        rewrite_skill_md_name(&content, &safe_name).unwrap_or_else(|_| content.clone());
+    std::fs::write(skill_dir.join("SKILL.md"), &final_content)
+        .map_err(|e| format!("Failed to write SKILL.md: {}", e))?;
+
+    Ok(true)
 }
 
 #[derive(Debug, Clone, serde::Serialize)]
@@ -1667,24 +1964,26 @@ pub async fn import_mcp_tool_as_skill(
         &parameters,
     );
     
-    // Generate skill name (lowercase, hyphens)
-    let skill_name = tool_name.replace(" ", "-").to_lowercase();
-    
-    // Create skill directory
+    // Generate a safe skill directory name from the MCP tool name.
+    let skill_name = sanitize_skill_name(&tool_name)?;
+
     let skill_dir = library_path.join(&skill_name);
     if skill_dir.exists() {
         return Err(format!("A skill with name '{}' already exists", skill_name));
     }
-    
+
     std::fs::create_dir_all(&skill_dir)
         .map_err(|e| format!("Failed to create skill directory: {}", e))?;
-    
-    // Write SKILL.md
+
+    // generate_mcp_skill_content writes the original tool_name into the frontmatter;
+    // rewrite it so the on-disk `name:` matches the sanitized directory.
+    let final_content =
+        rewrite_skill_md_name(&skill_content, &skill_name).unwrap_or(skill_content);
     let skill_md_path = skill_dir.join("SKILL.md");
-    std::fs::write(&skill_md_path, &skill_content)
+    std::fs::write(&skill_md_path, &final_content)
         .map_err(|e| format!("Failed to write SKILL.md: {}", e))?;
-    
-    create_skill_from_directory(&skill_dir, Some(server_url))
+
+    create_skill_from_directory(&skill_dir, Some(server_url), Some(&library_path))
 }
 
 /// Parse JSON Schema to parameter list
@@ -1724,52 +2023,70 @@ fn generate_mcp_skill_content(
     server_url: &str,
     parameters: &[(String, String, bool, String)],
 ) -> String {
-    let params_yaml: String = if parameters.is_empty() {
-        "parameters: []".to_string()
-    } else {
-        let params: Vec<String> = parameters.iter().map(|(name, param_type, required, desc)| {
-            format!(
-                "  - name: \"{}\"\n    type: \"{}\"\n    required: {}\n    description: \"{}\"",
-                name, param_type, required, desc
-            )
-        }).collect();
-        format!("parameters:\n{}", params.join("\n"))
-    };
-    
+    // Build the spec-compliant frontmatter via serde_yaml so any special characters
+    // in name/description/server_url are escaped correctly (no more manual `\"`).
+    //
+    // Per https://agentskills.io/specification, the only top-level frontmatter keys
+    // are name, description, license, compatibility, allowed-tools, metadata.
+    // We stash MCP-specific extras (server URL, parameters, source kind) inside `metadata`.
+    let mut metadata = serde_yaml::Mapping::new();
+    metadata.insert(
+        serde_yaml::Value::String("source".to_string()),
+        serde_yaml::Value::String("mcp".to_string()),
+    );
+    metadata.insert(
+        serde_yaml::Value::String("server_url".to_string()),
+        serde_yaml::Value::String(server_url.to_string()),
+    );
+
+    if !parameters.is_empty() {
+        let mut params_seq = Vec::new();
+        for (pname, ptype, required, pdesc) in parameters {
+            let mut m = serde_yaml::Mapping::new();
+            m.insert(
+                serde_yaml::Value::String("name".to_string()),
+                serde_yaml::Value::String(pname.clone()),
+            );
+            m.insert(
+                serde_yaml::Value::String("type".to_string()),
+                serde_yaml::Value::String(ptype.clone()),
+            );
+            m.insert(
+                serde_yaml::Value::String("required".to_string()),
+                serde_yaml::Value::Bool(*required),
+            );
+            m.insert(
+                serde_yaml::Value::String("description".to_string()),
+                serde_yaml::Value::String(pdesc.clone()),
+            );
+            params_seq.push(serde_yaml::Value::Mapping(m));
+        }
+        metadata.insert(
+            serde_yaml::Value::String("parameters".to_string()),
+            serde_yaml::Value::Sequence(params_seq),
+        );
+    }
+
+    let mut front = serde_yaml::Mapping::new();
+    front.insert(
+        serde_yaml::Value::String("name".to_string()),
+        serde_yaml::Value::String(name.to_string()),
+    );
+    front.insert(
+        serde_yaml::Value::String("description".to_string()),
+        serde_yaml::Value::String(description.to_string()),
+    );
+    front.insert(
+        serde_yaml::Value::String("metadata".to_string()),
+        serde_yaml::Value::Mapping(metadata),
+    );
+
+    let yaml = serde_yaml::to_string(&serde_yaml::Value::Mapping(front))
+        .unwrap_or_else(|_| String::new());
+
     format!(
-        r#"---
-name: "{}"
-version: "1.0.0"
-description: "{}"
-author: "MCP Server"
-tags:
-  - mcp
-  - imported
-permissions:
-  - network
-{}
----
-
-# {}
-
-{}
-
-## MCP Server
-
-This skill was imported from an MCP server.
-
-- **Server URL**: {}
-
-## Usage
-
-This skill can be invoked through the MCP protocol.
-"#,
-        name,
-        description.replace("\"", "\\\""),
-        params_yaml,
-        name,
-        description,
-        server_url
+        "---\n{}---\n\n# {}\n\n{}\n\n## MCP Server\n\nThis skill was imported from an MCP server.\n\n- **Server URL**: {}\n\n## Usage\n\nThis skill can be invoked through the MCP protocol.\n",
+        yaml, name, description, server_url
     )
 }
 
@@ -2511,13 +2828,15 @@ pub async fn import_mcp_registry_server(
         guard.clone().ok_or("Library path not set")?
     };
     
-    // Generate skill content
+    // Sanitize the registry-supplied name to a safe directory name.
+    let skill_name = sanitize_skill_name(&entry.name)?;
+
+    // Generate skill content; the generator uses entry.name verbatim for the
+    // frontmatter, which we'll patch below to keep it consistent with the directory.
     let skill_content = generate_registry_skill_content(&entry);
-    
-    // Generate skill name (lowercase, hyphens)
-    let skill_name = entry.name.replace(" ", "-").to_lowercase();
-    
-    // Create skill directory
+    let skill_content =
+        rewrite_skill_md_name(&skill_content, &skill_name).unwrap_or(skill_content);
+
     let skill_dir = library_path.join(&skill_name);
     if skill_dir.exists() {
         return Err(format!("A skill with name '{}' already exists", skill_name));
@@ -2532,62 +2851,86 @@ pub async fn import_mcp_registry_server(
         .map_err(|e| format!("Failed to write SKILL.md: {}", e))?;
     
     let source_url = entry.repository.or(entry.homepage);
-    create_skill_from_directory(&skill_dir, source_url)
+    create_skill_from_directory(&skill_dir, source_url, Some(&library_path))
 }
 
 /// Generate skill content from registry entry
 fn generate_registry_skill_content(entry: &McpRegistryEntry) -> String {
-    let tags_yaml = if entry.tags.is_empty() {
-        "tags:\n  - mcp\n  - registry".to_string()
-    } else {
-        let mut tags = entry.tags.clone();
-        if !tags.contains(&"mcp".to_string()) {
-            tags.push("mcp".to_string());
-        }
-        if !tags.contains(&"registry".to_string()) {
-            tags.push("registry".to_string());
-        }
-        format!("tags:\n{}", tags.iter().map(|t| format!("  - {}", t)).collect::<Vec<_>>().join("\n"))
-    };
-    
-    let author = entry.author.as_deref().unwrap_or("Unknown");
-    let repo_section = entry.repository.as_ref()
-        .map(|r| format!("- **Repository**: {}", r))
+    // Same approach as generate_mcp_skill_content: spec-compliant frontmatter built via
+    // serde_yaml; everything non-spec lives inside `metadata`.
+    let mut metadata = serde_yaml::Mapping::new();
+    metadata.insert(
+        serde_yaml::Value::String("source".to_string()),
+        serde_yaml::Value::String("mcp_registry".to_string()),
+    );
+    metadata.insert(
+        serde_yaml::Value::String("registry".to_string()),
+        serde_yaml::Value::String(entry.registry.clone()),
+    );
+    if let Some(a) = &entry.author {
+        metadata.insert(
+            serde_yaml::Value::String("author".to_string()),
+            serde_yaml::Value::String(a.clone()),
+        );
+    }
+    if let Some(r) = &entry.repository {
+        metadata.insert(
+            serde_yaml::Value::String("repository".to_string()),
+            serde_yaml::Value::String(r.clone()),
+        );
+    }
+    if let Some(h) = &entry.homepage {
+        metadata.insert(
+            serde_yaml::Value::String("homepage".to_string()),
+            serde_yaml::Value::String(h.clone()),
+        );
+    }
+
+    let mut tags = entry.tags.clone();
+    if !tags.contains(&"mcp".to_string()) {
+        tags.push("mcp".to_string());
+    }
+    if !tags.contains(&"registry".to_string()) {
+        tags.push("registry".to_string());
+    }
+    metadata.insert(
+        serde_yaml::Value::String("tags".to_string()),
+        serde_yaml::Value::Sequence(
+            tags.into_iter().map(serde_yaml::Value::String).collect(),
+        ),
+    );
+
+    let mut front = serde_yaml::Mapping::new();
+    front.insert(
+        serde_yaml::Value::String("name".to_string()),
+        serde_yaml::Value::String(entry.name.clone()),
+    );
+    front.insert(
+        serde_yaml::Value::String("description".to_string()),
+        serde_yaml::Value::String(entry.description.clone()),
+    );
+    front.insert(
+        serde_yaml::Value::String("metadata".to_string()),
+        serde_yaml::Value::Mapping(metadata),
+    );
+
+    let yaml = serde_yaml::to_string(&serde_yaml::Value::Mapping(front))
+        .unwrap_or_else(|_| String::new());
+
+    let repo_section = entry
+        .repository
+        .as_ref()
+        .map(|r| format!("- **Repository**: {}\n", r))
         .unwrap_or_default();
-    let homepage_section = entry.homepage.as_ref()
-        .map(|h| format!("- **Homepage**: {}", h))
+    let homepage_section = entry
+        .homepage
+        .as_ref()
+        .map(|h| format!("- **Homepage**: {}\n", h))
         .unwrap_or_default();
-    
+
     format!(
-        r#"---
-name: "{}"
-version: "1.0.0"
-description: "{}"
-author: "{}"
-{}
-permissions:
-  - network
-parameters: []
----
-
-# {}
-
-{}
-
-## Source
-
-- **Registry**: {}
-{}
-{}
-
-## Installation
-
-This MCP server was imported from the {} registry. Please refer to the repository for installation instructions.
-"#,
-        entry.name,
-        entry.description.replace("\"", "\\\""),
-        author,
-        tags_yaml,
+        "---\n{}---\n\n# {}\n\n{}\n\n## Source\n\n- **Registry**: {}\n{}{}\n## Installation\n\nThis MCP server was imported from the {} registry. Please refer to the repository for installation instructions.\n",
+        yaml,
         entry.name,
         entry.description,
         entry.registry,
@@ -3453,8 +3796,8 @@ pub async fn create_skill(
     }
     
     // Create skill from directory
-    let skill = create_skill_from_directory(&skill_dir, None)?;
-    
+    let skill = create_skill_from_directory(&skill_dir, None, Some(&library_path))?;
+
     Ok(CreateSkillResult {
         skill,
         skill_dir: skill_dir.to_string_lossy().to_string(),
@@ -3467,13 +3810,132 @@ pub async fn validate_skill_name_cmd(name: String) -> Result<(), String> {
     validate_skill_name(&name)
 }
 
+/// Rewrite the `name:` field inside a SKILL.md's YAML frontmatter so it matches
+/// the (sanitized) directory name.
+///
+/// Why this exists: the Agent Skills spec requires `name` to match the directory.
+/// Our import paths must sanitize the upstream name (defence against path traversal,
+/// invalid chars, etc.), which means the directory name and the frontmatter name can
+/// disagree. Rather than silently accepting that inconsistency, we patch the
+/// frontmatter so downstream tools — and our own scanner — see a coherent skill.
+///
+/// On any parse error this returns `Err`. Callers must have already verified the
+/// content has valid frontmatter (via `parse_front_matter`) before calling this.
+fn rewrite_skill_md_name(content: &str, new_name: &str) -> Result<String, String> {
+    let after_open = content
+        .strip_prefix("---\n")
+        .or_else(|| content.strip_prefix("---\r\n"))
+        .ok_or("SKILL.md must start with --- frontmatter")?;
+
+    let (close_idx, close_marker_len) = if let Some(i) = after_open.find("\n---\n") {
+        (i, 5)
+    } else if let Some(i) = after_open.find("\n---\r\n") {
+        (i, 6)
+    } else {
+        return Err("SKILL.md frontmatter is not closed".to_string());
+    };
+
+    let yaml_part = &after_open[..close_idx];
+    let rest = &after_open[close_idx + close_marker_len..];
+
+    let mut map = match serde_yaml::from_str::<serde_yaml::Value>(yaml_part) {
+        Ok(serde_yaml::Value::Mapping(m)) => m,
+        Ok(_) => return Err("SKILL.md frontmatter is not a YAML mapping".to_string()),
+        Err(e) => return Err(format!("Failed to parse SKILL.md frontmatter: {}", e)),
+    };
+
+    // `Mapping::insert` updates the value in place when the key already exists,
+    // preserving the original key order; otherwise it appends to the end.
+    map.insert(
+        serde_yaml::Value::String("name".to_string()),
+        serde_yaml::Value::String(new_name.to_string()),
+    );
+
+    let new_yaml = serde_yaml::to_string(&serde_yaml::Value::Mapping(map))
+        .map_err(|e| format!("Failed to serialize SKILL.md frontmatter: {}", e))?;
+
+    // serde_yaml::to_string emits a trailing newline; assemble with the same
+    // delimiter style we found on input.
+    Ok(format!("---\n{}---\n{}", new_yaml, rest))
+}
+
+/// Sanitize a user/remote-supplied name into a safe skill directory name.
+///
+/// We accept anything as input (this is called by import paths where the upstream
+/// `name` is uncontrolled — GitHub frontmatter, MCP registry entries, URL imports,
+/// etc.) and produce a string that satisfies `validate_skill_name`:
+/// - any path separator (`/`, `\`, `..`) is stripped first, so this is the single
+///   choke-point that prevents path traversal into the library
+/// - whitespace is collapsed to a single `-`
+/// - non `[a-z0-9-]` characters are replaced with `-`
+/// - leading/trailing/consecutive hyphens are collapsed
+/// - truncated to 64 characters
+///
+/// Returns Err if the resulting string is empty (e.g. input was only separators).
+fn sanitize_skill_name(input: &str) -> Result<String, String> {
+    // Strip path separators outright so traversal sequences can never survive.
+    let no_sep: String = input
+        .chars()
+        .filter(|&c| c != '/' && c != '\\')
+        .collect::<String>()
+        .replace("..", "");
+
+    // Normalize: lowercase, collapse non [a-z0-9-] to '-'.
+    let mut out = String::with_capacity(no_sep.len());
+    for c in no_sep.chars() {
+        let lc = c.to_ascii_lowercase();
+        if lc.is_ascii_lowercase() || lc.is_ascii_digit() {
+            out.push(lc);
+        } else if lc == '-' || c.is_whitespace() {
+            out.push('-');
+        } else {
+            out.push('-');
+        }
+    }
+
+    // Collapse consecutive hyphens.
+    let mut collapsed = String::with_capacity(out.len());
+    let mut prev_hyphen = false;
+    for c in out.chars() {
+        if c == '-' {
+            if !prev_hyphen {
+                collapsed.push(c);
+            }
+            prev_hyphen = true;
+        } else {
+            collapsed.push(c);
+            prev_hyphen = false;
+        }
+    }
+
+    let trimmed = collapsed.trim_matches('-').to_string();
+    let truncated: String = trimmed.chars().take(64).collect();
+    let final_name = truncated.trim_end_matches('-').to_string();
+
+    if final_name.is_empty() {
+        return Err(format!(
+            "Cannot derive a valid skill name from '{}'. Please rename it.",
+            input
+        ));
+    }
+
+    // Final sanity check against the canonical validator. This must succeed —
+    // if it doesn't there's a bug in the normalisation above.
+    validate_skill_name(&final_name)?;
+    Ok(final_name)
+}
+
 /// Validate a skill description without creating it
 #[tauri::command]
 pub async fn validate_skill_description_cmd(description: String) -> Result<(), String> {
     validate_skill_description(&description)
 }
 
-/// Get skill resource content by path
+/// Get skill resource content by path.
+///
+/// `resource_path` is treated as relative to the skill directory. We canonicalise the
+/// resolved path and verify it still lives under the skill directory before reading,
+/// so a malicious request like `../../etc/passwd` is rejected rather than served.
 #[tauri::command]
 pub async fn get_skill_resource_content(
     skill_hash: String,
@@ -3484,22 +3946,59 @@ pub async fn get_skill_resource_content(
         let guard = library_state.path.lock().map_err(|e| e.to_string())?;
         guard.clone().ok_or("Library path not set")?
     };
-    
+
     let all_skills = get_all_skills_internal(&library_path)?;
-    
+
     let skill = all_skills
         .into_iter()
         .find(|s| s.hash == skill_hash)
         .ok_or("Skill not found")?;
-    
-    let full_path = PathBuf::from(&skill.skill_dir).join(&resource_path);
-    
+
+    let skill_dir = PathBuf::from(&skill.skill_dir);
+    let full_path = resolve_inside(&skill_dir, &resource_path)?;
+
     if !full_path.exists() {
         return Err(format!("Resource not found: {}", resource_path));
     }
-    
+
     std::fs::read_to_string(&full_path)
         .map_err(|e| format!("Failed to read resource: {}", e))
+}
+
+/// Resolve `relative` against `base`, ensuring the result stays inside `base` after
+/// canonicalisation. Used to defend against `..` segments in any caller-controlled
+/// relative path (resource paths, script paths, MDC rule names, etc.).
+fn resolve_inside(base: &std::path::Path, relative: &str) -> Result<PathBuf, String> {
+    // Reject absolute paths outright — the caller is meant to pass a path relative
+    // to `base`. An absolute path here is unambiguously a misuse.
+    let rel = std::path::Path::new(relative);
+    if rel.is_absolute() {
+        return Err(format!("Path must be relative: {}", relative));
+    }
+    // Reject explicit traversal segments before even touching the filesystem.
+    for comp in rel.components() {
+        if matches!(comp, std::path::Component::ParentDir) {
+            return Err(format!("Path traversal is not allowed: {}", relative));
+        }
+    }
+
+    let joined = base.join(rel);
+
+    // Canonicalise to collapse remaining `.` segments and follow symlinks; if the
+    // target doesn't exist yet (e.g. callers checking before writing), fall back to
+    // the literal join — the explicit ParentDir check above already covers traversal.
+    let canon_target = std::fs::canonicalize(&joined).unwrap_or(joined.clone());
+    let canon_base = std::fs::canonicalize(base).unwrap_or_else(|_| base.to_path_buf());
+
+    if !canon_target.starts_with(&canon_base) {
+        return Err(format!(
+            "Refusing to access {}: outside of {}",
+            canon_target.display(),
+            canon_base.display()
+        ));
+    }
+
+    Ok(joined)
 }
 
 /// Open skill directory in system file manager
@@ -3556,7 +4055,11 @@ pub struct ExecutionResult {
     pub duration_ms: u64,
 }
 
-/// Execute a script from a skill's scripts directory
+/// Execute a script from a skill's `scripts/` directory.
+///
+/// Refuses to execute when:
+/// - the skill is quarantined (security: the user has explicitly flagged it as untrusted)
+/// - `script_path` would resolve outside `<skill_dir>/scripts/` (path traversal defence)
 #[tauri::command]
 pub async fn execute_skill_script(
     skill_hash: String,
@@ -3564,6 +4067,7 @@ pub async fn execute_skill_script(
     args: Vec<String>,
     env_vars: std::collections::HashMap<String, String>,
     library_state: State<'_, LibraryState>,
+    db_state: State<'_, DatabaseState>,
 ) -> Result<ExecutionResult, String> {
     use std::time::Instant;
 
@@ -3579,7 +4083,26 @@ pub async fn execute_skill_script(
         .find(|s| s.hash == skill_hash)
         .ok_or("Skill not found")?;
 
-    let full_script_path = PathBuf::from(&skill.skill_dir).join("scripts").join(&script_path);
+    // Block execution of quarantined skills. The user has explicitly marked these as
+    // not-to-be-trusted, so we refuse rather than risk silently running malicious code.
+    let quarantined_hashes: std::collections::HashSet<String> = db_state
+        .0
+        .get_quarantined_skills()
+        .unwrap_or_default()
+        .into_iter()
+        .collect();
+    let quarantined_ids: std::collections::HashSet<String> = db_state
+        .0
+        .get_quarantined_skill_ids()
+        .unwrap_or_default()
+        .into_iter()
+        .collect();
+    if quarantined_hashes.contains(&skill.hash) || quarantined_ids.contains(&skill.skill_id) {
+        return Err("Refusing to execute scripts from a quarantined skill".to_string());
+    }
+
+    let scripts_dir = PathBuf::from(&skill.skill_dir).join("scripts");
+    let full_script_path = resolve_inside(&scripts_dir, &script_path)?;
 
     if !full_script_path.exists() {
         return Err(format!("Script not found: {}", script_path));
@@ -3925,32 +4448,14 @@ pub async fn scan_cursor_mdc_rules(project_path: String) -> Result<Vec<CursorMdc
 }
 
 fn parse_mdc_rule(path: &PathBuf, content: &str) -> CursorMdcRule {
-    let name = path.file_name()
+    let name = path
+        .file_name()
         .and_then(|n| n.to_str())
         .unwrap_or("unknown.mdc")
         .to_string();
-    
-    let mut description = None;
-    let mut globs = None;
-    let mut always_apply = false;
-    
-    // Parse YAML frontmatter if present
-    if content.starts_with("---") {
-        if let Some(end_idx) = content[3..].find("---") {
-            let frontmatter = &content[3..end_idx + 3];
-            for line in frontmatter.lines() {
-                let line = line.trim();
-                if line.starts_with("description:") {
-                    description = Some(line[12..].trim().to_string());
-                } else if line.starts_with("globs:") {
-                    globs = Some(line[6..].trim().to_string());
-                } else if line.starts_with("alwaysApply:") {
-                    always_apply = line[12..].trim() == "true";
-                }
-            }
-        }
-    }
-    
+
+    let (description, globs, always_apply) = extract_mdc_frontmatter(content);
+
     CursorMdcRule {
         name,
         path: path.to_string_lossy().to_string(),
@@ -3961,6 +4466,129 @@ fn parse_mdc_rule(path: &PathBuf, content: &str) -> CursorMdcRule {
     }
 }
 
+/// Extract (description, globs, alwaysApply) from a Cursor `.mdc` rule's YAML frontmatter.
+///
+/// Cursor's `.mdc` files often contain unquoted glob patterns like `globs: *.ts`.
+/// In YAML, a leading `*` is an alias reference, so a strict YAML parser rejects the
+/// whole document. We therefore try `serde_yaml` first (correct for quoted / list /
+/// multi-line input), then fall back to a simple line-oriented extractor that handles
+/// the 3 known keys without YAML-level semantics. Returns `(None, None, false)` only
+/// when there is no frontmatter at all.
+fn extract_mdc_frontmatter(content: &str) -> (Option<String>, Option<String>, bool) {
+    // Must start with `---` followed by a newline.
+    let after_open = match content
+        .strip_prefix("---\n")
+        .or_else(|| content.strip_prefix("---\r\n"))
+    {
+        Some(rest) => rest,
+        None => return (None, None, false),
+    };
+
+    // Find closing `---` on its own line.
+    let close_idx = match after_open
+        .find("\n---\n")
+        .or_else(|| after_open.find("\n---\r\n"))
+        .or_else(|| if after_open.trim_end() == "---" { Some(0) } else { None })
+    {
+        Some(i) => i,
+        None => return (None, None, false),
+    };
+
+    let yaml_str = &after_open[..close_idx];
+
+    // First attempt: strict YAML. Handles quoted strings, list values for `globs`,
+    // booleans, etc. Falls back to line-oriented extraction on failure.
+    if let Ok(serde_yaml::Value::Mapping(map)) = serde_yaml::from_str::<serde_yaml::Value>(yaml_str)
+    {
+        return mapping_to_mdc_fields(&map);
+    }
+
+    extract_mdc_fields_line_based(yaml_str)
+}
+
+/// Convert a parsed YAML mapping to (description, globs, alwaysApply).
+fn mapping_to_mdc_fields(
+    map: &serde_yaml::Mapping,
+) -> (Option<String>, Option<String>, bool) {
+    let yaml_value_to_string = |v: &serde_yaml::Value| -> Option<String> {
+        match v {
+            serde_yaml::Value::String(s) => Some(s.clone()),
+            serde_yaml::Value::Bool(b) => Some(b.to_string()),
+            serde_yaml::Value::Number(n) => Some(n.to_string()),
+            serde_yaml::Value::Sequence(seq) => {
+                let parts: Vec<String> = seq
+                    .iter()
+                    .filter_map(|x| match x {
+                        serde_yaml::Value::String(s) => Some(s.clone()),
+                        _ => None,
+                    })
+                    .collect();
+                if parts.is_empty() {
+                    None
+                } else {
+                    Some(parts.join(", "))
+                }
+            }
+            _ => None,
+        }
+    };
+
+    let description = map
+        .get(serde_yaml::Value::String("description".to_string()))
+        .and_then(yaml_value_to_string);
+    let globs = map
+        .get(serde_yaml::Value::String("globs".to_string()))
+        .and_then(yaml_value_to_string);
+    let always_apply = map
+        .get(serde_yaml::Value::String("alwaysApply".to_string()))
+        .map(|v| match v {
+            serde_yaml::Value::Bool(b) => *b,
+            serde_yaml::Value::String(s) => s.eq_ignore_ascii_case("true"),
+            _ => false,
+        })
+        .unwrap_or(false);
+
+    (description, globs, always_apply)
+}
+
+/// Robust fallback parser for Cursor `.mdc` frontmatter when strict YAML fails (e.g.
+/// unquoted `*.ts` globs that YAML interprets as alias references). Only recognises
+/// the three documented top-level keys; values are taken verbatim up to end of line
+/// with surrounding ASCII quotes stripped.
+fn extract_mdc_fields_line_based(yaml_str: &str) -> (Option<String>, Option<String>, bool) {
+    let mut description = None;
+    let mut globs = None;
+    let mut always_apply = false;
+
+    let strip_quotes = |s: &str| -> String {
+        let trimmed = s.trim();
+        if (trimmed.starts_with('"') && trimmed.ends_with('"') && trimmed.len() >= 2)
+            || (trimmed.starts_with('\'') && trimmed.ends_with('\'') && trimmed.len() >= 2)
+        {
+            trimmed[1..trimmed.len() - 1].to_string()
+        } else {
+            trimmed.to_string()
+        }
+    };
+
+    for line in yaml_str.lines() {
+        let line = line.trim_start();
+        if let Some(rest) = line.strip_prefix("description:") {
+            description = Some(strip_quotes(rest));
+        } else if let Some(rest) = line.strip_prefix("globs:") {
+            let val = strip_quotes(rest);
+            if !val.is_empty() {
+                globs = Some(val);
+            }
+        } else if let Some(rest) = line.strip_prefix("alwaysApply:") {
+            let val = strip_quotes(rest);
+            always_apply = val.eq_ignore_ascii_case("true");
+        }
+    }
+
+    (description, globs, always_apply)
+}
+
 /// Save a Cursor MDC rule file
 #[tauri::command]
 pub async fn save_cursor_mdc_rule(
@@ -3968,16 +4596,29 @@ pub async fn save_cursor_mdc_rule(
     rule_name: String,
     content: String,
 ) -> Result<(), String> {
+    // Reject anything that could escape the rules directory: separators, `..`, or
+    // empty/dot-only names. Cursor rule files are expected to be a single component
+    // like "code-style.mdc".
+    if rule_name.is_empty()
+        || rule_name == "."
+        || rule_name == ".."
+        || rule_name.contains('/')
+        || rule_name.contains('\\')
+        || rule_name.contains("..")
+    {
+        return Err(format!("Invalid rule name: {}", rule_name));
+    }
+
     let project_dir = PathBuf::from(&project_path);
     let rules_dir = project_dir.join(".cursor").join("rules");
-    
+
     if !rules_dir.exists() {
         std::fs::create_dir_all(&rules_dir).map_err(|e| e.to_string())?;
     }
-    
+
     let rule_path = rules_dir.join(&rule_name);
     std::fs::write(&rule_path, content).map_err(|e| e.to_string())?;
-    
+
     Ok(())
 }
 
@@ -4133,47 +4774,13 @@ fn get_file_modified_time(path: &PathBuf) -> Option<String> {
         })
 }
 
+/// Format a Unix epoch timestamp (seconds) as an ISO-8601 UTC string.
+/// Returns "1970-01-01T00:00:00Z" if the value is out of chrono's valid range.
 fn format_timestamp(secs: i64) -> String {
-    let days = secs / 86400;
-    let time_secs = secs % 86400;
-    
-    let mut year = 1970;
-    let mut remaining_days = days;
-    
-    loop {
-        let days_in_year = if is_leap_year(year) { 366 } else { 365 };
-        if remaining_days < days_in_year {
-            break;
-        }
-        remaining_days -= days_in_year;
-        year += 1;
-    }
-    
-    let is_leap = is_leap_year(year);
-    let days_in_months: [i64; 12] = if is_leap {
-        [31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
-    } else {
-        [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
-    };
-    
-    let mut month = 1;
-    for days_in_month in days_in_months.iter() {
-        if remaining_days < *days_in_month {
-            break;
-        }
-        remaining_days -= days_in_month;
-        month += 1;
-    }
-    
-    let day = remaining_days + 1;
-    let hour = time_secs / 3600;
-    let minute = (time_secs % 3600) / 60;
-    let second = time_secs % 60;
-    
-    format!(
-        "{:04}-{:02}-{:02}T{:02}:{:02}:{:02}Z",
-        year, month, day, hour, minute, second
-    )
+    chrono::DateTime::<chrono::Utc>::from_timestamp(secs, 0)
+        .unwrap_or_else(chrono::DateTime::<chrono::Utc>::default)
+        .format("%Y-%m-%dT%H:%M:%SZ")
+        .to_string()
 }
 
 /// Save a project-specific config file
@@ -4571,4 +5178,551 @@ pub async fn read_text_file(path: String) -> Result<String, String> {
 #[tauri::command]
 pub async fn save_text_file(path: String, content: String) -> Result<(), String> {
     std::fs::write(&path, &content).map_err(|e| format!("Failed to write file: {}", e))
+}
+
+// ========== Install to AI Tool ==========
+
+/// Supported install targets. Each maps to a well-known skills directory used by
+/// a particular AI coding tool, plus the cross-tool `agents-standard` convention.
+#[derive(Debug, Clone, Copy)]
+enum InstallTargetKind {
+    AgentsStandard,
+    Claude,
+    Cursor,
+    Codex,
+    Gemini,
+    Custom,
+}
+
+impl InstallTargetKind {
+    fn from_str(s: &str) -> Result<Self, String> {
+        match s {
+            "agents" | "agents-standard" => Ok(Self::AgentsStandard),
+            "claude" => Ok(Self::Claude),
+            "cursor" => Ok(Self::Cursor),
+            "codex" => Ok(Self::Codex),
+            "gemini" => Ok(Self::Gemini),
+            "custom" => Ok(Self::Custom),
+            other => Err(format!("Unknown install target: {}", other)),
+        }
+    }
+
+    fn as_str(self) -> &'static str {
+        match self {
+            Self::AgentsStandard => "agents",
+            Self::Claude => "claude",
+            Self::Cursor => "cursor",
+            Self::Codex => "codex",
+            Self::Gemini => "gemini",
+            Self::Custom => "custom",
+        }
+    }
+
+    /// Default skills directory for this target (None for Custom).
+    fn default_path(self) -> Option<PathBuf> {
+        let home = dirs::home_dir()?;
+        let p = match self {
+            Self::AgentsStandard => home.join(".agents").join("skills"),
+            Self::Claude => home.join(".claude").join("skills"),
+            Self::Cursor => home.join(".cursor").join("skills"),
+            Self::Codex => home.join(".codex").join("skills"),
+            Self::Gemini => home.join(".gemini").join("skills"),
+            Self::Custom => return None,
+        };
+        Some(p)
+    }
+}
+
+/// Information about an install target, returned to the frontend for display.
+#[derive(Debug, Clone, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct InstallTargetInfo {
+    pub kind: String,
+    pub label: String,
+    pub default_path: Option<String>,
+}
+
+/// Get the list of well-known install targets and their default paths.
+#[tauri::command]
+pub async fn list_install_targets() -> Result<Vec<InstallTargetInfo>, String> {
+    let targets = [
+        (InstallTargetKind::AgentsStandard, "Agent Skills standard (~/.agents/skills/)"),
+        (InstallTargetKind::Claude, "Claude Code (~/.claude/skills/)"),
+        (InstallTargetKind::Cursor, "Cursor (~/.cursor/skills/)"),
+        (InstallTargetKind::Codex, "OpenAI Codex (~/.codex/skills/)"),
+        (InstallTargetKind::Gemini, "Gemini CLI (~/.gemini/skills/)"),
+        (InstallTargetKind::Custom, "Custom path"),
+    ];
+
+    Ok(targets
+        .into_iter()
+        .map(|(k, label)| InstallTargetInfo {
+            kind: k.as_str().to_string(),
+            label: label.to_string(),
+            default_path: k.default_path().map(|p| p.to_string_lossy().to_string()),
+        })
+        .collect())
+}
+
+#[derive(Debug, Clone, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct InstallSkillResult {
+    pub skill_id: String,
+    pub target_kind: String,
+    pub target_path: String,
+    pub linked_path: String,
+}
+
+/// Install a skill to an AI tool's skills directory by creating a symlink.
+/// The link is named after the skill's directory name (Agent Skills convention).
+#[tauri::command]
+pub async fn install_skill_to_tool(
+    skill_id: String,
+    target_kind: String,
+    custom_path: Option<String>,
+    library_state: State<'_, LibraryState>,
+    db_state: State<'_, DatabaseState>,
+) -> Result<InstallSkillResult, String> {
+    let kind = InstallTargetKind::from_str(&target_kind)?;
+
+    // Resolve target path
+    let target_path = resolve_install_target_path(kind, custom_path.as_deref())?;
+
+    // Find the skill on disk
+    let library_path = {
+        let guard = library_state.path.lock().map_err(|e| e.to_string())?;
+        guard.clone().ok_or("Library path not set")?
+    };
+
+    // Refuse to install into the library itself: the skill is already discoverable
+    // there, and creating a symlink would either fail (real dir already exists at
+    // <library>/<skill-name>) or — for an unrelated custom path equal to the library —
+    // cause the scanner to double-count it.
+    let target_canon = std::fs::canonicalize(&target_path).unwrap_or_else(|_| target_path.clone());
+    let library_canon =
+        std::fs::canonicalize(&library_path).unwrap_or_else(|_| library_path.clone());
+    if target_canon == library_canon {
+        return Err(
+            "Target directory is the same as the library directory; the skill is already there"
+                .to_string(),
+        );
+    }
+
+    let all = get_all_skills_internal(&library_path)?;
+    let skill = all
+        .into_iter()
+        .find(|s| s.skill_id == skill_id)
+        .ok_or_else(|| format!("Skill not found: {}", skill_id))?;
+
+    let skill_dir = PathBuf::from(&skill.skill_dir);
+    if !skill_dir.exists() {
+        return Err(format!("Skill directory missing: {}", skill_dir.display()));
+    }
+
+    // Ensure target directory exists
+    std::fs::create_dir_all(&target_path)
+        .map_err(|e| format!("Failed to create target directory: {}", e))?;
+
+    // Link name = skill directory basename (this is what the AI tool will see)
+    let link_name = skill_dir
+        .file_name()
+        .map(|s| s.to_string_lossy().to_string())
+        .ok_or("Cannot determine skill directory name")?;
+    let linked_path = target_path.join(&link_name);
+
+    // Use the shared symlink helper which handles existing links / cross-platform.
+    crate::space::create_symlink(&skill_dir, &linked_path)?;
+
+    // Persist installation record
+    db_state.0.record_installation(
+        &skill_id,
+        kind.as_str(),
+        &target_path.to_string_lossy(),
+        &linked_path.to_string_lossy(),
+    )?;
+
+    Ok(InstallSkillResult {
+        skill_id,
+        target_kind: kind.as_str().to_string(),
+        target_path: target_path.to_string_lossy().to_string(),
+        linked_path: linked_path.to_string_lossy().to_string(),
+    })
+}
+
+/// Remove a previously created install symlink. Idempotent: missing link is not an error.
+#[tauri::command]
+pub async fn uninstall_skill_from_tool(
+    skill_id: String,
+    linked_path: String,
+    target_path: String,
+    db_state: State<'_, DatabaseState>,
+) -> Result<(), String> {
+    let path = PathBuf::from(&linked_path);
+
+    // Safety: only remove symlinks, never real files/directories.
+    if path.exists() || path.is_symlink() {
+        if !path.is_symlink() {
+            return Err(format!(
+                "Refusing to remove {}: not a symlink",
+                path.display()
+            ));
+        }
+        #[cfg(windows)]
+        {
+            if path.metadata().map(|m| m.is_dir()).unwrap_or(false) {
+                std::fs::remove_dir(&path).map_err(|e| e.to_string())?;
+            } else {
+                std::fs::remove_file(&path).map_err(|e| e.to_string())?;
+            }
+        }
+        #[cfg(unix)]
+        {
+            std::fs::remove_file(&path).map_err(|e| e.to_string())?;
+        }
+    }
+
+    db_state.0.remove_installation(&skill_id, &target_path)?;
+    Ok(())
+}
+
+/// List all skill installations across all targets, optionally filtered by skill_id.
+#[tauri::command]
+pub async fn list_skill_installations(
+    skill_id: Option<String>,
+    db_state: State<'_, DatabaseState>,
+) -> Result<Vec<crate::database::SkillInstallation>, String> {
+    if let Some(id) = skill_id {
+        db_state.0.list_installations_for_skill(&id)
+    } else {
+        db_state.0.list_all_installations()
+    }
+}
+
+/// Resolve the target installation directory for a kind, honoring `custom_path` for Custom.
+fn resolve_install_target_path(kind: InstallTargetKind, custom_path: Option<&str>) -> Result<PathBuf, String> {
+    match kind {
+        InstallTargetKind::Custom => {
+            let p = custom_path.ok_or("Custom target requires custom_path")?;
+            let trimmed = p.trim();
+            if trimmed.is_empty() {
+                return Err("custom_path cannot be empty".to_string());
+            }
+            Ok(PathBuf::from(trimmed))
+        }
+        other => other.default_path().ok_or_else(|| "Cannot determine home directory".to_string()),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // ---- parse_mdc_rule (extract_mdc_frontmatter) ----
+
+    #[test]
+    fn test_mdc_frontmatter_basic() {
+        let content = "---\ndescription: A test rule\nglobs: *.ts\nalwaysApply: true\n---\n\n# Body\n";
+        let (desc, globs, always) = extract_mdc_frontmatter(content);
+        assert_eq!(desc.as_deref(), Some("A test rule"));
+        assert_eq!(globs.as_deref(), Some("*.ts"));
+        assert!(always);
+    }
+
+    #[test]
+    fn test_mdc_frontmatter_quoted_values() {
+        // Old hand-rolled parser would include the quotes; serde_yaml strips them correctly.
+        let content =
+            "---\ndescription: \"My : rule, with comma\"\nglobs: \"src/**/*.tsx\"\nalwaysApply: false\n---\n";
+        let (desc, globs, always) = extract_mdc_frontmatter(content);
+        assert_eq!(desc.as_deref(), Some("My : rule, with comma"));
+        assert_eq!(globs.as_deref(), Some("src/**/*.tsx"));
+        assert!(!always);
+    }
+
+    #[test]
+    fn test_mdc_frontmatter_globs_as_list() {
+        // A common community convention: globs as a YAML list. The old parser broke on this.
+        let content = "---\ndescription: list rule\nglobs:\n  - \"*.ts\"\n  - \"*.tsx\"\nalwaysApply: false\n---\n";
+        let (desc, globs, always) = extract_mdc_frontmatter(content);
+        assert_eq!(desc.as_deref(), Some("list rule"));
+        assert_eq!(globs.as_deref(), Some("*.ts, *.tsx"));
+        assert!(!always);
+    }
+
+    #[test]
+    fn test_mdc_frontmatter_no_frontmatter() {
+        let content = "# Just a markdown file, no frontmatter";
+        let (desc, globs, always) = extract_mdc_frontmatter(content);
+        assert!(desc.is_none());
+        assert!(globs.is_none());
+        assert!(!always);
+    }
+
+    #[test]
+    fn test_mdc_frontmatter_malformed_yaml() {
+        // Old parser would panic on slicing; new parser returns defaults gracefully.
+        let content = "---\nthis is not: : valid: yaml\n: :\n---\n";
+        let (desc, globs, always) = extract_mdc_frontmatter(content);
+        assert!(desc.is_none());
+        assert!(globs.is_none());
+        assert!(!always);
+    }
+
+    #[test]
+    fn test_mdc_frontmatter_always_apply_string() {
+        // alwaysApply may be quoted "true" rather than a bare boolean.
+        let content = "---\ndescription: x\nalwaysApply: \"true\"\n---\n";
+        let (_, _, always) = extract_mdc_frontmatter(content);
+        assert!(always);
+    }
+
+    #[test]
+    fn test_mdc_frontmatter_unquoted_glob_star() {
+        // Real-world Cursor .mdc files often write `globs: *.ts` without quotes.
+        // YAML treats `*.ts` as an alias reference, so strict parsing fails.
+        // Our line-based fallback must still extract the fields.
+        let content =
+            "---\ndescription: TS files\nglobs: *.ts\nalwaysApply: true\n---\n\n# Body\n";
+        let (desc, globs, always) = extract_mdc_frontmatter(content);
+        assert_eq!(desc.as_deref(), Some("TS files"));
+        assert_eq!(globs.as_deref(), Some("*.ts"));
+        assert!(always);
+    }
+
+    #[test]
+    fn test_mdc_frontmatter_unquoted_glob_brace() {
+        // `{ts,tsx}` starts with `{` which YAML treats as a flow mapping. Same fallback.
+        let content =
+            "---\ndescription: TS/TSX\nglobs: src/**/*.{ts,tsx}\nalwaysApply: false\n---\n";
+        let (desc, globs, _) = extract_mdc_frontmatter(content);
+        assert_eq!(desc.as_deref(), Some("TS/TSX"));
+        assert_eq!(globs.as_deref(), Some("src/**/*.{ts,tsx}"));
+    }
+
+    // ---- resolve_install_target_path ----
+
+    #[test]
+    fn test_resolve_install_target_custom_requires_path() {
+        let err = resolve_install_target_path(InstallTargetKind::Custom, None);
+        assert!(err.is_err());
+        assert!(err.unwrap_err().contains("custom_path"));
+    }
+
+    #[test]
+    fn test_resolve_install_target_custom_rejects_empty() {
+        let err = resolve_install_target_path(InstallTargetKind::Custom, Some(""));
+        assert!(err.is_err());
+        // Also trims whitespace.
+        let err2 = resolve_install_target_path(InstallTargetKind::Custom, Some("   "));
+        assert!(err2.is_err());
+    }
+
+    #[test]
+    fn test_resolve_install_target_custom_accepts_path() {
+        let path = resolve_install_target_path(
+            InstallTargetKind::Custom,
+            Some("/tmp/my-skills"),
+        );
+        assert!(path.is_ok());
+        assert_eq!(path.unwrap().to_string_lossy(), "/tmp/my-skills");
+    }
+
+    // ---- InstallTargetKind round trip ----
+
+    #[test]
+    fn test_install_target_kind_round_trip() {
+        for s in &["agents", "claude", "cursor", "codex", "gemini", "custom"] {
+            let kind = InstallTargetKind::from_str(s).expect("parses");
+            assert_eq!(kind.as_str(), *s);
+        }
+        // Backward-compatible alias.
+        assert_eq!(
+            InstallTargetKind::from_str("agents-standard").unwrap().as_str(),
+            "agents"
+        );
+        assert!(InstallTargetKind::from_str("unknown").is_err());
+    }
+
+    // ---- delete_skill_directory safety ----
+
+    #[test]
+    fn test_delete_skill_directory_refuses_outside_library() {
+        let library = std::env::temp_dir().join("skill-desktop-test-lib-1");
+        let outside = std::env::temp_dir().join("skill-desktop-test-outside-1");
+        let _ = std::fs::create_dir_all(&library);
+        let _ = std::fs::create_dir_all(&outside);
+
+        let err = delete_skill_directory(&outside, &library);
+        assert!(err.is_err(), "deleting path outside library must fail");
+        // Cleanup
+        let _ = std::fs::remove_dir_all(&library);
+        let _ = std::fs::remove_dir_all(&outside);
+    }
+
+    #[test]
+    fn test_delete_skill_directory_refuses_library_root_itself() {
+        let library = std::env::temp_dir().join("skill-desktop-test-lib-2");
+        let _ = std::fs::create_dir_all(&library);
+
+        let err = delete_skill_directory(&library, &library);
+        assert!(
+            err.is_err(),
+            "deleting the library root itself must be rejected"
+        );
+        let _ = std::fs::remove_dir_all(&library);
+    }
+
+    // ---- rewrite_skill_md_name ----
+
+    #[test]
+    fn test_rewrite_skill_md_name_basic() {
+        let input = "---\nname: old-name\ndescription: A skill\n---\n\n# Body\n";
+        let out = rewrite_skill_md_name(input, "new-name").unwrap();
+        // Parse the result back and check the name is updated.
+        let parsed = crate::scanner::parse_front_matter(&out).expect("parses");
+        assert_eq!(parsed.name, "new-name");
+        // Description must be preserved.
+        assert_eq!(parsed.description, "A skill");
+        // Body content must be preserved.
+        assert!(out.contains("# Body"));
+    }
+
+    #[test]
+    fn test_rewrite_skill_md_name_traversal_payload() {
+        // If the upstream content has a `name` like "../escape", after rewrite
+        // the new on-disk file must carry the sanitized name verbatim.
+        let input = "---\nname: \"../escape\"\ndescription: x\n---\n\nbody\n";
+        let out = rewrite_skill_md_name(input, "escape").unwrap();
+        let parsed = crate::scanner::parse_front_matter(&out).expect("parses");
+        assert_eq!(parsed.name, "escape");
+    }
+
+    #[test]
+    fn test_rewrite_skill_md_name_no_frontmatter() {
+        let input = "# Just a markdown file, no frontmatter";
+        let err = rewrite_skill_md_name(input, "anything");
+        assert!(err.is_err());
+    }
+
+    #[test]
+    fn test_rewrite_skill_md_name_appends_when_absent() {
+        // If `name:` isn't present in the frontmatter, we should add it rather than fail.
+        let input = "---\ndescription: only desc\n---\n\nbody\n";
+        let out = rewrite_skill_md_name(input, "my-skill").unwrap();
+        let parsed = crate::scanner::parse_front_matter(&out).expect("parses");
+        assert_eq!(parsed.name, "my-skill");
+        assert_eq!(parsed.description, "only desc");
+    }
+
+    // ---- sanitize_skill_name ----
+
+    #[test]
+    fn test_sanitize_skill_name_basic() {
+        assert_eq!(sanitize_skill_name("My Cool Skill").unwrap(), "my-cool-skill");
+    }
+
+    #[test]
+    fn test_sanitize_skill_name_strips_path_separators() {
+        // The whole point of this function: never allow path traversal into the library.
+        assert_eq!(sanitize_skill_name("../etc/passwd").unwrap(), "etcpasswd");
+        assert_eq!(sanitize_skill_name("..\\evil").unwrap(), "evil");
+        assert_eq!(sanitize_skill_name("../../").is_err(), true);
+        assert_eq!(sanitize_skill_name("/").is_err(), true);
+    }
+
+    #[test]
+    fn test_sanitize_skill_name_collapses_specials() {
+        // `/` is stripped (not replaced) so traversal sequences leave no separator,
+        // which is why "server/v2" collapses to "serverv2" rather than "server-v2".
+        assert_eq!(
+            sanitize_skill_name("MCP@server/v2.0!").unwrap(),
+            "mcp-serverv2-0"
+        );
+    }
+
+    #[test]
+    fn test_sanitize_skill_name_invalid_chars_become_hyphens() {
+        // Non-separator special characters (spaces, punctuation other than `/`,`\`)
+        // get replaced with a single hyphen and consecutive hyphens collapse.
+        assert_eq!(
+            sanitize_skill_name("hello, world! v1.2").unwrap(),
+            "hello-world-v1-2"
+        );
+    }
+
+    #[test]
+    fn test_sanitize_skill_name_collapses_hyphens() {
+        assert_eq!(sanitize_skill_name("--a--b--").unwrap(), "a-b");
+    }
+
+    #[test]
+    fn test_sanitize_skill_name_truncates_to_64() {
+        let long = "a".repeat(200);
+        let s = sanitize_skill_name(&long).unwrap();
+        assert!(s.len() <= 64, "got len {}", s.len());
+        assert!(s.chars().all(|c| c == 'a'));
+    }
+
+    #[test]
+    fn test_sanitize_skill_name_rejects_empty() {
+        assert!(sanitize_skill_name("").is_err());
+        assert!(sanitize_skill_name("   ").is_err());
+        assert!(sanitize_skill_name("///").is_err());
+    }
+
+    // ---- resolve_inside ----
+
+    #[test]
+    fn test_resolve_inside_accepts_simple_subpath() {
+        let base = std::env::temp_dir().join("skill-desktop-test-inside-1");
+        std::fs::create_dir_all(&base).unwrap();
+        std::fs::write(base.join("a.txt"), "x").unwrap();
+        let r = resolve_inside(&base, "a.txt").unwrap();
+        assert!(r.ends_with("a.txt"));
+        let _ = std::fs::remove_dir_all(&base);
+    }
+
+    #[test]
+    fn test_resolve_inside_rejects_parent_dir() {
+        let base = std::env::temp_dir().join("skill-desktop-test-inside-2");
+        std::fs::create_dir_all(&base).unwrap();
+        let r = resolve_inside(&base, "../escape");
+        assert!(r.is_err(), "must reject ParentDir component");
+        let _ = std::fs::remove_dir_all(&base);
+    }
+
+    #[test]
+    fn test_resolve_inside_rejects_absolute() {
+        let base = std::env::temp_dir().join("skill-desktop-test-inside-3");
+        std::fs::create_dir_all(&base).unwrap();
+        let r = resolve_inside(&base, "/etc/passwd");
+        assert!(r.is_err(), "must reject absolute paths");
+        let _ = std::fs::remove_dir_all(&base);
+    }
+
+    #[test]
+    fn test_resolve_inside_allows_nested_subdir() {
+        let base = std::env::temp_dir().join("skill-desktop-test-inside-4");
+        let nested = base.join("scripts").join("util");
+        std::fs::create_dir_all(&nested).unwrap();
+        std::fs::write(nested.join("x.py"), "").unwrap();
+        let r = resolve_inside(&base, "scripts/util/x.py").unwrap();
+        assert!(r.ends_with("x.py"));
+        let _ = std::fs::remove_dir_all(&base);
+    }
+
+    #[test]
+    fn test_delete_skill_directory_removes_nested_skill() {
+        let library = std::env::temp_dir().join("skill-desktop-test-lib-3");
+        let skill = library.join("my-skill");
+        let nested = skill.join("scripts");
+        std::fs::create_dir_all(&nested).expect("setup");
+        std::fs::write(skill.join("SKILL.md"), "---\nname: x\n---\n").expect("setup");
+        std::fs::write(nested.join("run.py"), "print(1)").expect("setup");
+
+        let res = delete_skill_directory(&skill, &library);
+        assert!(res.is_ok(), "delete should succeed: {:?}", res);
+        assert!(!skill.exists(), "entire skill dir must be gone, including scripts/");
+        let _ = std::fs::remove_dir_all(&library);
+    }
 }

@@ -30,7 +30,6 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_dialog::init())
-        .plugin(tauri_plugin_sql::Builder::new().build())
         .setup(|app| {
             // Get app data directory
             let app_data_dir = app.path().app_data_dir().expect("Failed to get app data dir");
@@ -38,19 +37,27 @@ pub fn run() {
             // Initialize database
             let db = Database::new(&app_data_dir).expect("Failed to initialize database");
 
-            // Load library path from database, or use default path as fallback
+            // Load library path from database, or fall back to the cross-tool standard.
+            //
+            // Default: ~/.agents/skills/ (the Agent Skills cross-client convention as of 2026).
+            // This directory is auto-discovered by Cursor, OpenAI Codex CLI, Gemini CLI, etc.,
+            // so making it the default means skills managed here are immediately visible to
+            // other tools without any extra "install" step.
+            //
+            // If $HOME is unavailable (very unusual on desktop), we fall back to the sandboxed
+            // app data directory so the app stays functional.
             let library_path = db.get_setting("library_path").ok().flatten();
 
-            // If no library path is set, use the default path (app_data_dir/data/skills)
             let library_path = library_path.or_else(|| {
-                let default_path = app_data_dir.join("data").join("skills");
-                // Create the default directory if it doesn't exist
+                let default_path = dirs::home_dir()
+                    .map(|h| h.join(".agents").join("skills"))
+                    .unwrap_or_else(|| app_data_dir.join("data").join("skills"));
+
                 if let Err(e) = std::fs::create_dir_all(&default_path) {
                     tracing::error!("Failed to create default skill directory: {}", e);
                     return None;
                 }
                 let path_str = default_path.to_string_lossy().to_string();
-                // Save the default path to database
                 if let Err(e) = db.set_setting("library_path", &path_str) {
                     tracing::error!("Failed to save default library path to database: {}", e);
                 }
@@ -199,6 +206,11 @@ pub fn run() {
             commands::write_opencode_cli_config,
             commands::read_text_file,
             commands::save_text_file,
+            // Install skill to AI tool (~/.claude/skills/, ~/.cursor/skills/, etc.)
+            commands::list_install_targets,
+            commands::install_skill_to_tool,
+            commands::uninstall_skill_from_tool,
+            commands::list_skill_installations,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

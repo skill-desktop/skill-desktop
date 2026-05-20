@@ -13,7 +13,17 @@ import {
   AlertCircle,
 } from "lucide-react";
 import { invoke } from "@tauri-apps/api/core";
-import { Button, ScrollArea, Input } from "@/components/ui";
+import {
+  Button,
+  ScrollArea,
+  Input,
+  Section,
+  SidePanel,
+  SideNavItem,
+  LoadingSpinner,
+  Textarea,
+  EmptyState,
+} from "@/components/ui";
 import {
   useClaudeCodeConfig,
   useCursorConfig,
@@ -29,7 +39,6 @@ import {
 import type { AIToolInfo, ProjectConfig } from "@/types";
 import { AI_TOOLS } from "@/types";
 
-// Helper to open URL using Tauri opener plugin
 async function openUrl(url: string): Promise<void> {
   try {
     await invoke("plugin:opener|open_url", { url });
@@ -39,7 +48,6 @@ async function openUrl(url: string): Promise<void> {
   }
 }
 
-// Helper to open folder dialog via Tauri command
 async function openFolderDialog(): Promise<string | null> {
   try {
     const result = await invoke<string | null>("plugin:dialog|open", {
@@ -92,40 +100,26 @@ export const AIToolsView: React.FC = () => {
 
   return (
     <div className="flex h-full">
-      {/* Left sidebar menu */}
-      <div className="w-72 border-r border-border-default bg-bg-secondary">
-        <div className="border-b border-border-default p-3">
-          <h2 className="text-sm font-medium text-text-primary">
-            {t("aiTools.title")}
-          </h2>
-        </div>
-        <ScrollArea className="h-[calc(100%-49px)]">
-          {tabs.map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={`w-full px-3 py-2 text-left text-sm transition-colors flex items-center gap-3 ${
-                activeTab === tab.id
-                  ? "bg-bg-tertiary text-text-primary border-l-2 border-accent-blue"
-                  : "text-text-secondary hover:bg-bg-tertiary hover:text-text-primary border-l-2 border-transparent"
-              }`}
-            >
-              {tab.icon}
-              <span>{t(tab.labelKey)}</span>
-            </button>
-          ))}
-        </ScrollArea>
-      </div>
+      <SidePanel title={t("aiTools.title")}>
+        {tabs.map((tab) => (
+          <SideNavItem
+            key={tab.id}
+            icon={tab.icon}
+            label={t(tab.labelKey)}
+            active={activeTab === tab.id}
+            onClick={() => setActiveTab(tab.id)}
+          />
+        ))}
+      </SidePanel>
 
-      {/* Right content area */}
       <ScrollArea className="flex-1">
-        <div className="max-w-4xl p-6">{renderContent()}</div>
+        <div className="mx-auto max-w-4xl p-6">{renderContent()}</div>
       </ScrollArea>
     </div>
   );
 };
 
-// ========== Claude Code Panel ==========
+// =========================== Claude Code Panel ===========================
 const ClaudeCodePanel: React.FC = () => {
   const { t } = useTranslation();
   const { data: config, isLoading, refetch } = useClaudeCodeConfig();
@@ -149,14 +143,7 @@ const ClaudeCodePanel: React.FC = () => {
     }
   };
 
-  const handleContentChange = (value: string) => {
-    setContent(value);
-    setHasChanges(value !== (config?.globalContent || ""));
-  };
-
-  if (isLoading) {
-    return <LoadingState />;
-  }
+  if (isLoading) return <LoadingSpinner fullHeight />;
 
   return (
     <div className="space-y-6">
@@ -166,43 +153,25 @@ const ClaudeCodePanel: React.FC = () => {
       />
 
       <Section title={t("aiTools.globalConfig")} description={t("aiTools.claudeGlobalDesc")}>
-        <div className="space-y-3">
-          <div className="flex items-center justify-between">
-            <span className="text-xs text-text-muted font-mono">
-              {config?.globalPath || "~/.claude/CLAUDE.md"}
-            </span>
-            <div className="flex items-center gap-2">
-              {hasChanges && (
-                <span className="text-xs text-accent-yellow">{t("common.unsavedChanges")}</span>
-              )}
-              <Button
-                variant="default"
-                size="sm"
-                onClick={handleSave}
-                disabled={!hasChanges || saveMutation.isPending}
-              >
-                {saveMutation.isPending ? (
-                  <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
-                ) : (
-                  <Check className="h-3.5 w-3.5 mr-1.5" />
-                )}
-                {t("common.save")}
-              </Button>
-            </div>
-          </div>
-          <ConfigEditor
-            value={content}
-            onChange={handleContentChange}
-            placeholder={t("aiTools.claudePlaceholder")}
-          />
-        </div>
+        <EditorWithSaveBar
+          path={config?.globalPath || "~/.claude/CLAUDE.md"}
+          value={content}
+          onChange={(v) => {
+            setContent(v);
+            setHasChanges(v !== (config?.globalContent || ""));
+          }}
+          placeholder={t("aiTools.claudePlaceholder")}
+          hasChanges={hasChanges}
+          isSaving={saveMutation.isPending}
+          onSave={handleSave}
+        />
       </Section>
 
       <Section title={t("aiTools.configFormat")} description={t("aiTools.claudeFormatDesc")}>
-        <div className="text-sm text-text-secondary space-y-2">
+        <div className="space-y-2 text-sm text-text-secondary">
           <p>{t("aiTools.claudeFormatTip1")}</p>
           <p>{t("aiTools.claudeFormatTip2")}</p>
-          <ul className="list-disc list-inside space-y-1 text-text-muted">
+          <ul className="list-inside list-disc space-y-1 text-text-muted">
             <li>Overview - {t("aiTools.sectionOverview")}</li>
             <li>Tech Stack - {t("aiTools.sectionTechStack")}</li>
             <li>Key Directories - {t("aiTools.sectionKeyDirs")}</li>
@@ -215,7 +184,7 @@ const ClaudeCodePanel: React.FC = () => {
   );
 };
 
-// ========== Cursor Panel ==========
+// =========================== Cursor Panel ===========================
 const CursorPanel: React.FC = () => {
   const { t } = useTranslation();
   const { data: config, isLoading, refetch } = useCursorConfig();
@@ -239,14 +208,7 @@ const CursorPanel: React.FC = () => {
     }
   };
 
-  const handleContentChange = (value: string) => {
-    setContent(value);
-    setHasChanges(value !== (config?.legacyRules || ""));
-  };
-
-  if (isLoading) {
-    return <LoadingState />;
-  }
+  if (isLoading) return <LoadingSpinner fullHeight />;
 
   return (
     <div className="space-y-6">
@@ -257,50 +219,32 @@ const CursorPanel: React.FC = () => {
 
       {config?.globalRules && (
         <Section title={t("aiTools.globalRules")} description={t("aiTools.cursorGlobalDesc")}>
-          <div className="bg-bg-tertiary rounded-lg p-4 text-sm text-text-secondary font-mono whitespace-pre-wrap max-h-48 overflow-auto">
+          <div className="max-h-48 overflow-auto whitespace-pre-wrap rounded-lg bg-bg-tertiary p-4 font-mono text-sm text-text-secondary">
             {config.globalRules}
           </div>
-          <p className="text-xs text-text-muted mt-2">{t("aiTools.cursorGlobalNote")}</p>
+          <p className="text-xs text-text-muted">{t("aiTools.cursorGlobalNote")}</p>
         </Section>
       )}
 
       <Section title={t("aiTools.legacyRules")} description={t("aiTools.cursorLegacyDesc")}>
-        <div className="space-y-3">
-          <div className="flex items-center justify-between">
-            <span className="text-xs text-text-muted font-mono">
-              {config?.legacyRulesPath || "~/.cursorrules"}
-            </span>
-            <div className="flex items-center gap-2">
-              {hasChanges && (
-                <span className="text-xs text-accent-yellow">{t("common.unsavedChanges")}</span>
-              )}
-              <Button
-                variant="default"
-                size="sm"
-                onClick={handleSave}
-                disabled={!hasChanges || saveMutation.isPending}
-              >
-                {saveMutation.isPending ? (
-                  <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
-                ) : (
-                  <Check className="h-3.5 w-3.5 mr-1.5" />
-                )}
-                {t("common.save")}
-              </Button>
-            </div>
-          </div>
-          <ConfigEditor
-            value={content}
-            onChange={handleContentChange}
-            placeholder={t("aiTools.cursorPlaceholder")}
-          />
-        </div>
+        <EditorWithSaveBar
+          path={config?.legacyRulesPath || "~/.cursorrules"}
+          value={content}
+          onChange={(v) => {
+            setContent(v);
+            setHasChanges(v !== (config?.legacyRules || ""));
+          }}
+          placeholder={t("aiTools.cursorPlaceholder")}
+          hasChanges={hasChanges}
+          isSaving={saveMutation.isPending}
+          onSave={handleSave}
+        />
       </Section>
 
       <Section title={t("aiTools.mdcFormat")} description={t("aiTools.cursorMdcDesc")}>
-        <div className="text-sm text-text-secondary space-y-2">
+        <div className="space-y-2 text-sm text-text-secondary">
           <p>{t("aiTools.cursorMdcTip1")}</p>
-          <div className="bg-bg-tertiary rounded-lg p-4 font-mono text-xs">
+          <div className="rounded-lg bg-bg-tertiary p-4 font-mono text-xs">
             <pre>{`---
 description: Short description of the rule
 globs: src/**/*.ts
@@ -316,7 +260,7 @@ Main rule content...`}</pre>
   );
 };
 
-// ========== OpenCode Panel ==========
+// =========================== OpenCode Panel ===========================
 const OpenCodePanel: React.FC = () => {
   const { t } = useTranslation();
   const { data: config, isLoading, refetch } = useOpenCodeConfig();
@@ -338,27 +282,7 @@ const OpenCodePanel: React.FC = () => {
     }
   }, [config]);
 
-  const handleSaveAgents = async () => {
-    try {
-      await saveAgentsMutation.mutateAsync(agentsContent);
-      setAgentsHasChanges(false);
-    } catch (error) {
-      console.error("Failed to save:", error);
-    }
-  };
-
-  const handleSaveConfig = async () => {
-    try {
-      await saveConfigMutation.mutateAsync(configContent);
-      setConfigHasChanges(false);
-    } catch (error) {
-      console.error("Failed to save:", error);
-    }
-  };
-
-  if (isLoading) {
-    return <LoadingState />;
-  }
+  if (isLoading) return <LoadingSpinner fullHeight />;
 
   return (
     <div className="space-y-6">
@@ -368,80 +292,51 @@ const OpenCodePanel: React.FC = () => {
       />
 
       <Section title="AGENTS.md" description={t("aiTools.opencodeAgentsDesc")}>
-        <div className="space-y-3">
-          <div className="flex items-center justify-between">
-            <span className="text-xs text-text-muted font-mono">
-              {config?.globalAgentsPath || "~/.config/opencode/AGENTS.md"}
-            </span>
-            <div className="flex items-center gap-2">
-              {agentsHasChanges && (
-                <span className="text-xs text-accent-yellow">{t("common.unsavedChanges")}</span>
-              )}
-              <Button
-                variant="default"
-                size="sm"
-                onClick={handleSaveAgents}
-                disabled={!agentsHasChanges || saveAgentsMutation.isPending}
-              >
-                {saveAgentsMutation.isPending ? (
-                  <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
-                ) : (
-                  <Check className="h-3.5 w-3.5 mr-1.5" />
-                )}
-                {t("common.save")}
-              </Button>
-            </div>
-          </div>
-          <ConfigEditor
-            value={agentsContent}
-            onChange={(v) => {
-              setAgentsContent(v);
-              setAgentsHasChanges(v !== (config?.globalAgentsMd || ""));
-            }}
-            placeholder={t("aiTools.opencodePlaceholder")}
-          />
-        </div>
+        <EditorWithSaveBar
+          path={config?.globalAgentsPath || "~/.config/opencode/AGENTS.md"}
+          value={agentsContent}
+          onChange={(v) => {
+            setAgentsContent(v);
+            setAgentsHasChanges(v !== (config?.globalAgentsMd || ""));
+          }}
+          placeholder={t("aiTools.opencodePlaceholder")}
+          hasChanges={agentsHasChanges}
+          isSaving={saveAgentsMutation.isPending}
+          onSave={async () => {
+            try {
+              await saveAgentsMutation.mutateAsync(agentsContent);
+              setAgentsHasChanges(false);
+            } catch (e) {
+              console.error("Failed to save:", e);
+            }
+          }}
+        />
       </Section>
 
       <Section title="opencode.json" description={t("aiTools.opencodeConfigDesc")}>
-        <div className="space-y-3">
-          <div className="flex items-center justify-between">
-            <span className="text-xs text-text-muted font-mono">
-              {config?.globalConfigPath || "~/.config/opencode/opencode.json"}
-            </span>
-            <div className="flex items-center gap-2">
-              {configHasChanges && (
-                <span className="text-xs text-accent-yellow">{t("common.unsavedChanges")}</span>
-              )}
-              <Button
-                variant="default"
-                size="sm"
-                onClick={handleSaveConfig}
-                disabled={!configHasChanges || saveConfigMutation.isPending}
-              >
-                {saveConfigMutation.isPending ? (
-                  <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
-                ) : (
-                  <Check className="h-3.5 w-3.5 mr-1.5" />
-                )}
-                {t("common.save")}
-              </Button>
-            </div>
-          </div>
-          <ConfigEditor
-            value={configContent}
-            onChange={(v) => {
-              setConfigContent(v);
-              setConfigHasChanges(v !== (config?.globalConfigJson || ""));
-            }}
-            placeholder='{\n  "$schema": "https://opencode.ai/config.json"\n}'
-            language="json"
-          />
-        </div>
+        <EditorWithSaveBar
+          path={config?.globalConfigPath || "~/.config/opencode/opencode.json"}
+          value={configContent}
+          onChange={(v) => {
+            setConfigContent(v);
+            setConfigHasChanges(v !== (config?.globalConfigJson || ""));
+          }}
+          placeholder='{\n  "$schema": "https://opencode.ai/config.json"\n}'
+          hasChanges={configHasChanges}
+          isSaving={saveConfigMutation.isPending}
+          onSave={async () => {
+            try {
+              await saveConfigMutation.mutateAsync(configContent);
+              setConfigHasChanges(false);
+            } catch (e) {
+              console.error("Failed to save:", e);
+            }
+          }}
+        />
       </Section>
 
       <Section title={t("aiTools.compatibility")} description={t("aiTools.opencodeCompatDesc")}>
-        <div className="text-sm text-text-secondary space-y-2">
+        <div className="space-y-2 text-sm text-text-secondary">
           <p>{t("aiTools.opencodeCompatTip1")}</p>
           <p>{t("aiTools.opencodeCompatTip2")}</p>
         </div>
@@ -450,7 +345,7 @@ const OpenCodePanel: React.FC = () => {
   );
 };
 
-// ========== Project Config Panel ==========
+// =========================== Project Config Panel ===========================
 const ProjectConfigPanel: React.FC = () => {
   const { t } = useTranslation();
   const [projectPath, setProjectPath] = useState<string>("");
@@ -504,8 +399,10 @@ const ProjectConfigPanel: React.FC = () => {
 
   const getConfigIcon = (path: string) => {
     if (path.includes("CLAUDE.md")) return <Bot className="h-4 w-4 text-accent-blue" />;
-    if (path.includes(".cursorrules") || path.includes(".mdc")) return <Zap className="h-4 w-4 text-accent-yellow" />;
-    if (path.includes("AGENTS.md") || path.includes("opencode")) return <Code2 className="h-4 w-4 text-accent-green" />;
+    if (path.includes(".cursorrules") || path.includes(".mdc"))
+      return <Zap className="h-4 w-4 text-accent-yellow" />;
+    if (path.includes("AGENTS.md") || path.includes("opencode"))
+      return <Code2 className="h-4 w-4 text-accent-green" />;
     return <FileText className="h-4 w-4 text-text-muted" />;
   };
 
@@ -513,7 +410,7 @@ const ProjectConfigPanel: React.FC = () => {
     <div className="space-y-6">
       <div>
         <h2 className="text-lg font-semibold text-text-primary">{t("aiTools.projectConfig")}</h2>
-        <p className="text-sm text-text-secondary mt-1">{t("aiTools.projectConfigDesc")}</p>
+        <p className="mt-1 text-sm text-text-secondary">{t("aiTools.projectConfigDesc")}</p>
       </div>
 
       <Section title={t("aiTools.selectProject")} description={t("aiTools.selectProjectDesc")}>
@@ -525,7 +422,7 @@ const ProjectConfigPanel: React.FC = () => {
             className="flex-1"
           />
           <Button variant="secondary" size="sm" onClick={handleSelectFolder}>
-            <FolderOpen className="h-4 w-4 mr-1.5" />
+            <FolderOpen className="mr-1.5 h-4 w-4" />
             {t("common.browse")}
           </Button>
         </div>
@@ -535,19 +432,17 @@ const ProjectConfigPanel: React.FC = () => {
         <>
           <Section title={t("aiTools.detectedConfigs")} description={t("aiTools.detectedConfigsDesc")}>
             {isLoading ? (
-              <div className="flex items-center justify-center py-8">
-                <Loader2 className="h-6 w-6 animate-spin text-text-muted" />
-              </div>
+              <LoadingSpinner />
             ) : configs && configs.length > 0 ? (
               <div className="space-y-2">
                 {configs.map((config) => (
                   <button
                     key={config.configPath}
                     onClick={() => handleEditConfig(config)}
-                    className={`w-full flex items-center gap-3 p-3 rounded-lg border transition-colors ${
+                    className={`flex w-full items-center gap-3 rounded-lg border p-3 transition-colors ${
                       editingConfig?.configPath === config.configPath
                         ? "border-accent-blue bg-accent-blue/5"
-                        : "border-border-default hover:border-border-hover bg-bg-secondary"
+                        : "border-border-default bg-bg-secondary hover:border-border-hover"
                     }`}
                   >
                     {getConfigIcon(config.configPath)}
@@ -555,9 +450,7 @@ const ProjectConfigPanel: React.FC = () => {
                       <p className="text-sm font-medium text-text-primary">
                         {config.configPath.split("/").pop()}
                       </p>
-                      <p className="text-xs text-text-muted truncate">
-                        {config.configPath}
-                      </p>
+                      <p className="truncate text-xs text-text-muted">{config.configPath}</p>
                     </div>
                     {config.lastModified && (
                       <span className="text-xs text-text-muted">
@@ -568,10 +461,15 @@ const ProjectConfigPanel: React.FC = () => {
                 ))}
               </div>
             ) : (
-              <div className="text-center py-8">
-                <AlertCircle className="h-8 w-8 text-text-muted mx-auto mb-2" />
-                <p className="text-sm text-text-secondary">{t("aiTools.noConfigsFound")}</p>
-              </div>
+              <EmptyState
+                variant="compact"
+                title={
+                  <span className="inline-flex items-center gap-2">
+                    <AlertCircle className="h-4 w-4 text-text-muted" />
+                    {t("aiTools.noConfigsFound")}
+                  </span>
+                }
+              />
             )}
           </Section>
 
@@ -583,7 +481,7 @@ const ProjectConfigPanel: React.FC = () => {
                 onClick={() => handleCreateConfig("claude")}
                 disabled={createMutation.isPending}
               >
-                <Bot className="h-4 w-4 mr-1.5" />
+                <Bot className="mr-1.5 h-4 w-4" />
                 CLAUDE.md
               </Button>
               <Button
@@ -592,7 +490,7 @@ const ProjectConfigPanel: React.FC = () => {
                 onClick={() => handleCreateConfig("cursor")}
                 disabled={createMutation.isPending}
               >
-                <Zap className="h-4 w-4 mr-1.5" />
+                <Zap className="mr-1.5 h-4 w-4" />
                 .cursorrules
               </Button>
               <Button
@@ -601,50 +499,26 @@ const ProjectConfigPanel: React.FC = () => {
                 onClick={() => handleCreateConfig("opencode")}
                 disabled={createMutation.isPending}
               >
-                <Code2 className="h-4 w-4 mr-1.5" />
+                <Code2 className="mr-1.5 h-4 w-4" />
                 AGENTS.md
               </Button>
             </div>
           </Section>
 
           {editingConfig && (
-            <Section
-              title={t("aiTools.editConfig")}
-              description={editingConfig.configPath}
-            >
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-text-secondary">
-                    {editingConfig.configPath.split("/").pop()}
-                  </span>
-                  <div className="flex items-center gap-2">
-                    {hasChanges && (
-                      <span className="text-xs text-accent-yellow">{t("common.unsavedChanges")}</span>
-                    )}
-                    <Button
-                      variant="default"
-                      size="sm"
-                      onClick={handleSave}
-                      disabled={!hasChanges || saveMutation.isPending}
-                    >
-                      {saveMutation.isPending ? (
-                        <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
-                      ) : (
-                        <Check className="h-3.5 w-3.5 mr-1.5" />
-                      )}
-                      {t("common.save")}
-                    </Button>
-                  </div>
-                </div>
-                <ConfigEditor
-                  value={editContent}
-                  onChange={(v) => {
-                    setEditContent(v);
-                    setHasChanges(v !== editingConfig.content);
-                  }}
-                  placeholder=""
-                />
-              </div>
+            <Section title={t("aiTools.editConfig")} description={editingConfig.configPath}>
+              <EditorWithSaveBar
+                path={editingConfig.configPath.split("/").pop() || editingConfig.configPath}
+                value={editContent}
+                onChange={(v) => {
+                  setEditContent(v);
+                  setHasChanges(v !== editingConfig.content);
+                }}
+                placeholder=""
+                hasChanges={hasChanges}
+                isSaving={saveMutation.isPending}
+                onSave={handleSave}
+              />
             </Section>
           )}
         </>
@@ -653,13 +527,7 @@ const ProjectConfigPanel: React.FC = () => {
   );
 };
 
-// ========== Shared Components ==========
-
-const LoadingState: React.FC = () => (
-  <div className="flex items-center justify-center h-64">
-    <Loader2 className="h-8 w-8 animate-spin text-text-muted" />
-  </div>
-);
+// =========================== Shared Bits ===========================
 
 interface ToolHeaderProps {
   tool: AIToolInfo;
@@ -673,17 +541,17 @@ const ToolHeader: React.FC<ToolHeaderProps> = ({ tool, onRefresh }) => {
     <div className="flex items-start justify-between">
       <div>
         <div className="flex items-center gap-2">
-          <span className="text-2xl">{tool.icon}</span>
+          <span className="text-2xl leading-none">{tool.icon}</span>
           <h2 className="text-lg font-semibold text-text-primary">{tool.name}</h2>
         </div>
-        <p className="text-sm text-text-secondary mt-1">{tool.description}</p>
+        <p className="mt-1 text-sm text-text-secondary">{tool.description}</p>
       </div>
       <div className="flex items-center gap-2">
         <Button variant="ghost" size="sm" onClick={onRefresh}>
           <RefreshCw className="h-4 w-4" />
         </Button>
         <Button variant="secondary" size="sm" onClick={() => openUrl(tool.docsUrl)}>
-          <ExternalLink className="h-4 w-4 mr-1.5" />
+          <ExternalLink className="mr-1.5 h-4 w-4" />
           {t("common.docs")}
         </Button>
       </div>
@@ -691,42 +559,64 @@ const ToolHeader: React.FC<ToolHeaderProps> = ({ tool, onRefresh }) => {
   );
 };
 
-interface SectionProps {
-  title: string;
-  description?: string;
-  children: React.ReactNode;
-}
-
-const Section: React.FC<SectionProps> = ({ title, description, children }) => (
-  <div className="space-y-3">
-    <div>
-      <h3 className="text-sm font-medium text-text-primary">{title}</h3>
-      {description && <p className="text-xs text-text-muted mt-0.5">{description}</p>}
-    </div>
-    {children}
-  </div>
-);
-
-interface ConfigEditorProps {
+interface EditorWithSaveBarProps {
+  path: string;
   value: string;
   onChange: (value: string) => void;
   placeholder?: string;
-  language?: "markdown" | "json";
+  hasChanges: boolean;
+  isSaving: boolean;
+  onSave: () => void;
 }
 
-const ConfigEditor: React.FC<ConfigEditorProps> = ({
+/**
+ * Path label + unsaved indicator + Save button + monospace editor.
+ * Used in five places across the AI Tools view — extracted to avoid drift
+ * between Claude / Cursor / OpenCode / project-config panels.
+ */
+const EditorWithSaveBar: React.FC<EditorWithSaveBarProps> = ({
+  path,
   value,
   onChange,
   placeholder,
-  language: _language = "markdown",
+  hasChanges,
+  isSaving,
+  onSave,
 }) => {
+  const { t } = useTranslation();
+
   return (
-    <textarea
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-      placeholder={placeholder}
-      className="w-full h-80 p-4 rounded-lg border border-border-default bg-bg-tertiary text-text-primary font-mono text-sm resize-none focus:border-accent-blue focus:outline-none"
-      spellCheck={false}
-    />
+    <div className="space-y-3">
+      <div className="flex items-center justify-between gap-3">
+        <span className="truncate font-mono text-xs text-text-muted">{path}</span>
+        <div className="flex items-center gap-2">
+          {hasChanges && (
+            <span className="text-xs text-accent-yellow">
+              {t("common.unsavedChanges")}
+            </span>
+          )}
+          <Button
+            variant="default"
+            size="sm"
+            onClick={onSave}
+            disabled={!hasChanges || isSaving}
+          >
+            {isSaving ? (
+              <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <Check className="mr-1.5 h-3.5 w-3.5" />
+            )}
+            {t("common.save")}
+          </Button>
+        </div>
+      </div>
+      <Textarea
+        mono
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        className="h-80 resize-none"
+      />
+    </div>
   );
 };
