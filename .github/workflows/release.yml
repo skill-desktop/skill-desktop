@@ -203,53 +203,26 @@ jobs:
           # poison each other.
           shared-key: ${{ matrix.target }}
 
-      # --- Stamp the tag's version into the three places it lives. Using node
-      # (always available on every runner image) keeps this portable; sed
-      # required separate Linux/macOS flag handling and silently no-op'd on
-      # malformed input.
-      #
-      # The script is idempotent: if a file already matches the tag's version
-      # we simply leave it alone. This matters because contributors may bump
-      # the manifests locally before tagging, so demanding a real diff on
-      # every file would brick those releases. ---
-      - name: Sync version from tag
+      # --- Stamp the tag's version into the three manifests via the shared
+      # release tool. Local releases (`pnpm release ...`) and CI use the
+      # exact same code, so the two can never drift. The `sync` subcommand
+      # is idempotent: if a manifest already matches the tag's version it's
+      # left alone, which keeps re-runs and locally-bumped releases working. ---
+      - name: Sync manifests from tag
         shell: bash
         env:
           VERSION: ${{ needs.draft-release.outputs.version }}
-        run: |
-          set -euo pipefail
-          node -e "
-            const fs = require('fs');
-            const version = process.env.VERSION;
-            if (!version) { throw new Error('VERSION not set'); }
+        run: node scripts/release.mjs sync "$VERSION"
 
-            const updateJson = (p) => {
-              const j = JSON.parse(fs.readFileSync(p, 'utf8'));
-              if (j.version === version) {
-                console.log('Skipped', p, '(already', version + ')');
-                return;
-              }
-              j.version = version;
-              fs.writeFileSync(p, JSON.stringify(j, null, 2) + '\n');
-              console.log('Updated', p, '->', version);
-            };
-            updateJson('package.json');
-            updateJson('src-tauri/tauri.conf.json');
-
-            const cargoPath = 'src-tauri/Cargo.toml';
-            const cargo = fs.readFileSync(cargoPath, 'utf8');
-            const versionRegex = /^version\s*=\s*\"[^\"]*\"/m;
-            if (!versionRegex.test(cargo)) {
-              throw new Error('Could not find version line in ' + cargoPath);
-            }
-            const updated = cargo.replace(versionRegex, 'version = \"' + version + '\"');
-            if (cargo === updated) {
-              console.log('Skipped', cargoPath, '(already', version + ')');
-            } else {
-              fs.writeFileSync(cargoPath, updated);
-              console.log('Updated', cargoPath, '->', version);
-            }
-          "
+      # --- Defensive sanity check: every manifest must agree with the tag's
+      # version at this point. If `sync` had any bug — or someone edited the
+      # tag/manifests after this job started — we fail loudly with a diff
+      # rather than shipping mislabeled binaries. ---
+      - name: Verify manifests match tag
+        shell: bash
+        env:
+          VERSION: ${{ needs.draft-release.outputs.version }}
+        run: node scripts/release.mjs verify "$VERSION"
 
       - name: Install frontend dependencies
         run: pnpm install --frozen-lockfile
