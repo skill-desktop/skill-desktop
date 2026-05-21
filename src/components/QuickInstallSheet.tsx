@@ -135,8 +135,28 @@ export const QuickInstallSheet: React.FC = () => {
   const updateSetting = useUpdateAppSetting();
   const installMutation = useInstallSkillToTool();
 
+  // Latest isInstalling, exposed via ref so handleDrop's closure (created
+  // before each drop event) can read the up-to-date value without being
+  // a useCallback dependency.
+  const isInstallingRef = React.useRef(false);
+  React.useEffect(() => {
+    isInstallingRef.current = isInstalling;
+  }, [isInstalling]);
+
   // When the user drops files, we open the sheet and start previewing.
   const handleDrop = React.useCallback(async (paths: string[]) => {
+    // Don't clobber an in-progress install — a fresh drop while we're in
+    // the middle of `import_local_skill` + `install_skill_to_tool` would
+    // make the in-flight status updates target the wrong items list and
+    // could confuse the user about what's actually been imported.
+    if (isInstallingRef.current) {
+      toast.warning(
+        t("quickInstall.installInProgress"),
+        t("quickInstall.installInProgressHint")
+      );
+      return;
+    }
+
     // Seed the items list immediately so the user sees what they dropped.
     setItems(paths.map((p) => ({ path: p, status: "previewing" })));
     setDone(false);

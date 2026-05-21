@@ -148,6 +148,8 @@
     "installButton_zero": "安装",
     "installButton_one": "安装 1 个技能",
     "installButton_other": "安装 {{count}} 个技能",
+    "installInProgress": "稍等 —— 还在安装",
+    "installInProgressHint": "等当前批次安装完再继续拖入。",
     "risk": {
       "medium": "中风险",
       "high": "高风险"
@@ -478,6 +480,7 @@
     "placeholder": "搜索 Anthropic 示例、MCP 服务器、注册表…",
     "allRegistries": "全部注册表",
     "noResults": "暂无匹配项，试试更宽松的关键字。",
+    "registryErrorTitle": "MCP 注册表暂时不可达",
     "filter": {
       "all": "全部",
       "examples": "示例",
@@ -598,6 +601,9 @@
       "checkDesc": "对照每个远程来源的技能检查是否有新版本。当前 {{count}} 个候选。",
       "checkNow": "立即检查",
       "lastCheckedAt": "上次检查时间：{{time}}",
+      "noEligible": "你的技能库里还没有从远程 URL 导入的技能。先从 GitHub 或 URL 导入一个，再回到这里检查更新。",
+      "notYetChecked_one": "有 1 个远程技能。点「立即检查」看看它是否有新版本。",
+      "notYetChecked_other": "有 {{count}} 个远程技能。点「立即检查」看看它们是否有新版本。",
       "availableHeading_one": "1 个可更新",
       "availableHeading_other": "{{count}} 个可更新",
       "applyOne": "更新",

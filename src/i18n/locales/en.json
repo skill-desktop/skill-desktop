@@ -148,6 +148,8 @@
     "installButton_zero": "Install",
     "installButton_one": "Install 1 skill",
     "installButton_other": "Install {{count}} skills",
+    "installInProgress": "Hold on — still installing",
+    "installInProgressHint": "Wait for the current install to finish, then drop again.",
     "risk": {
       "medium": "medium risk",
       "high": "high risk"
@@ -478,6 +480,7 @@
     "placeholder": "Search Anthropic examples, MCP servers, registries…",
     "allRegistries": "All registries",
     "noResults": "No matches yet. Try a broader search.",
+    "registryErrorTitle": "Couldn't reach the MCP registry",
     "filter": {
       "all": "All",
       "examples": "Examples",
@@ -598,6 +601,9 @@
       "checkDesc": "Compares each remote-sourced skill against its origin. {{count}} eligible.",
       "checkNow": "Check now",
       "lastCheckedAt": "Last checked at {{time}}",
+      "noEligible": "No skills in your library have a remote source URL yet. Import a skill from GitHub or a URL and it'll show up here.",
+      "notYetChecked_one": "{{count}} skill has a remote source. Tap “Check now” to see whether a newer version is available.",
+      "notYetChecked_other": "{{count}} skills have a remote source. Tap “Check now” to see whether newer versions are available.",
       "availableHeading_one": "1 update available",
       "availableHeading_other": "{{count}} updates available",
       "applyOne": "Update",

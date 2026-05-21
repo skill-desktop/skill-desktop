@@ -299,10 +299,17 @@ export const HomeView: React.FC = () => {
   const availableUpdates: SkillUpdateInfo[] = React.useMemo(() => {
     if (!skillUpdatesCache) return [];
     const applied = new Set(appliedUpdateHashes);
+    // Cross-check against the live skills list so entries for skills the
+    // user deleted between checking-and-applying don't show up as dead
+    // links in the banner. We match by hash because that's what the cache
+    // entry carries; applying an update changes the hash, but by then
+    // we've already added it to `applied`.
+    const liveHashes = new Set(skills.map((s) => s.hash));
     return skillUpdatesCache.filter(
-      (u) => u.hasUpdate && !applied.has(u.skillHash)
+      (u) =>
+        u.hasUpdate && !applied.has(u.skillHash) && liveHashes.has(u.skillHash)
     );
-  }, [skillUpdatesCache, appliedUpdateHashes]);
+  }, [skillUpdatesCache, appliedUpdateHashes, skills]);
 
   const handleCheckUpdates = async () => {
     if (skillsWithSource.length === 0) {

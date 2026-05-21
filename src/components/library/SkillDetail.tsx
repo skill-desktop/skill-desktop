@@ -54,6 +54,21 @@ export const SkillDetail: React.FC<SkillDetailProps> = ({ skill }) => {
   const [updateAvailable, setUpdateAvailable] = React.useState(false);
   const [showUpdateDialog, setShowUpdateDialog] = React.useState(false);
 
+  // Reset all per-skill local state whenever the selected skill changes,
+  // otherwise stale UI (e.g. "update available" banner from the previous
+  // skill, a Run tab left open while inspecting a sandboxed skill, or a
+  // green "copied!" tick from a different name) leaks across selections.
+  React.useEffect(() => {
+    setActiveTab("overview");
+    setCopied(false);
+    setUpdateAvailable(false);
+    setShowUpdateDialog(false);
+    setShowDeleteConfirm(false);
+    setEditorOpen(false);
+    setEditingFilePath("");
+    setInstallDialogOpen(false);
+  }, [skill?.skillId]);
+
   // Check if current skill is quarantined
   const isQuarantined = skill ? quarantinedHashes.includes(skill.hash) : false;
   

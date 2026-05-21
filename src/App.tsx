@@ -186,14 +186,16 @@ function AppContent() {
       // ? — global "show keyboard shortcuts" overlay (iOS / macOS muscle
       // memory). We only trigger when the user is NOT in a text input,
       // since "?" is a legitimate character in URLs / search strings.
-      // shortcutsHelpOpen toggles the existing dialog state from appStore.
+      // `isContentEditable` is the DOM property which is true for both
+      // `contenteditable=""` and `contenteditable="plaintext-only"`, which
+      // a plain string compare on getAttribute would miss.
       if (e.key === "?" && !e.metaKey && !e.ctrlKey && !e.altKey) {
         const active = document.activeElement as HTMLElement | null;
         const tag = active?.tagName?.toLowerCase();
         const isTyping =
           tag === "input" ||
           tag === "textarea" ||
-          (active?.getAttribute("contenteditable") === "true");
+          (!!active && active.isContentEditable);
         if (!isTyping) {
           e.preventDefault();
           setShortcutsHelpOpen(true);

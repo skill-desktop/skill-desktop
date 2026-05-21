@@ -895,9 +895,6 @@ pub async fn update_skill_from_url(
         .map_err(|e| format!("Failed to read response: {}", e))?;
 
     // Sanity check the new content has parseable metadata before we overwrite.
-    // We don't enforce that the new name matches — upstream renames are valid,
-    // we just keep the file at the existing on-disk path so installations
-    // (symlinks pointing to this path) keep working.
     let _new_metadata = crate::scanner::parse_front_matter(&content)
         .ok_or("Failed to parse updated skill metadata")?;
 
@@ -911,8 +908,22 @@ pub async fn update_skill_from_url(
         ));
     }
 
+    // Mirror `import_skill_from_url`: rewrite the frontmatter `name:` to
+    // match the on-disk directory name. This keeps the (dir basename,
+    // metadata.name) pair consistent across imports and updates so the UI
+    // never has to deal with "scanned name says X but folder says Y" rows.
+    // If the upstream really did rename itself, we preserve the rename in
+    // every other field (description, version, etc.); only `name:` is
+    // forced to match the local directory.
+    let dir_basename = skill_dir
+        .file_name()
+        .map(|s| s.to_string_lossy().to_string())
+        .ok_or("Cannot determine skill directory name")?;
+    let final_content =
+        rewrite_skill_md_name(&content, &dir_basename).unwrap_or_else(|_| content.clone());
+
     let skill_md_path = skill_dir.join("SKILL.md");
-    std::fs::write(&skill_md_path, &content)
+    std::fs::write(&skill_md_path, &final_content)
         .map_err(|e| format!("Failed to overwrite SKILL.md: {}", e))?;
 
     // Re-scan the directory so the returned Skill carries the new hash,

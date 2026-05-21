@@ -438,11 +438,18 @@ const UpdatesPanel: React.FC = () => {
     () => new Set(appliedUpdateHashes),
     [appliedUpdateHashes]
   );
-  const updatable = lastResults.filter(
+  const liveHashes = React.useMemo(
+    () => new Set(skills.map((s) => s.hash)),
+    [skills]
+  );
+  // Same stale-cache guard as HomeView — drop entries whose skill the user
+  // already deleted from the library between Check and rendering.
+  const liveResults = lastResults.filter((u) => liveHashes.has(u.skillHash));
+  const updatable = liveResults.filter(
     (u) => u.hasUpdate && !appliedSet.has(u.skillHash)
   );
-  const upToDate = lastResults.filter((u) => !u.hasUpdate);
-  const errored = lastResults.filter((u) => u.error);
+  const upToDate = liveResults.filter((u) => !u.hasUpdate);
+  const errored = liveResults.filter((u) => u.error);
 
   const handleCheck = async () => {
     if (skillsWithSource.length === 0) {
@@ -524,6 +531,23 @@ const UpdatesPanel: React.FC = () => {
         <p className="px-1 text-xs text-text-muted">
           {t("settings.updates.lastCheckedAt", {
             time: new Date(lastChecked).toLocaleTimeString(),
+          })}
+        </p>
+      )}
+
+      {/* Two empty states: (a) library has no remote-sourced skills, so
+          there's literally nothing to check; (b) user hasn't run the check
+          yet so we have no data to show. We pick the message that matches
+          the user's actual blocker. */}
+      {skillsWithSource.length === 0 && (
+        <p className="rounded-lg bg-bg-tertiary px-3 py-2 text-xs text-text-secondary">
+          {t("settings.updates.noEligible")}
+        </p>
+      )}
+      {skillsWithSource.length > 0 && skillUpdatesCache === null && (
+        <p className="rounded-lg bg-bg-tertiary px-3 py-2 text-xs text-text-secondary">
+          {t("settings.updates.notYetChecked", {
+            count: skillsWithSource.length,
           })}
         </p>
       )}

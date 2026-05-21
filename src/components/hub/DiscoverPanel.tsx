@@ -152,10 +152,20 @@ export const DiscoverPanel: React.FC = () => {
   const importRegistry = useImportMcpRegistryServer();
 
   // Backend results. When the search box is empty we fall back to featured.
-  const { data: featuredRegistry = [], isLoading: loadingFeatured } =
-    useFeaturedMcpServers(selectedRegistry);
-  const { data: searchedRegistry = [], isLoading: searching } =
-    useSearchMcpRegistry(searchTerm, selectedRegistry);
+  // We also surface the query `error` so a flaky registry doesn't silently
+  // degrade the panel to a misleading "no results" state.
+  const {
+    data: featuredRegistry = [],
+    isLoading: loadingFeatured,
+    error: featuredError,
+  } = useFeaturedMcpServers(selectedRegistry);
+  const {
+    data: searchedRegistry = [],
+    isLoading: searching,
+    error: searchError,
+  } = useSearchMcpRegistry(searchTerm, selectedRegistry);
+  // We only care about the query whose results we're actually showing.
+  const registryError = searchTerm ? searchError : featuredError;
 
   // ────────── Build the merged result list ──────────
 
@@ -310,10 +320,26 @@ export const DiscoverPanel: React.FC = () => {
         )}
       </div>
 
-      {/* Results list */}
+      {/* Results list. We surface a registry network error inline (not as a
+          toast) because it specifically explains why "no results" is showing
+          — a toast would feel orthogonal to the panel state. Anthropic
+          examples are bundled in code so they remain visible even when the
+          registry call fails; we don't kill the whole panel for a partial
+          failure. */}
       {isLoading ? (
         <div className="flex items-center justify-center py-12 text-text-muted">
           <Loader2 className="h-4 w-4 animate-spin" />
+        </div>
+      ) : allResults.length === 0 && registryError ? (
+        <div className="space-y-2 rounded-lg border border-accent-red/30 bg-accent-red/5 px-4 py-4 text-center text-sm text-text-secondary">
+          <p className="font-medium text-accent-red">
+            {t("discover.registryErrorTitle")}
+          </p>
+          <p className="text-xs text-text-muted">
+            {registryError instanceof Error
+              ? registryError.message
+              : String(registryError)}
+          </p>
         </div>
       ) : allResults.length === 0 ? (
         <div className="rounded-lg border border-dashed border-border-default px-4 py-12 text-center text-sm text-text-muted">
