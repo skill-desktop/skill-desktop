@@ -165,7 +165,12 @@ export const DiscoverPanel: React.FC = () => {
     error: searchError,
   } = useSearchMcpRegistry(searchTerm, selectedRegistry);
   // We only care about the query whose results we're actually showing.
-  const registryError = searchTerm ? searchError : featuredError;
+  // If the user filtered down to "examples" only, the registry error is
+  // irrelevant — they're not looking at registry results — so we suppress
+  // it to avoid a misleading "Couldn't reach MCP registry" banner over a
+  // panel that doesn't even include registry content.
+  const rawRegistryError = searchTerm ? searchError : featuredError;
+  const registryError = filter === "examples" ? null : rawRegistryError;
 
   // ────────── Build the merged result list ──────────
 

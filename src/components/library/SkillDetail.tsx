@@ -129,15 +129,31 @@ export const SkillDetail: React.FC<SkillDetailProps> = ({ skill }) => {
     }
   };
 
+  // Track the currently-selected skill in a ref so async callbacks can
+  // read the LATEST value without re-binding closures. Plain `skill?.skillId`
+  // captured at call-time would still race when the user switches skills
+  // mid-flight without clicking anything.
+  const currentSkillIdRef = React.useRef<string | null>(skill?.skillId ?? null);
+  React.useEffect(() => {
+    currentSkillIdRef.current = skill?.skillId ?? null;
+  }, [skill?.skillId]);
+
   const handleCheckUpdate = async () => {
     if (!skill?.sourceUrl) return;
-    
+    const startedForSkillId = skill.skillId;
+
     try {
       const result = await checkUpdateMutation.mutateAsync({
         sourceUrl: skill.sourceUrl,
         currentHash: skill.hash,
       });
-      
+
+      // If the user has navigated to a different skill (or closed the
+      // panel entirely) before the network call returned, applying this
+      // result would corrupt the new selection's UI. The reset useEffect
+      // already cleared per-skill state for the new skill — leave it alone.
+      if (currentSkillIdRef.current !== startedForSkillId) return;
+
       if (result.hasUpdate) {
         setUpdateAvailable(true);
         setShowUpdateDialog(true);

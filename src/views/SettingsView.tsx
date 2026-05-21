@@ -535,22 +535,27 @@ const UpdatesPanel: React.FC = () => {
         </p>
       )}
 
-      {/* Two empty states: (a) library has no remote-sourced skills, so
-          there's literally nothing to check; (b) user hasn't run the check
-          yet so we have no data to show. We pick the message that matches
-          the user's actual blocker. */}
+      {/* Three empty states (mutually exclusive — they're ordered by
+          specificity, only the matching one renders):
+          (a) library has no remote-sourced skills at all → "nothing to do"
+          (b) we've never been asked to check → "click Check" prompt
+          (c) cache survives but every entry refers to a skill that no
+              longer exists (e.g. user switched libraries or deleted them
+              all) → same "click Check" prompt; it'd be misleading to show
+              stale up-to-date pills next to a different library. */}
       {skillsWithSource.length === 0 && (
         <p className="rounded-lg bg-bg-tertiary px-3 py-2 text-xs text-text-secondary">
           {t("settings.updates.noEligible")}
         </p>
       )}
-      {skillsWithSource.length > 0 && skillUpdatesCache === null && (
-        <p className="rounded-lg bg-bg-tertiary px-3 py-2 text-xs text-text-secondary">
-          {t("settings.updates.notYetChecked", {
-            count: skillsWithSource.length,
-          })}
-        </p>
-      )}
+      {skillsWithSource.length > 0 &&
+        (skillUpdatesCache === null || liveResults.length === 0) && (
+          <p className="rounded-lg bg-bg-tertiary px-3 py-2 text-xs text-text-secondary">
+            {t("settings.updates.notYetChecked", {
+              count: skillsWithSource.length,
+            })}
+          </p>
+        )}
 
       {updatable.length > 0 && (
         <div className="space-y-2">
