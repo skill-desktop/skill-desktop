@@ -7,6 +7,7 @@ import { Badge, Switch, ContextMenu, ContextMenuTrigger, ContextMenuContent, Con
 import { useShowInFolder, useOpenFile, useDeleteSkill, useSetSkillQuarantine } from "@/hooks";
 import type { Skill } from "@/types";
 import { getPermissionLevel } from "@/types";
+import { SkillInstallBadges } from "./SkillInstallBadges";
 
 interface SkillCardProps {
   skill: Skill;
@@ -124,7 +125,11 @@ export const SkillCard: React.FC<SkillCardProps> = ({
       <ContextMenuTrigger asChild>
         <div
           className={cn(
-            "group relative cursor-pointer overflow-hidden rounded-lg border bg-bg-secondary shadow-sm transition-all hover:border-border-hover hover:shadow-md",
+            // M3-2 visual polish: larger 14px radius, softer shadow, lift on hover.
+            // The transition includes transform so the lift feels physical, not
+            // sudden — matches iOS-style "interactive card" feedback.
+            "group relative cursor-pointer overflow-hidden rounded-xl border bg-bg-secondary shadow-sm transition-all duration-150 ease-out",
+            "hover:-translate-y-0.5 hover:border-border-hover hover:shadow-lg",
             selectionMode && isSelectedForBatch
               ? "border-accent-blue ring-2 ring-accent-blue/30"
               : isSelected
@@ -189,6 +194,12 @@ export const SkillCard: React.FC<SkillCardProps> = ({
             <p className="mt-3 line-clamp-2 text-xs leading-relaxed text-text-secondary">
               {skill.description || t("skillCard.noDescription")}
             </p>
+
+            {skill.skillId && (
+              <div className="mt-3">
+                <SkillInstallBadges skillId={skill.skillId} />
+              </div>
+            )}
 
             {skill.tags.length > 0 && (
               <div className="mt-3 flex items-center gap-1">

@@ -49,16 +49,200 @@
     "description": "Agent Skill management infrastructure for developers"
   },
   "nav": {
-    "library": "Library",
-    "spaces": "Spaces",
+    "home": "Home",
+    "library": "Skills",
+    "spaces": "Workspaces",
     "hub": "Skill Hub",
     "sandbox": "Sandbox",
-    "aitools": "AI Tools",
+    "aitools": "Integrations",
     "settings": "Settings"
+  },
+  "commandPalette": {
+    "placeholder": "Search skills, workspaces, or actions...",
+    "noResults": "No matches.",
+    "totalCount_one": "{{count}} command",
+    "totalCount_other": "{{count}} commands",
+    "groups": {
+      "skills": "Skills",
+      "workspaces": "Workspaces",
+      "goTo": "Go to",
+      "actions": "Actions"
+    },
+    "hints": {
+      "navigate": "navigate",
+      "select": "select",
+      "switchToWorkspace": "Switch workspace",
+      "openImport": "Opens the Import dialog"
+    },
+    "actions": {
+      "importLocal": "Import skill from file...",
+      "newSkill": "New skill...",
+      "rescan": "Rescan library",
+      "revealLibrary": "Reveal library in Finder"
+    }
+  },
+  "workspaceSwitcher": {
+    "newWorkspace": "New workspace",
+    "manage": "Manage workspaces..."
+  },
+  "shortcuts": {
+    "title": "Keyboard shortcuts",
+    "subtitle": "Press ? anytime to bring this up.",
+    "then": "then",
+    "group": {
+      "navigation": "Navigation",
+      "actions": "Actions"
+    },
+    "commandPalette": "Open command palette",
+    "home": "Go to Home",
+    "skills": "Go to Skills",
+    "spaces": "Go to Spaces",
+    "sandbox": "Go to Sandbox",
+    "integrations": "Go to Integrations",
+    "settings": "Open Settings",
+    "rescan": "Rescan library",
+    "newSpace": "New workspace",
+    "help": "Show this overlay",
+    "dismiss": "Close dialogs / clear search"
+  },
+  "onboarding": {
+    "stepN": "Step {{step}} of {{total}}",
+    "finish": "Get started",
+    "step1": {
+      "title": "Welcome to Skill Desktop",
+      "description": "Let's set up where your skills will live.",
+      "libraryLabel": "Library directory",
+      "pathPlaceholder": "/absolute/path/to/skills",
+      "pickFolder": "Pick a folder",
+      "crossToolHint": "Cross-tool standard — Cursor, Codex, Gemini will see your skills automatically.",
+      "philosophyHint": "Your skills are just files. We index them in SQLite, but the file system is the source of truth — you own them, back them up, version them however you want."
+    },
+    "step2": {
+      "title": "Which AI tools do you use?",
+      "description": "We'll auto-install new skills to the tools you pick. You can change this later in Settings.",
+      "noneDetected": "We couldn't detect any AI tool installations. You can still add skills to your library — they'll just need to be installed manually.",
+      "installCli": "Install",
+      "noneInstalledTitle": "No AI tool found on this machine yet",
+      "noneInstalledHint": "Tap “Install” next to a tool above to open its official setup guide in your browser. Come back here when it's installed and we'll pick it up automatically.",
+      "crossToolFallback": "You can also skip this step — skills will still land in ~/.agents/skills/, which any tool that follows the Agent Skills standard can read."
+    },
+    "step3": {
+      "title": "Try a sample skill",
+      "description": "Import this starter from Anthropic's official examples to see how skills work.",
+      "tryIt": "Import sample",
+      "skip": "Skip for now",
+      "imported": "Sample skill imported!",
+      "skipped": "No problem — you can browse examples anytime from the Home view.",
+      "afterHint": "Click \"Get started\" to start using Skill Desktop."
+    }
+  },
+  "quickInstall": {
+    "title_one": "Install 1 skill",
+    "title_other": "Install {{count}} skills",
+    "titleDone": "Done",
+    "description": "Pick which AI tools to install these into. They'll be symlinked, not copied.",
+    "descriptionDone": "Your skills are ready to use in the selected AI tools.",
+    "installTo": "Install to AI tools",
+    "readyCount_one": "{{count}} skill ready",
+    "readyCount_other": "{{count}} skills ready",
+    "installButton_zero": "Install",
+    "installButton_one": "Install 1 skill",
+    "installButton_other": "Install {{count}} skills",
+    "risk": {
+      "medium": "medium risk",
+      "high": "high risk"
+    },
+    "toast": {
+      "success_one": "Installed 1 skill",
+      "success_other": "Installed {{count}} skills",
+      "partialFailed_one": "{{count}} item failed",
+      "partialFailed_other": "{{count}} items failed",
+      "skipped_one": "{{count}} duplicate skipped",
+      "skipped_other": "{{count}} duplicates skipped",
+      "allFailed_one": "Install failed for 1 item",
+      "allFailed_other": "Install failed for {{count}} items"
+    }
+  },
+  "home": {
+    "tagline": "Your skills, everywhere your AI is.",
+    "subtitle": "Manage Agent Skills and install them into Claude, Cursor, Codex, Gemini — or any tool that follows the standard.",
+    "quickActions": "Quick actions",
+    "actions": {
+      "importLocal": "Import from folder",
+      "importLocalDesc": "Folder, .zip, .skill, or SKILL.md",
+      "browseExamples": "Browse examples",
+      "browseExamplesDesc": "Anthropic-curated starter skills",
+      "createNew": "Create a new skill",
+      "createNewDesc": "Wizard with SKILL.md template",
+      "dropHere": "Drop a file here",
+      "dropHereActive": "Release to import",
+      "dropHereDesc": "Folder · zip · .skill · SKILL.md"
+    },
+    "detectedTools": {
+      "title": "Detected AI tools",
+      "subtitle": "Skills installed here will be picked up automatically.",
+      "skillCount_one": "{{count}} skill",
+      "skillCount_other": "{{count}} skills",
+      "notInstalled": "Not installed",
+      "openFolder": "Open folder"
+    },
+    "recentSkills": {
+      "title": "Recently added",
+      "viewAll": "View all in Library",
+      "empty": "No skills yet — import one above to get started."
+    },
+    "library": {
+      "title": "Your library",
+      "path": "Path",
+      "totalSkills_one": "{{count}} skill",
+      "totalSkills_other": "{{count}} skills",
+      "openInFinder": "Open in Finder",
+      "rescan": "Rescan",
+      "checkUpdates": "Check for updates"
+    },
+    "updates": {
+      "title_one": "1 skill update available",
+      "title_other": "{{count}} skill updates available",
+      "moreSuffix_one": " and {{count}} more",
+      "moreSuffix_other": " and {{count}} more",
+      "updateAll": "Update all",
+      "noSourceSkills": "No remote skills to check yet — import a skill from GitHub or a URL first.",
+      "allUpToDate": "Everything is up to date",
+      "foundToast_one": "Found 1 update",
+      "foundToast_other": "Found {{count}} updates",
+      "expandHint": "Tap the banner to review them",
+      "checkFailed": "Couldn't check for updates",
+      "updatedToast": "Updated \"{{name}}\"",
+      "updateFailed": "Couldn't update \"{{name}}\""
+    },
+    "suggestion": {
+      "title_one": "1 skill is not yet installed",
+      "title_other": "{{count}} skills are not yet installed",
+      "description_one": "Install it into {{tools}} with one click.",
+      "description_other": "Install them into {{tools}} with one click.",
+      "action": "Install all",
+      "installedToast_one": "Installed 1 skill",
+      "installedToast_other": "Installed {{count}} skills",
+      "partialFailed_one": "{{count}} install failed",
+      "partialFailed_other": "{{count}} installs failed",
+      "allFailedToast": "Couldn't install — check permissions"
+    }
   },
   "header": {
     "searchPlaceholder": "Search skills...",
-    "rescanLibrary": "Rescan library"
+    "rescanLibrary": "Rescan library",
+    "viewMode": {
+      "grid": "Grid view",
+      "list": "List view"
+    },
+    "subtitle": {
+      "library_one": "{{count}} skill in your library",
+      "library_other": "{{count}} skills in your library",
+      "spaces": "Organize skills into per-project workspaces.",
+      "sandbox": "Run skill scripts in isolation.",
+      "aitools": "Manage how skills reach your AI tools.",
+      "settings": "Preferences, paths, and integrations."
+    }
   },
   "library": {
     "title": "Library",
@@ -85,7 +269,19 @@
       "quarantine": "Quarantine",
       "delete": "Delete",
       "addToSpace": "Add to Space",
-      "export": "Export"
+      "export": "Export",
+      "install": "Install to…"
+    },
+    "batchInstall": {
+      "title_one": "Install 1 skill",
+      "title_other": "Install {{count}} skills",
+      "description": "Pick which AI tool to install every selected skill into. Skills are symlinked, not copied — they stay live with your library.",
+      "noTools": "No AI tools detected on this machine. Onboarding will help you set one up.",
+      "successToast_one": "Installed 1 skill into {{tool}}",
+      "successToast_other": "Installed {{count}} skills into {{tool}}",
+      "partialFailed_one": "1 skill couldn't be installed",
+      "partialFailed_other": "{{count}} skills couldn't be installed",
+      "allFailed": "Couldn't install any skills into {{tool}}"
     },
     "addToSpace": {
       "title": "Add to Space",
@@ -117,7 +313,19 @@
   "skillCard": {
     "by": "by",
     "noDescription": "No description available",
-    "quarantined": "Quarantined"
+    "quarantined": "Quarantined",
+    "installedIn": "Installed in {{tool}}",
+    "notInstalledIn": "Not installed in {{tool}}",
+    "toggleInstall": "Toggle install",
+    "installCount_one": "{{count}} install",
+    "installCount_other": "{{count}} installs",
+    "notInstalledAnywhere": "Not installed",
+    "toast": {
+      "installed": "Installed in {{tool}}",
+      "uninstalled": "Removed from {{tool}}",
+      "installFailed": "Couldn't install in {{tool}}",
+      "uninstallFailed": "Couldn't remove from {{tool}}"
+    }
   },
   "skillDetail": {
     "noSkillSelected": "Select a skill to view details",
@@ -125,6 +333,8 @@
     "author": "Author",
     "description": "Description",
     "noDescription": "No description available",
+    "copyName": "Copy skill name",
+    "copyNameCopied": "Copied to clipboard",
     "tags": "Tags",
     "permissions": "Permissions",
     "noPermissions": "No permissions required",
@@ -149,7 +359,8 @@
     "historyImported": "Imported",
     "tabs": {
       "overview": "Overview",
-      "security": "Security"
+      "security": "Security",
+      "run": "Run"
     },
     "fileTree": "File Structure",
     "files": "files",
@@ -165,7 +376,26 @@
       "update": "Update",
       "install": "Install",
       "installTitle": "Install to AI tool",
-      "installedCount": "Installed ({{count}})"
+      "installedCount": "Installed ({{count}})",
+      "runInSandbox": "Run in sandbox",
+      "openInSandbox": "Open in full sandbox view"
+    },
+    "run": {
+      "noScripts": "This skill has no scripts/ directory, so there's nothing to execute here.",
+      "selectScript": "Select a script",
+      "execute": "Run",
+      "running": "Running…",
+      "reset": "Reset",
+      "highRiskWarning": "This skill requires high-risk permissions.",
+      "highRiskHelp": "Review the Security tab before running. Continue?",
+      "confirmRun": "Run anyway",
+      "result": "Result",
+      "exitCode": "exit {{code}}",
+      "stdout": "Output",
+      "stderr": "Error output",
+      "noOutput": "(no output)",
+      "noParams": "No parameters required.",
+      "openFullView": "Open full sandbox view"
     },
     "updateAvailable": "Update available",
     "deleteConfirm": {
@@ -243,8 +473,31 @@
     "uninstall": "Uninstall",
     "alreadyInLibrary": "Already in your skill library"
   },
+  "discover": {
+    "title": "Discover",
+    "placeholder": "Search Anthropic examples, MCP servers, registries…",
+    "allRegistries": "All registries",
+    "noResults": "No matches yet. Try a broader search.",
+    "filter": {
+      "all": "All",
+      "examples": "Examples",
+      "registry": "Registry"
+    },
+    "import": "Import",
+    "importing": "Importing…",
+    "imported": "Imported",
+    "importFailed": "Import failed",
+    "toast": {
+      "imported": "Imported \"{{name}}\"",
+      "failed": "Couldn't import \"{{name}}\""
+    }
+  },
   "hub": {
     "title": "Import Skill",
+    "group": {
+      "local": "Local",
+      "discover": "Discover"
+    },
     "source": {
       "local": "Local",
       "localDesc": "Folder / .zip / .skill / .md",
@@ -334,6 +587,31 @@
   },
   "settings": {
     "title": "Settings",
+    "group": {
+      "general": "General",
+      "integrations": "Integrations",
+      "system": "System"
+    },
+    "updates": {
+      "title": "Updates",
+      "checkLabel": "Check for skill updates",
+      "checkDesc": "Compares each remote-sourced skill against its origin. {{count}} eligible.",
+      "checkNow": "Check now",
+      "lastCheckedAt": "Last checked at {{time}}",
+      "availableHeading_one": "1 update available",
+      "availableHeading_other": "{{count}} updates available",
+      "applyOne": "Update",
+      "upToDateHeading_one": "1 up to date",
+      "upToDateHeading_other": "{{count}} up to date",
+      "errorsHeading_one": "1 couldn't be checked",
+      "errorsHeading_other": "{{count}} couldn't be checked"
+    },
+    "shortcuts": {
+      "title": "Keyboard shortcuts",
+      "description": "Skill Desktop is designed to be navigable entirely from the keyboard. Press the key below to see every shortcut.",
+      "openOverlay": "Show the full shortcuts cheat sheet",
+      "showAll": "Show all shortcuts"
+    },
     "appearance": {
       "title": "Appearance",
       "theme": "Theme",
@@ -558,6 +836,18 @@
     "importing": "Importing...",
     "importAll": "Import All",
     "importedCount": "{{count}} of {{total}} imported"
+  },
+  "integrations": {
+    "status": {
+      "detected": "Detected",
+      "notInstalled": "Not installed"
+    },
+    "skills": {
+      "installedHere_zero": "No skills installed here yet",
+      "installedHere_one": "1 skill installed here",
+      "installedHere_other": "{{count}} skills installed here",
+      "openFolder": "Open skills folder"
+    }
   },
   "aiTools": {
     "title": "AI Tools Configuration",

@@ -38,6 +38,14 @@
 
   /* Effects */
   --shadow-elevated: 0 4px 20px -4px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(48, 54, 61, 0.5);
+
+  /* Motion tokens — M3-4. We deliberately keep durations short (≤200ms) so
+     interactions never feel sluggish, and cap the easing curves at iOS-ish
+     "ease-out" so cards feel like they're decelerating into place. */
+  --motion-fast: 120ms;
+  --motion-base: 180ms;
+  --motion-slow: 280ms;
+  --ease-ios: cubic-bezier(0.32, 0.72, 0, 1);
 }
 
 @layer base {
@@ -156,6 +164,77 @@
 }
 
 @layer utilities {
+  /* Motion presets — see also tokens in :root. We expose them as utility
+     classes so callers don't have to remember the duration / easing pair. */
+  .transition-ios {
+    transition-timing-function: var(--ease-ios);
+    transition-duration: var(--motion-base);
+  }
+  .transition-ios-fast {
+    transition-timing-function: var(--ease-ios);
+    transition-duration: var(--motion-fast);
+  }
+
+  /* Tab / view fade-in (use with `key` on the element to retrigger on switch). */
+  @keyframes view-fade-in {
+    from {
+      opacity: 0;
+      transform: translateY(4px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  .animate-view-in {
+    animation: view-fade-in var(--motion-base) var(--ease-ios) both;
+  }
+
+  /*
+   * iOS-style spring entry for toasts / dropping panels.
+   * Overshoots a hair before settling so the surface feels physical instead
+   * of "computer animated". We hand-tune the keyframe stops instead of a
+   * cubic-bezier because real spring overshoot can't be done with pure
+   * easing — it requires negative or > 1 transform values at intermediate
+   * stops, which is what these stops encode.
+   */
+  @keyframes spring-in-right {
+    0% {
+      opacity: 0;
+      transform: translateX(28px) scale(0.96);
+    }
+    55% {
+      opacity: 1;
+      transform: translateX(-4px) scale(1.01);
+    }
+    78% {
+      transform: translateX(1.5px) scale(0.998);
+    }
+    100% {
+      opacity: 1;
+      transform: translateX(0) scale(1);
+    }
+  }
+  .animate-spring-in-right {
+    animation: spring-in-right 380ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+
+  /* Reduced-motion fallback — collapses spring to a simple fade. Honors
+     the user's system preference for motion reduction. */
+  @media (prefers-reduced-motion: reduce) {
+    .animate-spring-in-right {
+      animation: view-fade-in 160ms ease-out both;
+    }
+  }
+
+  /* Pressed state for stack interaction (slight depress on click). */
+  .press-feedback {
+    transition: transform var(--motion-fast) var(--ease-ios);
+  }
+  .press-feedback:active {
+    transform: scale(0.98);
+  }
+
   /* Explicit no-select helper for drag handles / window chrome. */
   .select-none {
     user-select: none;

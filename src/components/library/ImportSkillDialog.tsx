@@ -1,6 +1,12 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
-import { Link, Github, Server, Globe, BookOpen, HardDrive, Loader2, Check, AlertCircle, ExternalLink } from "lucide-react";
+import {
+  Link,
+  Github,
+  Server,
+  Compass,
+  HardDrive,
+} from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -10,7 +16,6 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Badge } from "@/components/ui/badge";
 import {
   usePreviewSkillFromUrl,
   useImportSkillFromUrl,
@@ -20,121 +25,65 @@ import {
   useImportGitHubDirectory,
   useConnectMcpServer,
   useImportMcpToolAsSkill,
-  useFeaturedMcpServers,
-  useSearchMcpRegistry,
-  useImportMcpRegistryServer,
   usePreviewLocalSkill,
   useImportLocalSkillsBatch,
-  type McpRegistryEntry,
-  type McpRegistry,
 } from "@/hooks";
-import { useSettingsStore } from "@/stores";
+import { useSettingsStore, useAppStore } from "@/stores";
 import {
   UrlImportPanel,
   GitHubImportPanel,
   McpImportPanel,
-  RegistryImportPanel,
   SkillPreviewPanel,
   LocalImportPanel,
+  DiscoverPanel,
   type ImportSource,
   type PreviewData,
   type GitHubFileEntry,
   type McpTool,
 } from "@/components/hub";
 
-// Example skills configuration
-import {
-  Palette,
-  Code,
-  TestTube,
-  Sparkles,
-  FileCode,
-  Layers,
-} from "lucide-react";
-
-interface ExampleSkill {
-  id: string;
-  name: string;
-  description: string;
-  icon: React.ReactNode;
-  path: string;
-  tags: string[];
-  license: string;
-}
-
-const EXAMPLE_SKILLS: ExampleSkill[] = [
-  {
-    id: "frontend-design",
-    name: "Frontend Design",
-    description: "Create distinctive, production-grade frontend interfaces with high design quality.",
-    icon: <Palette className="w-4 h-4" />,
-    path: "skills/frontend-design",
-    tags: ["design", "frontend", "ui"],
-    license: "Apache-2.0",
-  },
-  {
-    id: "mcp-builder",
-    name: "MCP Builder",
-    description: "Guide for creating high-quality MCP servers that enable LLMs to interact with external services.",
-    icon: <Code className="w-4 h-4" />,
-    path: "skills/mcp-builder",
-    tags: ["mcp", "development", "api"],
-    license: "Apache-2.0",
-  },
-  {
-    id: "webapp-testing",
-    name: "Web App Testing",
-    description: "Toolkit for interacting with and testing local web applications using Playwright.",
-    icon: <TestTube className="w-4 h-4" />,
-    path: "skills/webapp-testing",
-    tags: ["testing", "playwright", "automation"],
-    license: "Apache-2.0",
-  },
-  {
-    id: "algorithmic-art",
-    name: "Algorithmic Art",
-    description: "Creating algorithmic art using p5.js with seeded randomness.",
-    icon: <Sparkles className="w-4 h-4" />,
-    path: "skills/algorithmic-art",
-    tags: ["art", "generative", "p5js"],
-    license: "Apache-2.0",
-  },
-  {
-    id: "skill-creator",
-    name: "Skill Creator",
-    description: "Guide for creating effective skills that extend Claude's capabilities.",
-    icon: <FileCode className="w-4 h-4" />,
-    path: "skills/skill-creator",
-    tags: ["meta", "skill", "guide"],
-    license: "Apache-2.0",
-  },
-  {
-    id: "theme-factory",
-    name: "Theme Factory",
-    description: "Create cohesive visual themes for presentations, documents, and web interfaces.",
-    icon: <Layers className="w-4 h-4" />,
-    path: "skills/theme-factory",
-    tags: ["design", "theme", "styling"],
-    license: "Apache-2.0",
-  },
-];
-
-const GITHUB_REPO = {
-  owner: "anthropics",
-  repo: "skills",
-  branch: "main",
-};
-
-type ExtendedImportSource = ImportSource | "examples" | "local";
+// "discover" and "local" are dialog-only sources we layer on top of the
+// shared `ImportSource` enum used by individual panels.
+type ExtendedImportSource = ImportSource | "discover" | "local";
 
 interface ImportSkillDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  /**
+   * Which source tab to pre-select when the dialog opens. Used by the Home
+   * view's "Browse examples" / "Import from folder" cards so they can deep-link
+   * straight into the right panel. Defaults to "local".
+   */
+  defaultSource?: ExtendedImportSource;
 }
 
-export function ImportSkillDialog({ open, onOpenChange }: ImportSkillDialogProps) {
+export function ImportSkillDialog({
+  open,
+  onOpenChange,
+  defaultSource = "local",
+}: ImportSkillDialogProps) {
   const { t } = useTranslation();
-  const [importSource, setImportSource] = React.useState<ExtendedImportSource>("local");
+  const [importSource, setImportSource] =
+    React.useState<ExtendedImportSource>(defaultSource);
+
+  // Sync the active tab whenever the dialog (re)opens with a different
+  // requested default — otherwise the second time you click "Browse examples"
+  // after having clicked "Import from folder" you'd still see the local panel.
+  React.useEffect(() => {
+    if (open) {
+      setImportSource(defaultSource);
+    }
+  }, [open, defaultSource]);
+
+  // Tell the rest of the app (specifically the global QuickInstallSheet drop
+  // listener) that this dialog is in the foreground. While we're open, the
+  // LocalImportPanel inside us owns the drag-drop event; the global handler
+  // bails so we don't double-import.
+  const setImportDialogActive = useAppStore((s) => s.setImportDialogActive);
+  React.useEffect(() => {
+    setImportDialogActive(open);
+    return () => setImportDialogActive(false);
+  }, [open, setImportDialogActive]);
   const [url, setUrl] = React.useState("");
   const [preview, setPreview] = React.useState<PreviewData | null>(null);
   const [importSuccess, setImportSuccess] = React.useState(false);
@@ -148,11 +97,6 @@ export function ImportSkillDialog({ open, onOpenChange }: ImportSkillDialogProps
   const [pathHistory, setPathHistory] = React.useState<string[]>([]);
   const [selectedFiles, setSelectedFiles] = React.useState<Set<string>>(new Set());
   const [browsingEnabled, setBrowsingEnabled] = React.useState(false);
-
-  // Example skills state
-  const [importingIds, setImportingIds] = React.useState<Set<string>>(new Set());
-  const [importedIds, setImportedIds] = React.useState<Set<string>>(new Set());
-  const [exampleErrors, setExampleErrors] = React.useState<Record<string, string>>({});
 
   // Local import state
   const [localImportResult, setLocalImportResult] = React.useState<{
@@ -298,85 +242,6 @@ export function ImportSkillDialog({ open, onOpenChange }: ImportSkillDialogProps
   const connectMcpMutation = useConnectMcpServer();
   const importMcpToolMutation = useImportMcpToolAsSkill();
 
-  // Registry state
-  const [registrySearch, setRegistrySearch] = React.useState("");
-  const [selectedRegistry, setSelectedRegistry] = React.useState<McpRegistry | undefined>(undefined);
-  const [selectedRegistryEntries, setSelectedRegistryEntries] = React.useState<Set<string>>(new Set());
-  const [registryPreview, setRegistryPreview] = React.useState<McpRegistryEntry | null>(null);
-
-  const { data: featuredServers = [], isLoading: isLoadingFeatured } = useFeaturedMcpServers(selectedRegistry);
-  const { data: searchResults = [], isLoading: isSearching } = useSearchMcpRegistry(registrySearch, selectedRegistry);
-  const importRegistryMutation = useImportMcpRegistryServer();
-
-  const registryServers = registrySearch ? searchResults : featuredServers;
-
-  const handleToggleRegistrySelection = (entryId: string) => {
-    const newSelected = new Set(selectedRegistryEntries);
-    if (newSelected.has(entryId)) {
-      newSelected.delete(entryId);
-    } else {
-      newSelected.add(entryId);
-    }
-    setSelectedRegistryEntries(newSelected);
-  };
-
-  const handlePreviewRegistryEntry = (entry: McpRegistryEntry) => {
-    setRegistryPreview(entry);
-    setPreview({
-      metadata: {
-        name: entry.name,
-        version: "1.0.0",
-        description: entry.description,
-        author: entry.author,
-        tags: entry.tags.length > 0 ? entry.tags : ["mcp", "registry"],
-        permissions: ["network"],
-        parameters: [],
-      },
-      content: `# ${entry.name}\n\n${entry.description}\n\n## Source\n\n- **Registry**: ${entry.registry}\n${entry.repository ? `- **Repository**: ${entry.repository}` : ""}\n${entry.homepage ? `- **Homepage**: ${entry.homepage}` : ""}`,
-      sourceUrl: entry.repository || entry.homepage || "",
-    });
-  };
-
-  const handleImportSelectedRegistryEntries = async () => {
-    if (selectedRegistryEntries.size === 0) return;
-
-    let successCount = 0;
-
-    for (const entryId of selectedRegistryEntries) {
-      const entry = registryServers.find((e) => e.id === entryId);
-      if (!entry) continue;
-
-      try {
-        await importRegistryMutation.mutateAsync(entry);
-        successCount++;
-      } catch (error) {
-        console.error(`Failed to import ${entry.name}:`, error);
-      }
-    }
-
-    if (successCount > 0) {
-      setImportSuccess(true);
-      setSelectedRegistryEntries(new Set());
-      setTimeout(() => setImportSuccess(false), 2000);
-    }
-  };
-
-  const handleImportRegistryEntry = async () => {
-    if (!registryPreview) return;
-
-    try {
-      await importRegistryMutation.mutateAsync(registryPreview);
-      setImportSuccess(true);
-      setTimeout(() => {
-        setPreview(null);
-        setRegistryPreview(null);
-        setImportSuccess(false);
-      }, 2000);
-    } catch (error) {
-      console.error("Failed to import:", error);
-    }
-  };
-
   const handleConnectMcp = async () => {
     if (!mcpUrl) return;
     setMcpTools([]);
@@ -485,10 +350,8 @@ export function ImportSkillDialog({ open, onOpenChange }: ImportSkillDialogProps
   const clearPreview = () => {
     setPreview(null);
     setUrl("");
-    setRegistryPreview(null);
     previewMutation.reset();
     importMutation.reset();
-    importRegistryMutation.reset();
     setImportSuccess(false);
   };
 
@@ -552,51 +415,29 @@ export function ImportSkillDialog({ open, onOpenChange }: ImportSkillDialogProps
     }
   }, [preview, importLocalBatchMutation]);
 
-  // Example skills handlers
-  const handleImportExample = React.useCallback(async (skill: ExampleSkill) => {
-    setImportingIds(prev => new Set(prev).add(skill.id));
-    setExampleErrors(prev => {
-      const next = { ...prev };
-      delete next[skill.id];
-      return next;
-    });
-
-    try {
-      await importGithubMutation.mutateAsync({
-        owner: GITHUB_REPO.owner,
-        repo: GITHUB_REPO.repo,
-        path: skill.path,
-        branch: GITHUB_REPO.branch,
-      });
-      setImportedIds(prev => new Set(prev).add(skill.id));
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "Import failed";
-      setExampleErrors(prev => ({ ...prev, [skill.id]: message }));
-    } finally {
-      setImportingIds(prev => {
-        const next = new Set(prev);
-        next.delete(skill.id);
-        return next;
-      });
-    }
-  }, [importGithubMutation]);
-
-  const handleImportAllExamples = React.useCallback(async () => {
-    for (const skill of EXAMPLE_SKILLS) {
-      if (!importedIds.has(skill.id) && !importingIds.has(skill.id)) {
-        await handleImportExample(skill);
-      }
-    }
-  }, [importedIds, importingIds, handleImportExample]);
-
-  const sources = [
-    { id: "local", icon: HardDrive, label: t("hub.source.local") },
-    { id: "examples", icon: BookOpen, label: t("library.exampleSkills") },
-    { id: "url", icon: Link, label: t("hub.source.url") },
-    { id: "github", icon: Github, label: t("hub.source.github") },
-    { id: "mcp", icon: Server, label: t("hub.source.mcp") },
-    { id: "registry", icon: Globe, label: t("hub.source.registry") },
-  ] as const;
+  // M2-5 (deep): The sidebar funnels into 2 categories, with Discover
+  // collapsing what used to be 4 separate tabs (Examples / Registry / URL /
+  // GitHub / MCP) — Examples + Registry are merged into the new unified
+  // `DiscoverPanel` (one search box across both sources). URL / GitHub /
+  // MCP each remain as a dedicated panel because they aren't search-driven —
+  // the user explicitly provides a URL, repo, or server endpoint.
+  const sourceGroups = [
+    {
+      label: t("hub.group.local", "Local"),
+      sources: [
+        { id: "local" as const, icon: HardDrive, label: t("hub.source.local") },
+      ],
+    },
+    {
+      label: t("hub.group.discover", "Discover"),
+      sources: [
+        { id: "discover" as const, icon: Compass, label: t("discover.title") },
+        { id: "github" as const, icon: Github, label: t("hub.source.github") },
+        { id: "url" as const, icon: Link, label: t("hub.source.url") },
+        { id: "mcp" as const, icon: Server, label: t("hub.source.mcp") },
+      ],
+    },
+  ];
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -609,31 +450,48 @@ export function ImportSkillDialog({ open, onOpenChange }: ImportSkillDialogProps
         </DialogHeader>
 
         <div className="flex flex-1 overflow-hidden">
-          {/* 1. Source Sidebar */}
+          {/* 1. Source Sidebar — grouped into "Local" and "Discover" so the
+              user picks a *category* first instead of guessing between 6
+              flat tabs (M2-5). */}
           <div className="w-[200px] border-r border-border-default bg-bg-secondary flex flex-col">
-            <div className="p-2 space-y-1">
-              {sources.map((source) => {
-                const Icon = source.icon;
-                const isActive = importSource === source.id;
-                return (
-                  <Button
-                    key={source.id}
-                    variant={isActive ? "secondary" : "ghost"}
-                    className={`w-full justify-start gap-3 h-10 ${isActive ? "bg-bg-tertiary shadow-sm" : "hover:bg-bg-tertiary/50"}`}
-                    onClick={() => setImportSource(source.id)}
-                  >
-                    <Icon className={`w-4 h-4 ${isActive ? "text-primary" : "text-text-muted"}`} />
-                    <span className={isActive ? "text-text-primary font-medium" : "text-text-secondary"}>
-                      {source.label}
-                    </span>
-                  </Button>
-                );
-              })}
+            <div className="p-2 space-y-4">
+              {sourceGroups.map((group) => (
+                <div key={group.label} className="space-y-1">
+                  <div className="px-3 pb-1 text-[10px] font-medium uppercase tracking-wide text-text-muted">
+                    {group.label}
+                  </div>
+                  {group.sources.map((source) => {
+                    const Icon = source.icon;
+                    const isActive = importSource === source.id;
+                    return (
+                      <Button
+                        key={source.id}
+                        variant={isActive ? "secondary" : "ghost"}
+                        className={`w-full justify-start gap-3 h-10 ${isActive ? "bg-bg-tertiary shadow-sm" : "hover:bg-bg-tertiary/50"}`}
+                        onClick={() => setImportSource(source.id)}
+                      >
+                        <Icon className={`w-4 h-4 ${isActive ? "text-primary" : "text-text-muted"}`} />
+                        <span className={isActive ? "text-text-primary font-medium" : "text-text-secondary"}>
+                          {source.label}
+                        </span>
+                      </Button>
+                    );
+                  })}
+                </div>
+              ))}
             </div>
           </div>
 
-          {/* 2. Configuration Area */}
-          <div className="w-[340px] border-r border-border-default flex flex-col bg-bg-primary">
+          {/* 2. Configuration Area. The Discover panel is wide because it
+              owns the search results grid; everything else gets the standard
+              340px column. */}
+          <div
+            className={
+              importSource === "discover"
+                ? "flex-1 border-r border-border-default flex flex-col bg-bg-primary"
+                : "w-[340px] border-r border-border-default flex flex-col bg-bg-primary"
+            }
+          >
             <ScrollArea className="flex-1">
               <div className="p-4">
                 {importSource === "local" && (
@@ -646,99 +504,7 @@ export function ImportSkillDialog({ open, onOpenChange }: ImportSkillDialogProps
                   />
                 )}
 
-                {importSource === "examples" && (
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between">
-                      <h3 className="text-sm font-medium">{t("library.exampleSkills")}</h3>
-                      <a
-                        href="https://github.com/anthropics/skills"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-xs text-text-muted hover:text-text-primary flex items-center gap-1"
-                      >
-                        anthropics/skills
-                        <ExternalLink className="w-3 h-3" />
-                      </a>
-                    </div>
-                    
-                    <div className="space-y-2">
-                      {EXAMPLE_SKILLS.map((skill) => {
-                        const isImporting = importingIds.has(skill.id);
-                        const isImported = importedIds.has(skill.id);
-                        const error = exampleErrors[skill.id];
-
-                        return (
-                          <div
-                            key={skill.id}
-                            className={`group relative rounded-lg border p-3 transition-all ${
-                              isImported
-                                ? "bg-accent-green/5 border-accent-green/20"
-                                : "bg-bg-secondary/50 border-border-muted hover:border-border-default hover:bg-bg-secondary"
-                            }`}
-                          >
-                            <div className="flex items-start gap-3">
-                              <div className={`p-2 rounded-md ${
-                                isImported 
-                                  ? "bg-accent-green/10 text-accent-green"
-                                  : "bg-bg-elevated text-text-muted"
-                              }`}>
-                                {isImported ? <Check className="w-4 h-4" /> : skill.icon}
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <div className="flex items-center gap-2 mb-1">
-                                  <span className="text-sm font-medium truncate">{skill.name}</span>
-                                  <Badge variant="outline" className="text-[10px] h-4 px-1 py-0">{skill.license}</Badge>
-                                </div>
-                                <p className="text-xs text-text-muted line-clamp-2 leading-relaxed">
-                                  {skill.description}
-                                </p>
-                              </div>
-                            </div>
-                            
-                            <div className="mt-3 flex items-center justify-end gap-2">
-                              {error && (
-                                <span className="text-[10px] text-destructive flex items-center gap-1">
-                                  <AlertCircle className="w-3 h-3" />
-                                  Import failed
-                                </span>
-                              )}
-                              <Button
-                                size="sm"
-                                variant={isImported ? "outline" : "default"}
-                                className={`h-7 text-xs ${isImported ? "text-accent-green border-accent-green/30 hover:bg-accent-green/5" : ""}`}
-                                onClick={() => handleImportExample(skill)}
-                                disabled={isImporting || isImported}
-                              >
-                                {isImporting ? (
-                                  <Loader2 className="w-3 h-3 animate-spin mr-1" />
-                                ) : isImported ? (
-                                  <Check className="w-3 h-3 mr-1" />
-                                ) : null}
-                                {isImporting ? "Importing..." : isImported ? "Imported" : "Import"}
-                              </Button>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-
-                    <Button
-                      className="w-full"
-                      variant="secondary"
-                      onClick={handleImportAllExamples}
-                      disabled={importedIds.size === EXAMPLE_SKILLS.length || importingIds.size > 0}
-                    >
-                      {importingIds.size > 0 ? (
-                        <>
-                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                          {t("exampleSkills.importing")}
-                        </>
-                      ) : (
-                        t("exampleSkills.importAll")
-                      )}
-                    </Button>
-                  </div>
-                )}
+                {importSource === "discover" && <DiscoverPanel />}
 
                 {importSource === "url" && (
                   <UrlImportPanel
@@ -796,32 +562,14 @@ export function ImportSkillDialog({ open, onOpenChange }: ImportSkillDialogProps
                     isImporting={importMcpToolMutation.isPending}
                   />
                 )}
-
-                {importSource === "registry" && (
-                  <RegistryImportPanel
-                    libraryPath={libraryPath}
-                    selectedRegistry={selectedRegistry}
-                    onRegistryChange={setSelectedRegistry}
-                    registrySearch={registrySearch}
-                    onSearchChange={setRegistrySearch}
-                    registryServers={registryServers}
-                    isLoadingFeatured={isLoadingFeatured}
-                    isSearching={isSearching}
-                    selectedRegistryEntries={selectedRegistryEntries}
-                    onToggleSelection={handleToggleRegistrySelection}
-                    onPreviewEntry={handlePreviewRegistryEntry}
-                    onImportSelected={handleImportSelectedRegistryEntries}
-                    isImporting={importRegistryMutation.isPending}
-                    importError={importRegistryMutation.error}
-                  />
-                )}
               </div>
             </ScrollArea>
           </div>
 
-          {/* 3. Preview Area */}
-          <div className="flex-1 flex flex-col bg-bg-tertiary/30 overflow-hidden">
-            {importSource !== "examples" ? (
+          {/* 3. Preview Area — Discover handles its own preview/import inline,
+              so we hide the right pane when that source is active. */}
+          {importSource !== "discover" && (
+            <div className="flex-1 flex flex-col bg-bg-tertiary/30 overflow-hidden">
               <SkillPreviewPanel
                 preview={preview}
                 onClearPreview={clearPreview}
@@ -829,37 +577,21 @@ export function ImportSkillDialog({ open, onOpenChange }: ImportSkillDialogProps
                 isImporting={
                   importSource === "local"
                     ? isImportingLocalPreview
-                    : registryPreview
-                    ? importRegistryMutation.isPending
                     : importMutation.isPending
                 }
                 importError={
                   importSource === "local"
                     ? importLocalBatchMutation.error
-                    : registryPreview
-                    ? importRegistryMutation.error
                     : importMutation.error
                 }
                 onImport={
                   importSource === "local"
                     ? handleImportLocalPreview
-                    : registryPreview
-                    ? handleImportRegistryEntry
                     : handleImport
                 }
               />
-            ) : (
-              <div className="flex flex-col items-center justify-center h-full text-center text-text-muted p-8">
-                <div className="w-16 h-16 rounded-2xl bg-bg-elevated flex items-center justify-center mb-4">
-                  <BookOpen className="h-8 w-8 opacity-50" />
-                </div>
-                <h3 className="text-lg font-medium text-text-primary mb-2">Example Skills</h3>
-                <p className="text-sm max-w-[280px]">
-                  Select an example skill from the list to preview its details and import it into your library.
-                </p>
-              </div>
-            )}
-          </div>
+            </div>
+          )}
         </div>
       </DialogContent>
     </Dialog>

@@ -38,6 +38,23 @@ export interface ButtonProps
 
 const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
   ({ className, variant, size, ...props }, ref) => {
+    // Dev-time a11y check — flag icon-only buttons that ship no accessible
+    // name. We only warn (don't throw) so the UI stays functional. Disabled
+    // in production builds because import.meta.env.DEV is true only in vite
+    // dev mode. The check is opt-out via passing aria-hidden or title.
+    if (import.meta.env?.DEV && size === "icon") {
+      const hasAriaLabel = !!props["aria-label"];
+      const hasAriaLabelledby = !!props["aria-labelledby"];
+      const hasTitle = !!props.title;
+      if (!hasAriaLabel && !hasAriaLabelledby && !hasTitle) {
+        // Don't spam — single warn per render is acceptable. Real fix is for
+        // the caller to add `aria-label="..."`.
+        // eslint-disable-next-line no-console
+        console.warn(
+          "[a11y] icon-only <Button /> rendered without aria-label / aria-labelledby / title."
+        );
+      }
+    }
     return (
       <button
         className={cn(buttonVariants({ variant, size, className }))}

@@ -86,6 +86,37 @@ export function useImportSkillFromUrl() {
   });
 }
 
+/**
+ * Re-fetch a skill's source URL and overwrite its on-disk SKILL.md.
+ * Use for "Update" buttons — `useImportSkillFromUrl` would error because
+ * the skill directory already exists.
+ *
+ * Tauri command takes snake_case argument names; the React Query mutation
+ * surface uses camelCase to stay consistent with the rest of the hook
+ * layer. Returns the freshly-scanned Skill (with a new hash).
+ */
+export function useUpdateSkillFromUrl() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({
+      currentHash,
+      sourceUrl,
+    }: {
+      currentHash: string;
+      sourceUrl: string;
+    }) => {
+      return await invoke<Skill>("update_skill_from_url", {
+        current_hash: currentHash,
+        source_url: sourceUrl,
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: skillKeys.all });
+    },
+  });
+}
+
 // ========== GitHub Import Hooks ==========
 
 export function useBrowseGitHubRepo(

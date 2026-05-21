@@ -18,6 +18,7 @@ import { useSkills, useSkillScripts, useExecuteScript } from "@/hooks";
 import type { Skill, Parameter } from "@/types";
 import { getPermissionLevel } from "@/types";
 import type { ExecutionResult } from "@/hooks";
+import { useAppStore } from "@/stores";
 
 interface HistoryEntry {
   skillName: string;
@@ -30,8 +31,21 @@ interface HistoryEntry {
 export const SandboxView: React.FC = () => {
   const { t } = useTranslation();
   const { data: skills = [] } = useSkills();
+  // When the user clicked "Run in sandbox" from a SkillDetail, that flow
+  // stuffs the hash into `pendingSandboxSkillHash` and switches view. We
+  // consume it once, resolve the matching Skill object, and clear the flag.
+  const { pendingSandboxSkillHash, setPendingSandboxSkillHash } = useAppStore();
 
   const [selectedSkill, setSelectedSkill] = React.useState<Skill | null>(null);
+
+  React.useEffect(() => {
+    if (!pendingSandboxSkillHash) return;
+    const target = skills.find((s) => s.hash === pendingSandboxSkillHash);
+    if (target) {
+      setSelectedSkill(target);
+      setPendingSandboxSkillHash(null);
+    }
+  }, [pendingSandboxSkillHash, skills, setPendingSandboxSkillHash]);
   const [selectedScript, setSelectedScript] = React.useState<string | null>(null);
   const [paramValues, setParamValues] = React.useState<Record<string, string>>({});
   const [executionResult, setExecutionResult] = React.useState<ExecutionResult | null>(null);

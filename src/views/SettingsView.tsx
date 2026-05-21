@@ -12,6 +12,8 @@ import {
   Info,
   Bot,
   Terminal,
+  Download,
+  Keyboard,
 } from "lucide-react";
 import { invoke } from "@tauri-apps/api/core";
 import {
@@ -33,7 +35,12 @@ import {
   useUpdateAppSetting,
   useDefaultPaths,
   useEnsureDefaultSkillPath,
+  useCheckAllSkillUpdates,
+  useSkills,
 } from "@/hooks";
+import { useUpdateSkillFromUrl } from "@/hooks/useImport";
+import { useAppStore } from "@/stores";
+import { toast, Kbd } from "@/components/ui";
 import type { SupportedLanguage } from "@/i18n";
 import { LLMSettingsPanel, CLISettingsPanel } from "@/components/settings";
 
@@ -66,21 +73,39 @@ async function openFolderDialog(): Promise<string | null> {
   }
 }
 
-type SettingsSection = "appearance" | "library" | "security" | "llm" | "cli" | "about";
+type SettingsSection =
+  | "appearance"
+  | "library"
+  | "updates"
+  | "security"
+  | "llm"
+  | "cli"
+  | "shortcuts"
+  | "about";
 
 interface MenuItem {
   id: SettingsSection;
   icon: React.ReactNode;
   labelKey: string;
+  /** Visual grouping in the sidebar — purely cosmetic, no logic depends on it. */
+  group: "general" | "integrations" | "system";
 }
 
 const menuItems: MenuItem[] = [
-  { id: "appearance", icon: <Palette className="h-4 w-4" />, labelKey: "settings.appearance.title" },
-  { id: "library", icon: <Library className="h-4 w-4" />, labelKey: "settings.library.title" },
-  { id: "security", icon: <Shield className="h-4 w-4" />, labelKey: "settings.security.title" },
-  { id: "llm", icon: <Bot className="h-4 w-4" />, labelKey: "settings.llm.title" },
-  { id: "cli", icon: <Terminal className="h-4 w-4" />, labelKey: "settings.cli.title" },
-  { id: "about", icon: <Info className="h-4 w-4" />, labelKey: "settings.about.title" },
+  { id: "appearance", icon: <Palette className="h-4 w-4" />, labelKey: "settings.appearance.title", group: "general" },
+  { id: "library", icon: <Library className="h-4 w-4" />, labelKey: "settings.library.title", group: "general" },
+  { id: "updates", icon: <Download className="h-4 w-4" />, labelKey: "settings.updates.title", group: "general" },
+  { id: "security", icon: <Shield className="h-4 w-4" />, labelKey: "settings.security.title", group: "general" },
+  { id: "llm", icon: <Bot className="h-4 w-4" />, labelKey: "settings.llm.title", group: "integrations" },
+  { id: "cli", icon: <Terminal className="h-4 w-4" />, labelKey: "settings.cli.title", group: "integrations" },
+  { id: "shortcuts", icon: <Keyboard className="h-4 w-4" />, labelKey: "settings.shortcuts.title", group: "system" },
+  { id: "about", icon: <Info className="h-4 w-4" />, labelKey: "settings.about.title", group: "system" },
+];
+
+const SETTINGS_GROUPS: Array<{ id: MenuItem["group"]; titleKey: string }> = [
+  { id: "general", titleKey: "settings.group.general" },
+  { id: "integrations", titleKey: "settings.group.integrations" },
+  { id: "system", titleKey: "settings.group.system" },
 ];
 
 export const SettingsView: React.FC = () => {
@@ -302,6 +327,12 @@ export const SettingsView: React.FC = () => {
           </Section>
         );
 
+      case "updates":
+        return <UpdatesPanel />;
+
+      case "shortcuts":
+        return <ShortcutsPanel />;
+
       case "llm":
         return <LLMSettingsPanel />;
 
@@ -344,20 +375,273 @@ export const SettingsView: React.FC = () => {
   return (
     <div className="flex h-full">
       <SidePanel title={t("settings.title")}>
-        {menuItems.map((item) => (
-          <SideNavItem
-            key={item.id}
-            icon={item.icon}
-            label={t(item.labelKey)}
-            active={activeSection === item.id}
-            onClick={() => setActiveSection(item.id)}
-          />
-        ))}
+        {SETTINGS_GROUPS.map((group) => {
+          const itemsInGroup = menuItems.filter((m) => m.group === group.id);
+          if (itemsInGroup.length === 0) return null;
+          return (
+            <div key={group.id} className="mb-2">
+              <div className="px-3 pb-1 pt-2 text-[10px] font-medium uppercase tracking-wide text-text-muted">
+                {t(group.titleKey)}
+              </div>
+              {itemsInGroup.map((item) => (
+                <SideNavItem
+                  key={item.id}
+                  icon={item.icon}
+                  label={t(item.labelKey)}
+                  active={activeSection === item.id}
+                  onClick={() => setActiveSection(item.id)}
+                />
+              ))}
+            </div>
+          );
+        })}
       </SidePanel>
 
       <ScrollArea className="flex-1">
         <div className="mx-auto max-w-2xl p-6">{renderContent()}</div>
       </ScrollArea>
     </div>
+  );
+};
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Updates panel
+// ──────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Settings → Updates. Lets the user run a one-shot "check all remote skills"
+ * pass and apply individual updates inline. Logic mirrors HomeView's
+ * suggestion banner but with more detail (full list, last-checked timestamp)
+ * because this surface is opt-in.
+ */
+const UpdatesPanel: React.FC = () => {
+  const { t } = useTranslation();
+  const { data: skills = [] } = useSkills();
+  const checkUpdates = useCheckAllSkillUpdates();
+  const updateSkill = useUpdateSkillFromUrl();
+  const skillUpdatesCache = useAppStore((s) => s.skillUpdates);
+  const lastChecked = useAppStore((s) => s.skillUpdatesCheckedAt);
+  const setSkillUpdatesCache = useAppStore((s) => s.setSkillUpdates);
+  const markUpdateApplied = useAppStore((s) => s.markUpdateApplied);
+  const appliedUpdateHashes = useAppStore((s) => s.appliedUpdateHashes);
+  const [updatingHashes, setUpdatingHashes] = React.useState<Set<string>>(
+    new Set()
+  );
+
+  const skillsWithSource = React.useMemo(
+    () => skills.filter((s) => s.sourceUrl && s.isDownloaded),
+    [skills]
+  );
+
+  const lastResults = skillUpdatesCache ?? [];
+  const appliedSet = React.useMemo(
+    () => new Set(appliedUpdateHashes),
+    [appliedUpdateHashes]
+  );
+  const updatable = lastResults.filter(
+    (u) => u.hasUpdate && !appliedSet.has(u.skillHash)
+  );
+  const upToDate = lastResults.filter((u) => !u.hasUpdate);
+  const errored = lastResults.filter((u) => u.error);
+
+  const handleCheck = async () => {
+    if (skillsWithSource.length === 0) {
+      toast.info(t("home.updates.noSourceSkills"));
+      return;
+    }
+    try {
+      const results = await checkUpdates.mutateAsync();
+      setSkillUpdatesCache(results, new Date().toISOString());
+      const updates = results.filter((u) => u.hasUpdate);
+      if (updates.length === 0) {
+        toast.success(t("home.updates.allUpToDate"));
+      } else {
+        toast.info(
+          t("home.updates.foundToast", { count: updates.length })
+        );
+      }
+    } catch (err) {
+      toast.error(
+        t("home.updates.checkFailed"),
+        err instanceof Error ? err.message : String(err)
+      );
+    }
+  };
+
+  const handleApply = async (
+    skillHash: string,
+    sourceUrl: string,
+    skillName: string
+  ) => {
+    setUpdatingHashes((prev) => new Set(prev).add(skillHash));
+    try {
+      await updateSkill.mutateAsync({
+        currentHash: skillHash,
+        sourceUrl,
+      });
+      markUpdateApplied(skillHash);
+      toast.success(t("home.updates.updatedToast", { name: skillName }));
+    } catch (err) {
+      toast.error(
+        t("home.updates.updateFailed", { name: skillName }),
+        err instanceof Error ? err.message : String(err)
+      );
+    } finally {
+      setUpdatingHashes((prev) => {
+        const next = new Set(prev);
+        next.delete(skillHash);
+        return next;
+      });
+    }
+  };
+
+  return (
+    <Section title={t("settings.updates.title")} titleSize="lg">
+      <SettingRow
+        label={t("settings.updates.checkLabel")}
+        description={t("settings.updates.checkDesc", {
+          count: skillsWithSource.length,
+        })}
+      >
+        <Button
+          variant="secondary"
+          size="sm"
+          onClick={handleCheck}
+          disabled={
+            checkUpdates.isPending || skillsWithSource.length === 0
+          }
+        >
+          {checkUpdates.isPending ? (
+            <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+          ) : (
+            <RefreshCw className="mr-1.5 h-3.5 w-3.5" />
+          )}
+          {t("settings.updates.checkNow")}
+        </Button>
+      </SettingRow>
+
+      {lastChecked && (
+        <p className="px-1 text-xs text-text-muted">
+          {t("settings.updates.lastCheckedAt", {
+            time: new Date(lastChecked).toLocaleTimeString(),
+          })}
+        </p>
+      )}
+
+      {updatable.length > 0 && (
+        <div className="space-y-2">
+          <h3 className="text-xs font-medium uppercase tracking-wide text-accent-yellow">
+            {t("settings.updates.availableHeading", { count: updatable.length })}
+          </h3>
+          {updatable.map((u) => {
+            const isUpdating = updatingHashes.has(u.skillHash);
+            return (
+              <div
+                key={u.skillHash}
+                className="flex items-center gap-3 rounded-lg border border-accent-yellow/30 bg-accent-yellow/5 p-3"
+              >
+                <Download className="h-4 w-4 shrink-0 text-accent-yellow" />
+                <div className="min-w-0 flex-1">
+                  <div className="truncate text-sm font-medium text-text-primary">
+                    {u.skillName}
+                  </div>
+                  <div className="truncate font-mono text-[10px] text-text-muted">
+                    {u.sourceUrl}
+                  </div>
+                </div>
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  onClick={() =>
+                    void handleApply(u.skillHash, u.sourceUrl, u.skillName)
+                  }
+                  disabled={isUpdating}
+                >
+                  {isUpdating ? (
+                    <Loader2 className="mr-1.5 h-3 w-3 animate-spin" />
+                  ) : (
+                    <Download className="mr-1.5 h-3 w-3" />
+                  )}
+                  {t("settings.updates.applyOne")}
+                </Button>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {upToDate.length > 0 && (
+        <div className="space-y-2">
+          <h3 className="text-xs font-medium uppercase tracking-wide text-text-muted">
+            {t("settings.updates.upToDateHeading", { count: upToDate.length })}
+          </h3>
+          <div className="flex flex-wrap gap-1.5">
+            {upToDate.map((u) => (
+              <span
+                key={u.skillHash}
+                className="rounded-full bg-bg-tertiary px-2 py-0.5 text-[11px] text-text-secondary"
+              >
+                {u.skillName}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {errored.length > 0 && (
+        <div className="space-y-2">
+          <h3 className="text-xs font-medium uppercase tracking-wide text-accent-red">
+            {t("settings.updates.errorsHeading", { count: errored.length })}
+          </h3>
+          {errored.map((u) => (
+            <div
+              key={u.skillHash}
+              className="rounded-lg border border-accent-red/20 bg-accent-red/5 p-2 text-xs"
+            >
+              <div className="font-medium text-text-primary">{u.skillName}</div>
+              <div className="mt-0.5 text-text-muted">{u.error}</div>
+            </div>
+          ))}
+        </div>
+      )}
+    </Section>
+  );
+};
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Shortcuts reference panel
+// ──────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Settings → Shortcuts. Same content as the `?`-triggered overlay, but
+ * accessible from a settings menu for discovery. We could DRY this against
+ * `<ShortcutsHelp />` later — for now we keep them parallel because the
+ * settings panel doesn't need a Dialog wrapper.
+ */
+const ShortcutsPanel: React.FC = () => {
+  const { t } = useTranslation();
+  const setShortcutsHelpOpen = useAppStore((s) => s.setShortcutsHelpOpen);
+
+  return (
+    <Section title={t("settings.shortcuts.title")} titleSize="lg">
+      <p className="text-sm text-text-secondary">
+        {t("settings.shortcuts.description")}
+      </p>
+      <div className="flex items-center gap-2 rounded-lg border border-border-default bg-bg-secondary px-3 py-2">
+        <Keyboard className="h-4 w-4 text-text-muted" />
+        <span className="flex-1 text-sm text-text-secondary">
+          {t("settings.shortcuts.openOverlay")}
+        </span>
+        <Kbd>?</Kbd>
+      </div>
+      <Button
+        variant="secondary"
+        size="sm"
+        onClick={() => setShortcutsHelpOpen(true)}
+      >
+        <Keyboard className="mr-1.5 h-3.5 w-3.5" />
+        {t("settings.shortcuts.showAll")}
+      </Button>
+    </Section>
   );
 };

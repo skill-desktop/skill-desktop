@@ -35,9 +35,15 @@ import {
   useProjectAIConfigs,
   useSaveProjectConfig,
   useCreateProjectConfig,
+  useDetectAiTools,
+  useAllSkillInstallations,
+  useShowInFolder,
+  type DetectedAiTool,
+  type InstallTargetKind,
 } from "@/hooks";
 import type { AIToolInfo, ProjectConfig } from "@/types";
 import { AI_TOOLS } from "@/types";
+import { cn } from "@/lib/utils";
 
 async function openUrl(url: string): Promise<void> {
   try {
@@ -532,29 +538,125 @@ const ProjectConfigPanel: React.FC = () => {
 interface ToolHeaderProps {
   tool: AIToolInfo;
   onRefresh: () => void;
+  /** Which `InstallTargetKind` does this tool correspond to? When provided
+   *  we'll show install count + an "open skills folder" shortcut. */
+  installKind?: InstallTargetKind;
 }
 
-const ToolHeader: React.FC<ToolHeaderProps> = ({ tool, onRefresh }) => {
+/**
+ * Maps the AIToolInfo.id strings we keep in `AI_TOOLS` to the
+ * `InstallTargetKind` values the install backend speaks. The two sets diverge
+ * slightly (e.g. AIToolInfo includes `opencode`, install backend doesn't
+ * surface OpenCode as an install target yet).
+ */
+function aiToolToInstallKind(id: string): InstallTargetKind | undefined {
+  switch (id) {
+    case "claudecode":
+      return "claude";
+    case "cursor":
+      return "cursor";
+    default:
+      return undefined;
+  }
+}
+
+const ToolHeader: React.FC<ToolHeaderProps> = ({ tool, onRefresh, installKind }) => {
   const { t } = useTranslation();
+  const { data: detected = [] } = useDetectAiTools();
+  const { data: allInstallations = [] } = useAllSkillInstallations();
+  const showInFolder = useShowInFolder();
+
+  // Some panels pass `installKind` explicitly; otherwise we try to infer from
+  // the tool id. Keeps the existing call sites (which don't pass installKind)
+  // working with no edit.
+  const kind = installKind ?? aiToolToInstallKind(tool.id);
+
+  // Detected status + count come from the new `detect_ai_tools` backend.
+  const detectedInfo: DetectedAiTool | undefined = kind
+    ? detected.find((d) => d.kind === kind)
+    : undefined;
+
+  // Count of skills currently symlinked into this AI tool. We count
+  // `allInstallations` ourselves rather than depending on `detectedInfo.skillCount`
+  // because that field is a raw directory count and includes any pre-existing
+  // skills the user installed manually, which double-counts after our backend
+  // refreshes its cache.
+  const installCount = kind
+    ? allInstallations.filter((i) => i.targetKind === kind).length
+    : 0;
+
+  const handleOpenFolder = () => {
+    if (detectedInfo?.path) {
+      showInFolder.mutate(detectedInfo.path);
+    }
+  };
 
   return (
-    <div className="flex items-start justify-between">
-      <div>
-        <div className="flex items-center gap-2">
-          <span className="text-2xl leading-none">{tool.icon}</span>
-          <h2 className="text-lg font-semibold text-text-primary">{tool.name}</h2>
+    <div className="space-y-3">
+      <div className="flex items-start justify-between">
+        <div>
+          <div className="flex items-center gap-2">
+            <span className="text-2xl leading-none">{tool.icon}</span>
+            <h2 className="text-lg font-semibold text-text-primary">{tool.name}</h2>
+            {detectedInfo && (
+              <span
+                className={cn(
+                  "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide",
+                  detectedInfo.exists
+                    ? "bg-accent-green/15 text-accent-green"
+                    : "bg-bg-tertiary text-text-muted"
+                )}
+              >
+                {detectedInfo.exists
+                  ? t("integrations.status.detected")
+                  : t("integrations.status.notInstalled")}
+              </span>
+            )}
+          </div>
+          <p className="mt-1 text-sm text-text-secondary">{tool.description}</p>
         </div>
-        <p className="mt-1 text-sm text-text-secondary">{tool.description}</p>
+        <div className="flex items-center gap-2">
+          <Button variant="ghost" size="sm" onClick={onRefresh}>
+            <RefreshCw className="h-4 w-4" />
+          </Button>
+          <Button variant="secondary" size="sm" onClick={() => openUrl(tool.docsUrl)}>
+            <ExternalLink className="mr-1.5 h-4 w-4" />
+            {t("common.docs")}
+          </Button>
+        </div>
       </div>
-      <div className="flex items-center gap-2">
-        <Button variant="ghost" size="sm" onClick={onRefresh}>
-          <RefreshCw className="h-4 w-4" />
-        </Button>
-        <Button variant="secondary" size="sm" onClick={() => openUrl(tool.docsUrl)}>
-          <ExternalLink className="mr-1.5 h-4 w-4" />
-          {t("common.docs")}
-        </Button>
-      </div>
+
+      {/* Status strip: skill count + open folder. Only shown when this tool
+          is actually an install target (so OpenCode / project config etc.
+          don't get a misleading "0 skills" badge). */}
+      {kind && detectedInfo && (
+        <div className="flex items-center gap-3 rounded-lg border border-border-default bg-bg-secondary px-3 py-2">
+          <div className="flex h-8 w-8 items-center justify-center rounded-md bg-accent-blue/15 text-accent-blue">
+            <span className="text-sm font-semibold tabular-nums">
+              {installCount}
+            </span>
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="text-sm font-medium text-text-primary">
+              {t("integrations.skills.installedHere", { count: installCount })}
+            </div>
+            <div className="truncate font-mono text-[11px] text-text-muted">
+              {detectedInfo.path}
+            </div>
+          </div>
+          {detectedInfo.exists && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleOpenFolder}
+              disabled={showInFolder.isPending}
+              title={t("integrations.skills.openFolder")}
+            >
+              <FolderOpen className="h-3.5 w-3.5" />
+            </Button>
+          )}
+        </div>
+      )}
     </div>
   );
 };

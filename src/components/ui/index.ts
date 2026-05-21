@@ -19,3 +19,4 @@ export * from "./side-panel";
 export * from "./skeleton";
 export * from "./switch";
 export * from "./textarea";
+export * from "./toast";

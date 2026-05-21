@@ -5,9 +5,15 @@ import "@/i18n";
 import { useTranslation } from "react-i18next";
 import { MainLayout } from "@/components/layout";
 import { LanguageSelector } from "@/components/language";
+import { QuickInstallSheet } from "@/components/QuickInstallSheet";
+import { OnboardingWizard } from "@/components/onboarding";
+import { CommandPalette } from "@/components/CommandPalette";
+import { ShortcutsHelp } from "@/components/ShortcutsHelp";
+import { Toaster } from "@/components/ui";
 import { useAppStore, useSettingsStore } from "@/stores";
 import { useFileWatcher, useLoadAppSettings, useSaveAppSettings, useLibraryPath } from "@/hooks";
 import {
+  HomeView,
   LibraryView,
   SpacesView,
   SandboxView,
@@ -27,7 +33,13 @@ const queryClient = new QueryClient({
 
 function AppContent() {
   const { t } = useTranslation();
-  const { currentView, setCurrentView, setSearchQuery } = useAppStore();
+  const {
+    currentView,
+    setCurrentView,
+    setSearchQuery,
+    setCommandPaletteOpen,
+    setShortcutsHelpOpen,
+  } = useAppStore();
   const { setLanguage, setSetupCompleted, setLibraryPath, libraryPath } = useSettingsStore();
 
   // Load app settings from Tauri backend
@@ -37,8 +49,13 @@ function AppContent() {
   // Load library path from backend (includes default path fallback)
   const { data: backendLibraryPath } = useLibraryPath();
 
-  // State for language selector dialog
+  // First-launch flow state.
+  // - showLanguageSelector: pick a language (always first)
+  // - showOnboarding: 3-step setup that runs *after* language is picked
+  // Both are gated by `setupCompleted` in app settings, which gets flipped to
+  // true by OnboardingWizard.handleFinish.
   const [showLanguageSelector, setShowLanguageSelector] = React.useState(false);
+  const [showOnboarding, setShowOnboarding] = React.useState(false);
   const [isInitialized, setIsInitialized] = React.useState(false);
 
   // Enable file watcher for auto-refresh
@@ -56,24 +73,30 @@ function AppContent() {
     if (isLoadingSettings || isInitialized) return;
 
     const initializeApp = async () => {
+      // Three resolutions:
+      //   1. setupCompleted=true                  → returning user, just load lang
+      //   2. setupCompleted=false + has language  → resume onboarding (lang done)
+      //   3. no settings at all                   → fresh install, full flow
       if (appSettings) {
-        // App settings loaded from backend
         if (appSettings.setupCompleted) {
-          // User has completed setup, use saved language
           if (appSettings.language) {
             await changeLanguage(appSettings.language as SupportedLanguage);
             setLanguage(appSettings.language as SupportedLanguage);
           }
           setSetupCompleted(true);
+        } else if (appSettings.language) {
+          // Language already chosen in a previous (interrupted) session; just
+          // resume onboarding without re-asking the language.
+          await changeLanguage(appSettings.language as SupportedLanguage);
+          setLanguage(appSettings.language as SupportedLanguage);
+          setShowOnboarding(true);
         } else {
-          // First launch - detect browser language and show selector
           const detectedLang = detectBrowserLanguage();
           await changeLanguage(detectedLang);
           setLanguage(detectedLang);
           setShowLanguageSelector(true);
         }
       } else {
-        // No settings file exists - first launch
         const detectedLang = detectBrowserLanguage();
         await changeLanguage(detectedLang);
         setLanguage(detectedLang);
@@ -85,34 +108,43 @@ function AppContent() {
     initializeApp();
   }, [appSettings, isLoadingSettings, isInitialized, setLanguage, setSetupCompleted]);
 
-  // Handle language selection completion
+  // Handle language selection completion. We deliberately *don't* mark
+  // setupCompleted=true here — that flag stays false until the user finishes
+  // the onboarding wizard. Saving language but not setup means the next
+  // launch (e.g. if they crash mid-onboarding) will reload the saved language
+  // and re-show the onboarding wizard, not the language selector.
   const handleLanguageSelected = async (selectedLanguage: SupportedLanguage) => {
     setLanguage(selectedLanguage);
+    try {
+      await saveAppSettingsMutation.mutateAsync({
+        language: selectedLanguage,
+        setupCompleted: false,
+        theme: undefined,
+      });
+    } catch (e) {
+      console.error("Failed to save language:", e);
+    }
+    // Chain straight into onboarding.
+    setShowOnboarding(true);
+  };
+
+  // OnboardingWizard already flips `setupCompleted` server-side via
+  // useUpdateAppSetting before calling onComplete. We just close the dialog
+  // and update the local zustand store here.
+  const handleOnboardingComplete = () => {
     setSetupCompleted(true);
-    
-    // Save to backend
-    await saveAppSettingsMutation.mutateAsync({
-      language: selectedLanguage,
-      setupCompleted: true,
-      theme: undefined,
-    });
+    setShowOnboarding(false);
   };
 
   // Global keyboard shortcuts
   React.useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // ⌘K or Ctrl+K - Focus the global search input. We target the input by
-      // data-attribute (rather than by type or i18n'd label) so it keeps
-      // working in every locale and even when other text inputs are mounted.
+      // ⌘K or Ctrl+K — open the global command palette. Replaces the older
+      // "focus header search" behaviour: the search box is now reachable from
+      // the palette ("Search skills...") and also stays clickable inline.
       if ((e.metaKey || e.ctrlKey) && e.key === "k") {
-        const searchInput = document.querySelector(
-          '[data-action="header-search"]'
-        ) as HTMLInputElement | null;
-        if (searchInput) {
-          e.preventDefault();
-          searchInput.focus();
-          searchInput.select();
-        }
+        e.preventDefault();
+        setCommandPaletteOpen(true);
       }
 
       // ⌘, or Ctrl+, - Open settings
@@ -134,13 +166,37 @@ function AppContent() {
         }
       }
 
-      // ⌘1-5 - Switch views
-      if ((e.metaKey || e.ctrlKey) && e.key >= "1" && e.key <= "5") {
+      // ⌘1-6 - Switch views (Home is the new #1; everything else shifts by +1)
+      if ((e.metaKey || e.ctrlKey) && e.key >= "1" && e.key <= "6") {
         e.preventDefault();
-        const views = ["library", "spaces", "sandbox", "aitools", "settings"] as const;
+        const views = [
+          "home",
+          "library",
+          "spaces",
+          "sandbox",
+          "aitools",
+          "settings",
+        ] as const;
         const index = parseInt(e.key) - 1;
         if (index < views.length) {
           setCurrentView(views[index]);
+        }
+      }
+
+      // ? — global "show keyboard shortcuts" overlay (iOS / macOS muscle
+      // memory). We only trigger when the user is NOT in a text input,
+      // since "?" is a legitimate character in URLs / search strings.
+      // shortcutsHelpOpen toggles the existing dialog state from appStore.
+      if (e.key === "?" && !e.metaKey && !e.ctrlKey && !e.altKey) {
+        const active = document.activeElement as HTMLElement | null;
+        const tag = active?.tagName?.toLowerCase();
+        const isTyping =
+          tag === "input" ||
+          tag === "textarea" ||
+          (active?.getAttribute("contenteditable") === "true");
+        if (!isTyping) {
+          e.preventDefault();
+          setShortcutsHelpOpen(true);
         }
       }
 
@@ -169,10 +225,18 @@ function AppContent() {
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [currentView, setCurrentView, setSearchQuery]);
+  }, [
+    currentView,
+    setCurrentView,
+    setSearchQuery,
+    setCommandPaletteOpen,
+    setShortcutsHelpOpen,
+  ]);
 
   const renderView = () => {
     switch (currentView) {
+      case "home":
+        return <HomeView />;
       case "library":
         return <LibraryView />;
       case "spaces":
@@ -184,7 +248,7 @@ function AppContent() {
       case "settings":
         return <SettingsView />;
       default:
-        return <LibraryView />;
+        return <HomeView />;
     }
   };
 
@@ -200,7 +264,21 @@ function AppContent() {
   return (
     <>
       <MainLayout>{renderView()}</MainLayout>
-      
+
+      {/* Global "drop any skill file anywhere → install" surface. Listens to
+          tauri://drag-drop at the App level and bails when the Import dialog
+          is open (its LocalImportPanel handles drops there). */}
+      <QuickInstallSheet />
+
+      {/* ⌘K command palette — opens from anywhere. */}
+      <CommandPalette />
+
+      {/* ? shortcut help — opens from anywhere. */}
+      <ShortcutsHelp />
+
+      {/* Global toast stack — driven imperatively via `toast.success(...)`. */}
+      <Toaster />
+
       {/* First launch language selector */}
       <LanguageSelector
         open={showLanguageSelector}
@@ -208,6 +286,12 @@ function AppContent() {
         onLanguageSelected={handleLanguageSelected}
         showContinueButton={true}
         required={true}
+      />
+
+      {/* First launch onboarding (3 steps), shown after language is picked */}
+      <OnboardingWizard
+        open={showOnboarding}
+        onComplete={handleOnboardingComplete}
       />
     </>
   );

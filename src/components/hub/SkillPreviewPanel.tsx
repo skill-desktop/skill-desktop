@@ -52,8 +52,14 @@ export const SkillPreviewPanel: React.FC<SkillPreviewPanelProps> = ({
             {preview.metadata.author ? `${t("hub.preview.by")} ${preview.metadata.author}` : t("hub.preview.unknownAuthor")} · v{preview.metadata.version}
           </p>
         </div>
-        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={onClearPreview}>
-          <X className="h-4 w-4" />
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-8 w-8"
+          onClick={onClearPreview}
+          aria-label={t("common.close")}
+        >
+          <X className="h-4 w-4" aria-hidden="true" />
         </Button>
       </div>
 

@@ -7,6 +7,12 @@ export interface AppSettings {
   language?: string;
   setupCompleted: boolean;
   theme?: string;
+  /**
+   * AI tool kinds the user wants new skills auto-installed to.
+   * Values are `InstallTargetKind` strings (`claude` / `cursor` / `codex` / `gemini`).
+   * Empty array means "no preference — ask every time".
+   */
+  autoInstallTargets?: string[];
 }
 
 // ========== Query Keys ==========

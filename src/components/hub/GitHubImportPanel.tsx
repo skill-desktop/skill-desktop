@@ -100,8 +100,10 @@ export const GitHubImportPanel: React.FC<GitHubImportPanelProps> = ({
                   size="icon"
                   className="h-6 w-6"
                   onClick={onNavigateBack}
+                  aria-label={t("common.back")}
+                  title={t("common.back")}
                 >
-                  <ArrowLeft className="h-3.5 w-3.5" />
+                  <ArrowLeft className="h-3.5 w-3.5" aria-hidden="true" />
                 </Button>
               )}
               <span className="text-xs text-text-muted">

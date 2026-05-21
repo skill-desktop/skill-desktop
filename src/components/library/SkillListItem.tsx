@@ -6,6 +6,7 @@ import { useAppStore } from "@/stores";
 import { Badge, Switch } from "@/components/ui";
 import type { Skill } from "@/types";
 import { getPermissionLevel } from "@/types";
+import { SkillInstallBadges } from "./SkillInstallBadges";
 
 interface SkillListItemProps {
   skill: Skill;
@@ -148,6 +149,12 @@ export const SkillListItem: React.FC<SkillListItemProps> = ({
           <span className="text-[10px] text-text-muted">0</span>
         )}
       </div>
+
+      {skill.skillId && (
+        <div className="w-24 shrink-0">
+          <SkillInstallBadges skillId={skill.skillId} compact />
+        </div>
+      )}
 
       <div className="flex w-12 shrink-0 items-center justify-end gap-2 text-text-muted">
         {skill.isDownloaded && (

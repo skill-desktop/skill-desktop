@@ -179,13 +179,14 @@ export function FileEditorDialog({
           </div>
           
           <div className="flex items-center gap-2 shrink-0 ml-4">
-            <Button 
-              variant="ghost" 
-              size="icon" 
+            <Button
+              variant="ghost"
+              size="icon"
               onClick={handleClose}
               className="h-8 w-8 text-text-muted hover:text-text-primary"
+              aria-label={t("common.close")}
             >
-              <X className="w-4 h-4" />
+              <X className="w-4 h-4" aria-hidden="true" />
             </Button>
           </div>
         </div>

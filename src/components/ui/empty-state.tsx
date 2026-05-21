@@ -58,8 +58,13 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
       {icon && (
         <div
           className={cn(
-            "mb-6 flex h-20 w-20 items-center justify-center rounded-full",
-            isError ? "bg-accent-red/10 text-accent-red" : "bg-bg-tertiary text-text-muted"
+            // Soft gradient halo so empty states feel "warm" rather than
+            // sterile (M3-3). Falls back to a neutral fill in the error
+            // variant where colour is already communicating intent.
+            "mb-6 flex h-20 w-20 items-center justify-center rounded-full shadow-sm ring-1",
+            isError
+              ? "bg-accent-red/10 text-accent-red ring-accent-red/20"
+              : "bg-gradient-to-br from-accent-blue/15 via-accent-purple/10 to-bg-tertiary text-accent-blue ring-accent-blue/10"
           )}
         >
           {icon}

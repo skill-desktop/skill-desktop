@@ -125,6 +125,7 @@ pub fn run() {
             commands::open_file,
             commands::preview_skill_from_url,
             commands::import_skill_from_url,
+            commands::update_skill_from_url,
             commands::export_claude_config,
             commands::export_generic_config,
             commands::export_mcp_config,
@@ -216,6 +217,8 @@ pub fn run() {
             commands::install_skill_to_tool,
             commands::uninstall_skill_from_tool,
             commands::list_skill_installations,
+            // AI tool detection (Home view + QuickInstallSheet defaults)
+            commands::detect_ai_tools,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

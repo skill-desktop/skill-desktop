@@ -73,6 +73,7 @@ export {
 export {
   usePreviewSkillFromUrl,
   useImportSkillFromUrl,
+  useUpdateSkillFromUrl,
   useBrowseGitHubRepo,
   usePreviewGitHubSkill,
   useImportGitHubSkill,
@@ -149,11 +150,14 @@ export {
   useInstallSkillToTool,
   useUninstallSkillFromTool,
   useSkillInstallations,
+  useAllSkillInstallations,
+  useDetectAiTools,
   installKeys,
   type InstallTargetKind,
   type InstallTargetInfo,
   type InstallSkillResult,
   type SkillInstallation,
+  type DetectedAiTool,
 } from "./useInstall";
 
 // AI Tools hooks

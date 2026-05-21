@@ -1,3 +1,4 @@
+export { HomeView } from "./HomeView";
 export { LibraryView } from "./LibraryView";
 export { SpacesView } from "./SpacesView";
 export { SandboxView } from "./SandboxView";

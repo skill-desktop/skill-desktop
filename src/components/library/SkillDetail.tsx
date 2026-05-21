@@ -12,16 +12,17 @@ import {
   RefreshCw,
   Download,
   Share2,
+  Play,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAppStore } from "@/stores";
 import { useDeleteSkill, useShowInFolder, useQuarantinedSkills, useSetSkillQuarantine, useCheckSkillUpdate, useSkillInstallations } from "@/hooks";
-import { useImportSkillFromUrl } from "@/hooks/useImport";
+import { useUpdateSkillFromUrl } from "@/hooks/useImport";
 import { Button, ScrollArea, ConfirmDialog } from "@/components/ui";
 import { FileEditorDialog } from "@/components/editor/FileEditorDialog";
 import { InstallSkillDialog } from "./InstallSkillDialog";
 import type { Skill } from "@/types";
-import { TabButton, OverviewTab, SecurityTab } from "./detail";
+import { TabButton, OverviewTab, SecurityTab, RunTab } from "./detail";
 
 interface SkillDetailProps {
   skill: Skill | null;
@@ -29,10 +30,13 @@ interface SkillDetailProps {
 
 export const SkillDetail: React.FC<SkillDetailProps> = ({ skill }) => {
   const { t } = useTranslation();
-  const { setSelectedSkillHash, detailPanelOpen, setDetailPanelOpen } =
-    useAppStore();
+  const {
+    setSelectedSkillHash,
+    detailPanelOpen,
+    setDetailPanelOpen,
+  } = useAppStore();
   const [showDeleteConfirm, setShowDeleteConfirm] = React.useState(false);
-  const [activeTab, setActiveTab] = React.useState<"overview" | "security">("overview");
+  const [activeTab, setActiveTab] = React.useState<"overview" | "security" | "run">("overview");
   const [copied, setCopied] = React.useState(false);
   const [editorOpen, setEditorOpen] = React.useState(false);
   const [editingFilePath, setEditingFilePath] = React.useState<string>("");
@@ -43,7 +47,7 @@ export const SkillDetail: React.FC<SkillDetailProps> = ({ skill }) => {
   const { data: quarantinedHashes = [] } = useQuarantinedSkills();
   const setQuarantineMutation = useSetSkillQuarantine();
   const checkUpdateMutation = useCheckSkillUpdate();
-  const importSkillMutation = useImportSkillFromUrl();
+  const updateSkillMutation = useUpdateSkillFromUrl();
   const { data: installations = [] } = useSkillInstallations(skill?.skillId ?? null);
   
   // Update check state
@@ -132,9 +136,12 @@ export const SkillDetail: React.FC<SkillDetailProps> = ({ skill }) => {
 
   const handleApplyUpdate = async () => {
     if (!skill?.sourceUrl) return;
-    
+
     try {
-      await importSkillMutation.mutateAsync(skill.sourceUrl);
+      await updateSkillMutation.mutateAsync({
+        currentHash: skill.hash,
+        sourceUrl: skill.sourceUrl,
+      });
       setShowUpdateDialog(false);
       setUpdateAvailable(false);
     } catch (error) {
@@ -158,11 +165,16 @@ export const SkillDetail: React.FC<SkillDetailProps> = ({ skill }) => {
                   size="icon"
                   className="h-5 w-5 shrink-0"
                   onClick={handleCopyName}
+                  aria-label={
+                    copied
+                      ? t("skillDetail.copyNameCopied")
+                      : t("skillDetail.copyName")
+                  }
                 >
                   {copied ? (
-                    <Check className="h-3 w-3 text-accent-green" />
+                    <Check className="h-3 w-3 text-accent-green" aria-hidden="true" />
                   ) : (
-                    <Copy className="h-3 w-3" />
+                    <Copy className="h-3 w-3" aria-hidden="true" />
                   )}
                 </Button>
               </div>
@@ -171,8 +183,14 @@ export const SkillDetail: React.FC<SkillDetailProps> = ({ skill }) => {
                 {skill.author && ` · ${t("skillCard.by")} ${skill.author}`}
               </p>
             </div>
-            <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0" onClick={handleClose}>
-              <X className="h-4 w-4" />
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-6 w-6 shrink-0"
+              onClick={handleClose}
+              aria-label={t("common.close")}
+            >
+              <X className="h-4 w-4" aria-hidden="true" />
             </Button>
           </div>
 
@@ -183,6 +201,12 @@ export const SkillDetail: React.FC<SkillDetailProps> = ({ skill }) => {
               onClick={() => setActiveTab("overview")}
             >
               {t("skillDetail.tabs.overview")}
+            </TabButton>
+            <TabButton
+              active={activeTab === "run"}
+              onClick={() => setActiveTab("run")}
+            >
+              {t("skillDetail.tabs.run")}
             </TabButton>
             <TabButton
               active={activeTab === "security"}
@@ -196,6 +220,7 @@ export const SkillDetail: React.FC<SkillDetailProps> = ({ skill }) => {
         {/* Content */}
         <ScrollArea className="flex-1 p-4">
           {activeTab === "overview" && <OverviewTab skill={skill} onOpenFile={handleOpenFile} />}
+          {activeTab === "run" && <RunTab skill={skill} />}
           {activeTab === "security" && <SecurityTab skill={skill} />}
         </ScrollArea>
 
@@ -238,6 +263,14 @@ export const SkillDetail: React.FC<SkillDetailProps> = ({ skill }) => {
           <Button
             variant="secondary"
             size="sm"
+            onClick={() => setActiveTab("run")}
+            title={t("skillDetail.actions.runInSandbox", "Run")}
+          >
+            <Play className="h-3.5 w-3.5" />
+          </Button>
+          <Button
+            variant="secondary"
+            size="sm"
             onClick={handleShowInFinder}
             disabled={showInFolderMutation.isPending}
             title={t("skillDetail.actions.reveal")}
@@ -256,11 +289,12 @@ export const SkillDetail: React.FC<SkillDetailProps> = ({ skill }) => {
               onClick={handleCheckUpdate}
               disabled={checkUpdateMutation.isPending}
               title={t("skillDetail.actions.checkUpdate")}
+              aria-label={t("skillDetail.actions.checkUpdate")}
             >
               {checkUpdateMutation.isPending ? (
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
               ) : (
-                <RefreshCw className="h-3.5 w-3.5" />
+                <RefreshCw className="h-3.5 w-3.5" aria-hidden="true" />
               )}
             </Button>
           )}
@@ -271,13 +305,15 @@ export const SkillDetail: React.FC<SkillDetailProps> = ({ skill }) => {
             onClick={handleToggleQuarantine}
             disabled={setQuarantineMutation.isPending}
             title={isQuarantined ? t("skillDetail.actions.unquarantine") : t("skillDetail.actions.quarantine")}
+            aria-label={isQuarantined ? t("skillDetail.actions.unquarantine") : t("skillDetail.actions.quarantine")}
+            aria-pressed={isQuarantined}
           >
             {setQuarantineMutation.isPending ? (
-              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
             ) : isQuarantined ? (
-              <Shield className="h-3.5 w-3.5" />
+              <Shield className="h-3.5 w-3.5" aria-hidden="true" />
             ) : (
-              <ShieldAlert className="h-3.5 w-3.5" />
+              <ShieldAlert className="h-3.5 w-3.5" aria-hidden="true" />
             )}
           </Button>
           <Button
@@ -285,8 +321,9 @@ export const SkillDetail: React.FC<SkillDetailProps> = ({ skill }) => {
             size="icon"
             className="h-8 w-8 text-accent-red"
             onClick={() => setShowDeleteConfirm(true)}
+            aria-label={t("common.delete")}
           >
-            <Trash2 className="h-3.5 w-3.5" />
+            <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
           </Button>
         </div>
       </aside>
@@ -312,7 +349,7 @@ export const SkillDetail: React.FC<SkillDetailProps> = ({ skill }) => {
         confirmLabel={t("skillDetail.actions.update")}
         confirmIcon={<Download className="h-3.5 w-3.5" />}
         cancelLabel={t("common.cancel")}
-        isPending={importSkillMutation.isPending}
+        isPending={updateSkillMutation.isPending}
         onConfirm={handleApplyUpdate}
       />
 

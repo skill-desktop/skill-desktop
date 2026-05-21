@@ -124,3 +124,53 @@ export function useSkillInstallations(skillId: string | null) {
     enabled: !!skillId,
   });
 }
+
+/**
+ * List EVERY installation across all skills. We fetch this once and let the
+ * SkillCard / Home view derive per-skill state without N+1 queries.
+ *
+ * Returns a flat array; callers will typically group by `skillId`.
+ */
+export function useAllSkillInstallations() {
+  return useQuery({
+    queryKey: installKeys.all,
+    queryFn: async () => {
+      // Passing skill_id: null reaches the `else` branch in the Rust command
+      // and returns the full set from the DB.
+      return await invoke<SkillInstallation[]>("list_skill_installations", {
+        skill_id: null,
+      });
+    },
+  });
+}
+
+// ========== AI Tool Detection ==========
+
+/**
+ * One row from `detect_ai_tools` — corresponds to one well-known AI tool's
+ * `~/.X/skills/` directory. `exists` tells you whether the user has used that
+ * tool at all; `skillCount` tells you how many skills are sitting in there.
+ *
+ * Matches Rust `DetectedAiTool` in `src-tauri/src/commands/mod.rs`.
+ */
+export interface DetectedAiTool {
+  kind: InstallTargetKind;
+  label: string;
+  path: string;
+  exists: boolean;
+  skillCount: number;
+}
+
+/** Probe the local filesystem for installed AI tools (Claude / Cursor / Codex / Gemini / Agents). */
+export function useDetectAiTools() {
+  return useQuery({
+    queryKey: ["detect-ai-tools"],
+    queryFn: async () => {
+      return await invoke<DetectedAiTool[]>("detect_ai_tools");
+    },
+    // The user can install / uninstall AI tools between sessions; refresh on
+    // window focus so cards stay honest.
+    refetchOnWindowFocus: true,
+    staleTime: 1000 * 60, // 1 minute
+  });
+}

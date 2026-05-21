@@ -844,6 +844,82 @@ pub async fn import_skill_from_url(
     create_skill_from_directory(&skill_dir, Some(url), Some(&library_path))
 }
 
+/// Update an existing skill in place from its source URL.
+///
+/// Unlike `import_skill_from_url`, which refuses to clobber an existing
+/// directory, this command intentionally overwrites the on-disk SKILL.md so
+/// frontend "Update" buttons can pull a new version from the same origin
+/// without forcing the user to delete first.
+///
+/// We locate the skill by `current_hash` (the hash the UI already has loaded)
+/// because `skillId` would require a metadata round-trip and would still need
+/// the on-disk path; the hash uniquely points at a directory via the
+/// scanner's normal indexing. Returns the freshly-scanned Skill on success.
+#[tauri::command]
+pub async fn update_skill_from_url(
+    current_hash: String,
+    source_url: String,
+    library_state: State<'_, LibraryState>,
+) -> Result<Skill, String> {
+    let library_path = {
+        let guard = library_state.path.lock().map_err(|e| e.to_string())?;
+        guard.clone().ok_or("Library path not set")?
+    };
+
+    // Resolve the existing skill directory via the hash the UI already
+    // displays. We don't trust the SKILL.md `name:` field because the
+    // upstream might have renamed itself between imports.
+    let all_skills = get_all_skills_internal(&library_path)?;
+    let existing = all_skills
+        .into_iter()
+        .find(|s| s.hash == current_hash)
+        .ok_or_else(|| {
+            format!(
+                "Skill with hash {} not found in library — was it deleted?",
+                current_hash
+            )
+        })?;
+
+    // Fetch the new content from the source URL.
+    let response = reqwest::get(&source_url)
+        .await
+        .map_err(|e| format!("Failed to fetch URL: {}", e))?;
+
+    if !response.status().is_success() {
+        return Err(format!("HTTP error: {}", response.status()));
+    }
+
+    let content = response
+        .text()
+        .await
+        .map_err(|e| format!("Failed to read response: {}", e))?;
+
+    // Sanity check the new content has parseable metadata before we overwrite.
+    // We don't enforce that the new name matches — upstream renames are valid,
+    // we just keep the file at the existing on-disk path so installations
+    // (symlinks pointing to this path) keep working.
+    let _new_metadata = crate::scanner::parse_front_matter(&content)
+        .ok_or("Failed to parse updated skill metadata")?;
+
+    // Preserve the directory and overwrite SKILL.md in place. We keep the
+    // original directory name (and thus its existing symlinks into AI tools).
+    let skill_dir = std::path::PathBuf::from(&existing.skill_dir);
+    if !skill_dir.exists() {
+        return Err(format!(
+            "Skill directory does not exist on disk: {}",
+            existing.skill_dir
+        ));
+    }
+
+    let skill_md_path = skill_dir.join("SKILL.md");
+    std::fs::write(&skill_md_path, &content)
+        .map_err(|e| format!("Failed to overwrite SKILL.md: {}", e))?;
+
+    // Re-scan the directory so the returned Skill carries the new hash,
+    // updated_at, and any frontmatter changes.
+    create_skill_from_directory(&skill_dir, Some(source_url), Some(&library_path))
+}
+
 #[derive(Debug, Clone, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SkillPreview {
@@ -3221,6 +3297,16 @@ pub struct AppSettings {
     pub setup_completed: bool,
     /// Theme preference
     pub theme: Option<String>,
+    /// AI tools the user wants newly-imported skills auto-installed to.
+    ///
+    /// Values are `InstallTargetKind` strings (`claude`, `cursor`, `codex`, `gemini`).
+    /// Empty means "no auto-install, ask each time". On first launch we seed this
+    /// with whatever `detect_ai_tools` reports as existing.
+    ///
+    /// `#[serde(default)]` keeps old settings.json files (which don't have this
+    /// field) loadable without erroring out.
+    #[serde(default)]
+    pub auto_install_targets: Vec<String>,
 }
 
 /// Get the app settings file path
@@ -3285,6 +3371,17 @@ pub async fn update_app_setting(
         "language" => settings.language = Some(value),
         "theme" => settings.theme = Some(value),
         "setupCompleted" => settings.setup_completed = value == "true",
+        // Stored as a comma-separated list of kinds, e.g. "claude,cursor".
+        // We deliberately keep this command's signature `(key, value: String)`
+        // to avoid widening the Tauri command's type surface; the dialog form
+        // and Home view that write this key already serialize a join(",").
+        "autoInstallTargets" => {
+            settings.auto_install_targets = value
+                .split(',')
+                .map(|s| s.trim().to_string())
+                .filter(|s| !s.is_empty())
+                .collect();
+        }
         _ => return Err(format!("Unknown setting key: {}", key)),
     }
     
@@ -5665,6 +5762,73 @@ pub async fn list_skill_installations(
     } else {
         db_state.0.list_all_installations()
     }
+}
+
+// ========== AI Tool Detection ==========
+
+/// What we report back to the frontend Home view about each AI tool's local
+/// install of Agent Skills. Existence + skill count is enough to power both
+/// the "Detected AI tools" panel and the QuickInstallSheet's default checkboxes.
+#[derive(Debug, Clone, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DetectedAiTool {
+    /// Stable identifier matching InstallTargetKind (`claude`, `cursor`, `codex`, `gemini`, `agents`).
+    pub kind: String,
+    /// Human-readable name (`Claude Code`, `Cursor`, ...).
+    pub label: String,
+    /// Absolute skills directory we'd target.
+    pub path: String,
+    /// Does that directory exist on disk?
+    pub exists: bool,
+    /// Number of skill directories (containing a SKILL.md) inside `path`. 0 when not present.
+    pub skill_count: u32,
+}
+
+/// Detect locally installed AI tools by probing well-known skill directories.
+///
+/// This is the source of truth for:
+/// - Home view "Detected AI tools" cards
+/// - QuickInstallSheet default-checked install targets
+/// - First-launch onboarding suggestions
+#[tauri::command]
+pub async fn detect_ai_tools() -> Result<Vec<DetectedAiTool>, String> {
+    let kinds: [(InstallTargetKind, &str); 5] = [
+        (InstallTargetKind::AgentsStandard, "Agent Skills standard"),
+        (InstallTargetKind::Claude, "Claude Code"),
+        (InstallTargetKind::Cursor, "Cursor"),
+        (InstallTargetKind::Codex, "OpenAI Codex"),
+        (InstallTargetKind::Gemini, "Gemini CLI"),
+    ];
+
+    let mut out = Vec::with_capacity(kinds.len());
+    for (kind, label) in kinds {
+        let Some(path) = kind.default_path() else { continue };
+        let exists = path.exists() && path.is_dir();
+        // Cheap, shallow count: a directory is a "skill" iff it contains SKILL.md.
+        // We deliberately don't recurse — that's `get_all_skills_internal`'s job.
+        let skill_count = if exists {
+            std::fs::read_dir(&path)
+                .map(|rd| {
+                    rd.filter_map(|e| e.ok())
+                        .filter(|e| {
+                            e.file_type().map(|t| t.is_dir()).unwrap_or(false)
+                                && e.path().join("SKILL.md").exists()
+                        })
+                        .count() as u32
+                })
+                .unwrap_or(0)
+        } else {
+            0
+        };
+        out.push(DetectedAiTool {
+            kind: kind.as_str().to_string(),
+            label: label.to_string(),
+            path: path.to_string_lossy().to_string(),
+            exists,
+            skill_count,
+        });
+    }
+    Ok(out)
 }
 
 /// Resolve the target installation directory for a kind, honoring `custom_path` for Custom.

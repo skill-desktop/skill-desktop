@@ -5,3 +5,4 @@ export { McpImportPanel } from "./McpImportPanel";
 export { RegistryImportPanel } from "./RegistryImportPanel";
 export { SkillPreviewPanel } from "./SkillPreviewPanel";
 export { LocalImportPanel } from "./LocalImportPanel";
+export { DiscoverPanel } from "./DiscoverPanel";

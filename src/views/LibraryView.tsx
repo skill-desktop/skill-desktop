@@ -1,10 +1,12 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
-import { Trash2, X, Loader2, Shield, ShieldAlert, Filter, Folder, FolderPlus, Download, Plus, Import, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
+import { Trash2, X, Loader2, Shield, ShieldAlert, Filter, Folder, FolderPlus, Download, Plus, Import, ArrowUpDown, ArrowUp, ArrowDown, Share2 } from "lucide-react";
 import { invoke } from "@tauri-apps/api/core";
 import { useAppStore, useSettingsStore } from "@/stores";
-import { useSkills, useSearchSkills, useDeleteSkillsBatch, useQuarantinedSkills, useSetSkillQuarantine, useSpaces, useSetBulkSkillVisibility, useExportSkillsBatch, useExportSkillsBatchJson, useSetSkillCategory } from "@/hooks";
+import { useSkills, useSearchSkills, useDeleteSkillsBatch, useQuarantinedSkills, useSetSkillQuarantine, useSpaces, useSetBulkSkillVisibility, useExportSkillsBatch, useExportSkillsBatchJson, useSetSkillCategory, useDetectAiTools, useInstallSkillToTool, type InstallTargetKind } from "@/hooks";
+import { toast } from "@/components/ui";
 import { SkillList, SkillDetail, CreateSkillDialog, ImportSkillDialog } from "@/components/library";
+import { WorkspaceSwitcher } from "@/components/spaces";
 import {
   Skeleton,
   Button,
@@ -64,6 +66,10 @@ export const LibraryView: React.FC = () => {
   const exportBatchJsonMutation = useExportSkillsBatchJson();
   const [showExportDialog, setShowExportDialog] = React.useState(false);
   const setSkillCategoryMutation = useSetSkillCategory();
+  const { data: detectedTools = [] } = useDetectAiTools();
+  const installMutation = useInstallSkillToTool();
+  const [showInstallDialog, setShowInstallDialog] = React.useState(false);
+  const [isBatchInstalling, setIsBatchInstalling] = React.useState(false);
   
   // Create a set for faster lookup
   const quarantinedSet = React.useMemo(() => new Set(quarantinedHashes), [quarantinedHashes]);
@@ -251,6 +257,46 @@ export const LibraryView: React.FC = () => {
     }
   };
 
+  /**
+   * Batch-install every selected skill into the chosen AI tool. Failures
+   * accumulate but never abort the loop — we want partial success to be
+   * "most skills made it, n failed", not "first failure stops everything".
+   */
+  const handleBatchInstallTo = async (kind: InstallTargetKind, label: string) => {
+    if (selectedHashes.size === 0) return;
+    const hashesArr = Array.from(selectedHashes);
+    // Map from skill hash → skill_id (the install API takes the latter).
+    const skillIds = hashesArr
+      .map((h) => allSkills.find((s) => s.hash === h)?.skillId)
+      .filter((id): id is string => !!id);
+
+    setIsBatchInstalling(true);
+    let ok = 0;
+    let fail = 0;
+    for (const skillId of skillIds) {
+      try {
+        await installMutation.mutateAsync({ skillId, targetKind: kind });
+        ok++;
+      } catch (e) {
+        fail++;
+      }
+    }
+    setIsBatchInstalling(false);
+    setShowInstallDialog(false);
+    cancelSelectionMode();
+
+    if (ok > 0) {
+      toast.success(
+        t("library.batchInstall.successToast", { count: ok, tool: label }),
+        fail > 0
+          ? t("library.batchInstall.partialFailed", { count: fail })
+          : undefined
+      );
+    } else if (fail > 0) {
+      toast.error(t("library.batchInstall.allFailed", { tool: label }));
+    }
+  };
+
   // Category handlers
   const handleMoveToCategory = async (skillHash: string, category: string) => {
     try {
@@ -328,7 +374,10 @@ export const LibraryView: React.FC = () => {
         {!selectionMode && (
           <div className="flex h-12 shrink-0 items-center justify-between gap-3 border-b border-border-default bg-bg-secondary px-4">
             <div className="flex items-center gap-2">
-              <Filter className="h-3.5 w-3.5 text-text-muted" />
+              <WorkspaceSwitcher
+                onManageWorkspaces={() => setCurrentView("spaces")}
+              />
+              <Filter className="ml-2 h-3.5 w-3.5 text-text-muted" />
               <ButtonGroup>
                 <Button
                   variant={filterMode === "all" ? "secondary" : "ghost"}
@@ -450,6 +499,15 @@ export const LibraryView: React.FC = () => {
               </ButtonGroup>
             </div>
             <div className="flex items-center gap-2">
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => setShowInstallDialog(true)}
+                disabled={selectedHashes.size === 0 || detectedTools.length === 0}
+              >
+                <Share2 className="mr-1.5 h-3.5 w-3.5" />
+                {t("library.selection.install")}
+              </Button>
               <Button
                 variant="secondary"
                 size="sm"
@@ -650,6 +708,71 @@ export const LibraryView: React.FC = () => {
               variant="secondary"
               size="sm"
               onClick={() => setShowExportDialog(false)}
+            >
+              {t("common.cancel")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Batch install dialog — pick which AI tool to symlink every selected
+          skill into. We only show detected/exists tools because installing
+          to a missing dir would fail loudly on the backend. */}
+      <Dialog open={showInstallDialog} onOpenChange={setShowInstallDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {t("library.batchInstall.title", { count: selectedHashes.size })}
+            </DialogTitle>
+            <DialogDescription>
+              {t("library.batchInstall.description")}
+            </DialogDescription>
+          </DialogHeader>
+          <ScrollArea className="max-h-[300px]">
+            <div className="space-y-1 py-2">
+              {detectedTools
+                .filter((tool) => tool.exists && tool.kind !== "agents")
+                .map((tool) => (
+                  <button
+                    key={tool.kind}
+                    type="button"
+                    onClick={() =>
+                      void handleBatchInstallTo(
+                        tool.kind as InstallTargetKind,
+                        tool.label
+                      )
+                    }
+                    disabled={isBatchInstalling}
+                    className="flex w-full items-center gap-3 rounded-md px-3 py-2.5 text-sm text-text-primary transition-colors hover:bg-bg-tertiary disabled:opacity-50"
+                  >
+                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-accent-blue/10 text-accent-blue">
+                      <Share2 className="h-4 w-4" />
+                    </div>
+                    <div className="min-w-0 flex-1 text-left">
+                      <div className="font-medium">{tool.label}</div>
+                      <div className="truncate font-mono text-[10px] text-text-muted">
+                        {tool.path}
+                      </div>
+                    </div>
+                    {isBatchInstalling && (
+                      <Loader2 className="h-4 w-4 animate-spin text-text-muted" />
+                    )}
+                  </button>
+                ))}
+              {detectedTools.filter((t) => t.exists && t.kind !== "agents")
+                .length === 0 && (
+                <div className="px-3 py-4 text-center text-sm text-text-muted">
+                  {t("library.batchInstall.noTools")}
+                </div>
+              )}
+            </div>
+          </ScrollArea>
+          <DialogFooter>
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => setShowInstallDialog(false)}
+              disabled={isBatchInstalling}
             >
               {t("common.cancel")}
             </Button>
