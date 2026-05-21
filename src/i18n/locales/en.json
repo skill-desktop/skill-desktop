@@ -246,6 +246,8 @@
   "hub": {
     "title": "Import Skill",
     "source": {
+      "local": "Local",
+      "localDesc": "Folder / .zip / .skill / .md",
       "url": "URL",
       "urlDesc": "Direct link",
       "github": "GitHub",
@@ -308,6 +310,26 @@
       "importedSuccessfully": "Imported Successfully!",
       "enterUrlToPreview": "Enter a URL to preview the skill",
       "supportedFormats": "Supported formats: .md, .json"
+    }
+  },
+  "localImport": {
+    "selectFilesTitle": "Choose skill files",
+    "selectFolderTitle": "Choose skill folder",
+    "scanFolderTitle": "Scan folder for skills",
+    "selectFiles": "Select .zip / .skill / .md",
+    "selectFolder": "Select folder",
+    "scanFolder": "Scan folder",
+    "clearAll": "Clear all",
+    "importSelected": "Import {{count}} selected",
+    "candidates": "Found {{count}} candidates",
+    "dropZone": {
+      "title": "Drop folders or skill files here",
+      "subtitle": "Folders, .zip / .skill archives, or loose SKILL.md files"
+    },
+    "result": {
+      "imported": "Imported {{count}}",
+      "skipped": "Skipped {{count}} (already in library)",
+      "failed": "Failed {{count}}"
     }
   },
   "settings": {
@@ -468,7 +490,9 @@
     "history": "Execution History",
     "highRiskWarning": "High-Risk Permission Warning",
     "highRiskDescription": "This skill requires high-risk permissions (shell_exec). Are you sure you want to execute it?",
-    "confirmExecute": "Execute Anyway"
+    "confirmExecute": "Execute Anyway",
+    "noScriptsError": "This skill has no scripts/ directory, so there is nothing to execute. Add an executable file under scripts/ in the skill to enable running it from the sandbox.",
+    "selectScriptError": "Select a script from the Scripts tab to execute."
   },
   "createSkill": {
     "title": "Create New Skill",

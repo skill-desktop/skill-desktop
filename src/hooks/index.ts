@@ -83,6 +83,16 @@ export {
   type ImportResult,
 } from "./useImport";
 
+// Local import hooks (folder / .zip / .skill / loose .md)
+export {
+  usePreviewLocalSkill,
+  useImportLocalSkill,
+  useImportLocalSkillsBatch,
+  useScanDirectoryForSkills,
+  type LocalSkillCandidate,
+  type LocalSourceType,
+} from "./useLocalImport";
+
 // MCP hooks
 export {
   useConnectMcpServer,

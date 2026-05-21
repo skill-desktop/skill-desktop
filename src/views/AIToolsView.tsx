@@ -321,7 +321,7 @@ const OpenCodePanel: React.FC = () => {
             setConfigContent(v);
             setConfigHasChanges(v !== (config?.globalConfigJson || ""));
           }}
-          placeholder='{\n  "$schema": "https://opencode.ai/config.json"\n}'
+          placeholder={`{\n  "$schema": "https://opencode.ai/config.json"\n}`}
           hasChanges={configHasChanges}
           isSaving={saveConfigMutation.isPending}
           onSave={async () => {

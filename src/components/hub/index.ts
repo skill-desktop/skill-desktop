@@ -4,3 +4,4 @@ export { GitHubImportPanel } from "./GitHubImportPanel";
 export { McpImportPanel } from "./McpImportPanel";
 export { RegistryImportPanel } from "./RegistryImportPanel";
 export { SkillPreviewPanel } from "./SkillPreviewPanel";
+export { LocalImportPanel } from "./LocalImportPanel";

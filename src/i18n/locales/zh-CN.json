@@ -246,6 +246,8 @@
   "hub": {
     "title": "导入技能",
     "source": {
+      "local": "本地",
+      "localDesc": "文件夹 / .zip / .skill / .md",
       "url": "URL",
       "urlDesc": "直接链接",
       "github": "GitHub",
@@ -308,6 +310,26 @@
       "importedSuccessfully": "导入成功！",
       "enterUrlToPreview": "输入 URL 预览技能",
       "supportedFormats": "支持的格式：.md, .json"
+    }
+  },
+  "localImport": {
+    "selectFilesTitle": "选择技能文件",
+    "selectFolderTitle": "选择技能文件夹",
+    "scanFolderTitle": "扫描文件夹中的技能",
+    "selectFiles": "选择 .zip / .skill / .md",
+    "selectFolder": "选择文件夹",
+    "scanFolder": "扫描文件夹",
+    "clearAll": "全部清除",
+    "importSelected": "导入选中的 {{count}} 项",
+    "candidates": "已发现 {{count}} 个候选",
+    "dropZone": {
+      "title": "拖放文件夹或技能文件到此处",
+      "subtitle": "支持文件夹、.zip / .skill 压缩包或 SKILL.md 文件"
+    },
+    "result": {
+      "imported": "已导入 {{count}} 项",
+      "skipped": "已跳过 {{count}} 项（已存在）",
+      "failed": "失败 {{count}} 项"
     }
   },
   "settings": {
@@ -468,7 +490,9 @@
     "history": "执行历史",
     "highRiskWarning": "高风险权限警告",
     "highRiskDescription": "此技能需要高风险权限（shell_exec）。确定要执行吗？",
-    "confirmExecute": "仍然执行"
+    "confirmExecute": "仍然执行",
+    "noScriptsError": "该技能没有 scripts/ 目录，无可执行内容。请在技能目录的 scripts/ 下添加可执行文件后再到 Sandbox 中运行。",
+    "selectScriptError": "请在 Scripts 标签页中选择一个脚本后再执行。"
   },
   "createSkill": {
     "title": "创建新技能",

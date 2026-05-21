@@ -1814,6 +1814,275 @@ pub struct ImportResult {
     pub errors: Vec<String>,
 }
 
+// ========== Local Import Commands ==========
+//
+// Local import surface — folders, .zip archives, .skill packages and loose
+// SKILL.md files — all funnel through `crate::scanner::local_import`. The Tauri
+// commands here are thin shells that:
+//   1. resolve the library path from state,
+//   2. delegate to the pure logic module, and
+//   3. coerce results into the existing `SkillPreview` / `ImportResult` types so
+//      the frontend can reuse the same preview panel as URL / GitHub imports.
+
+/// Preview a single local source (folder, .zip, .skill, or .md). Extracts archives
+/// to a temp directory if needed (cleaned up before returning).
+#[tauri::command]
+pub async fn preview_local_skill(path: String) -> Result<SkillPreview, String> {
+    let p = PathBuf::from(&path);
+    let (metadata, content, source_type, temp_dir) =
+        crate::scanner::local_import::preview_source(&p)?;
+
+    // Clean up temp extraction directory (we already have the content + metadata).
+    if let Some(td) = temp_dir {
+        let _ = std::fs::remove_dir_all(&td);
+    }
+
+    // Use the file's extension (or "md" for folders) for risk analysis.
+    let ext = match source_type {
+        "folder" | "zip" | "skill" => Some("md"),
+        "markdown" => p
+            .extension()
+            .and_then(|s| s.to_str())
+            .map(|s| if s.eq_ignore_ascii_case("markdown") { "md" } else { s }),
+        _ => None,
+    };
+
+    let risk_analysis = analyze_content_risk(&content, ext);
+
+    // sourceUrl uses the file:// scheme so the UI can show it; the import path
+    // accepts the original local path.
+    let source_url = format!("file://{}", path);
+
+    Ok(SkillPreview {
+        metadata,
+        content,
+        source_url,
+        risk_analysis,
+    })
+}
+
+/// Import a single local source into the library. Returns the resulting Skill.
+#[tauri::command]
+pub async fn import_local_skill(
+    path: String,
+    library_state: State<'_, LibraryState>,
+) -> Result<Skill, String> {
+    let library_path = {
+        let guard = library_state.path.lock().map_err(|e| e.to_string())?;
+        guard.clone().ok_or("Library path not set")?
+    };
+
+    let result = ingest_local_path(&path, &library_path)?;
+    match result {
+        IngestOutcome::Imported(dir) => {
+            create_skill_from_directory(&dir, None, Some(&library_path))
+        }
+        IngestOutcome::Skipped(reason) => Err(format!("Skipped: {}", reason)),
+        IngestOutcome::Failed(err) => Err(err),
+    }
+}
+
+/// Import many local sources at once. Each source can be a folder / .zip /
+/// .skill / .md. Returns an aggregated `ImportResult`.
+#[tauri::command]
+pub async fn import_local_skills_batch(
+    paths: Vec<String>,
+    library_state: State<'_, LibraryState>,
+) -> Result<ImportResult, String> {
+    let library_path = {
+        let guard = library_state.path.lock().map_err(|e| e.to_string())?;
+        guard.clone().ok_or("Library path not set")?
+    };
+
+    let mut imported = 0usize;
+    let mut skipped = 0usize;
+    let mut errors: Vec<String> = Vec::new();
+
+    for path in &paths {
+        match ingest_local_path(path, &library_path) {
+            Ok(IngestOutcome::Imported(_)) => imported += 1,
+            Ok(IngestOutcome::Skipped(_)) => skipped += 1,
+            Ok(IngestOutcome::Failed(e)) | Err(e) => {
+                errors.push(format!("{}: {}", path, e));
+            }
+        }
+    }
+
+    Ok(ImportResult {
+        imported,
+        skipped,
+        errors,
+    })
+}
+
+/// Recursively scan a folder and return every SKILL.md candidate found inside.
+///
+/// Used by the "Scan Folder" entry point in the import dialog so users can pick
+/// which discovered skills to actually import.
+#[tauri::command]
+pub async fn scan_directory_for_skills(
+    path: String,
+) -> Result<Vec<crate::scanner::local_import::LocalSkillCandidate>, String> {
+    let root = PathBuf::from(&path);
+    if !root.exists() {
+        return Err(format!("Path does not exist: {}", path));
+    }
+    if !root.is_dir() {
+        return Err(format!("Not a directory: {}", path));
+    }
+
+    let candidates = crate::scanner::local_import::discover_candidates_in(&root, &path, "folder");
+    Ok(candidates)
+}
+
+/// Outcome of ingesting one local source.
+enum IngestOutcome {
+    /// Successfully copied into the library at the given destination.
+    Imported(PathBuf),
+    /// Already existed (or otherwise intentionally skipped) — caller counts as skipped.
+    Skipped(String),
+    /// Hard failure with a user-facing message.
+    Failed(String),
+}
+
+/// Ingest one local source path into the library.
+///
+/// Encapsulates the per-source-type branching so both the single-import and
+/// batch-import commands share identical semantics.
+fn ingest_local_path(path: &str, library_path: &PathBuf) -> Result<IngestOutcome, String> {
+    let path_buf = PathBuf::from(path);
+    let source = crate::scanner::local_import::detect_source(&path_buf)
+        .ok_or_else(|| format!("Unrecognised local skill source: {}", path))?;
+
+    match source {
+        crate::scanner::local_import::LocalSource::Folder(dir) => {
+            let candidates = crate::scanner::local_import::discover_candidates_in(
+                &dir,
+                path,
+                "folder",
+            );
+            ingest_candidates_list(candidates, library_path)
+        }
+        crate::scanner::local_import::LocalSource::Markdown(file) => {
+            match crate::scanner::local_import::ingest_loose_markdown(&file, library_path)? {
+                Some(p) => Ok(IngestOutcome::Imported(p)),
+                None => Ok(IngestOutcome::Skipped(
+                    "skill with the same name already exists".to_string(),
+                )),
+            }
+        }
+        crate::scanner::local_import::LocalSource::Archive(archive) => {
+            let temp = std::env::temp_dir()
+                .join(format!("skill-import-{}", uuid::Uuid::new_v4()));
+            crate::scanner::local_import::extract_archive(&archive, &temp)?;
+
+            // Use the archive extension to drive the candidate's `source_type`.
+            let source_type = if archive
+                .extension()
+                .and_then(|s| s.to_str())
+                .map(|s| s.eq_ignore_ascii_case("skill"))
+                .unwrap_or(false)
+            {
+                "skill"
+            } else {
+                "zip"
+            };
+
+            // First, look for SKILL.md(s) nested under their own folders.
+            let mut candidates =
+                crate::scanner::local_import::discover_candidates_in(&temp, path, source_type);
+
+            // Fallback: a bare SKILL.md at the archive root. Use the archive
+            // filename (without extension) as the skill name.
+            if candidates.is_empty() {
+                let root_md = temp.join("SKILL.md");
+                if root_md.exists() {
+                    let archive_stem = archive
+                        .file_stem()
+                        .and_then(|s| s.to_str())
+                        .unwrap_or("skill");
+                    // Stage a renamed dir <stem>/ so ingest_candidate doesn't try to
+                    // join the archive name itself with the library root.
+                    let staged_dir = temp.join(format!("__staged_{}", archive_stem));
+                    std::fs::create_dir_all(&staged_dir)
+                        .map_err(|e| format!("Failed to stage archive contents: {}", e))?;
+                    // Move every file from temp/ into staged/, skipping the staged dir itself.
+                    if let Ok(entries) = std::fs::read_dir(&temp) {
+                        for entry in entries.flatten() {
+                            let p = entry.path();
+                            if p == staged_dir {
+                                continue;
+                            }
+                            let target =
+                                staged_dir.join(p.file_name().unwrap_or_default());
+                            let _ = std::fs::rename(&p, &target);
+                        }
+                    }
+                    candidates = crate::scanner::local_import::discover_candidates_in(
+                        &staged_dir,
+                        path,
+                        source_type,
+                    );
+                }
+            }
+
+            let outcome = ingest_candidates_list(candidates, library_path);
+            let _ = std::fs::remove_dir_all(&temp);
+            outcome
+        }
+    }
+}
+
+/// Reduce a list of candidates to a single `IngestOutcome`, treating "multiple
+/// candidates" as an aggregate operation. Returns:
+/// - `Imported(dir)` if at least one candidate was newly written
+/// - `Skipped(reason)` if every candidate was a name collision
+/// - `Failed(err)` if every candidate failed for some other reason
+fn ingest_candidates_list(
+    candidates: Vec<crate::scanner::local_import::LocalSkillCandidate>,
+    library_path: &PathBuf,
+) -> Result<IngestOutcome, String> {
+    if candidates.is_empty() {
+        return Ok(IngestOutcome::Failed(
+            "No valid SKILL.md found in source".to_string(),
+        ));
+    }
+
+    let mut last_imported: Option<PathBuf> = None;
+    let mut skipped_names: Vec<String> = Vec::new();
+    let mut errors: Vec<String> = Vec::new();
+
+    for c in candidates {
+        if !c.valid {
+            errors.push(format!(
+                "{}: {}",
+                c.skill_md_path,
+                c.error.unwrap_or_else(|| "invalid".to_string())
+            ));
+            continue;
+        }
+        match crate::scanner::local_import::ingest_candidate(&c, library_path) {
+            Ok(Some(dst)) => {
+                last_imported = Some(dst);
+            }
+            Ok(None) => {
+                skipped_names.push(c.safe_name);
+            }
+            Err(e) => {
+                errors.push(format!("{}: {}", c.safe_name, e));
+            }
+        }
+    }
+
+    if let Some(dst) = last_imported {
+        return Ok(IngestOutcome::Imported(dst));
+    }
+    if !skipped_names.is_empty() {
+        return Ok(IngestOutcome::Skipped(skipped_names.join(", ")));
+    }
+    Ok(IngestOutcome::Failed(errors.join("; ")))
+}
+
 // ========== File Watcher Commands ==========
 
 /// Start file watcher for library directory
@@ -3821,7 +4090,7 @@ pub async fn validate_skill_name_cmd(name: String) -> Result<(), String> {
 ///
 /// On any parse error this returns `Err`. Callers must have already verified the
 /// content has valid frontmatter (via `parse_front_matter`) before calling this.
-fn rewrite_skill_md_name(content: &str, new_name: &str) -> Result<String, String> {
+pub(crate) fn rewrite_skill_md_name(content: &str, new_name: &str) -> Result<String, String> {
     let after_open = content
         .strip_prefix("---\n")
         .or_else(|| content.strip_prefix("---\r\n"))
@@ -3872,7 +4141,7 @@ fn rewrite_skill_md_name(content: &str, new_name: &str) -> Result<String, String
 /// - truncated to 64 characters
 ///
 /// Returns Err if the resulting string is empty (e.g. input was only separators).
-fn sanitize_skill_name(input: &str) -> Result<String, String> {
+pub(crate) fn sanitize_skill_name(input: &str) -> Result<String, String> {
     // Strip path separators outright so traversal sequences can never survive.
     let no_sep: String = input
         .chars()

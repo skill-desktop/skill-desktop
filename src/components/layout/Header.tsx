@@ -55,6 +55,7 @@ export const Header: React.FC = () => {
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="h-7 w-64 pl-8 text-xs"
+              data-action="header-search"
             />
             <Kbd className="absolute right-2.5 top-1/2 -translate-y-1/2">⌘K</Kbd>
           </div>
@@ -97,6 +98,7 @@ export const Header: React.FC = () => {
             onClick={handleRescan}
             disabled={rescanMutation.isPending || !libraryPath}
             title={t("header.rescanLibrary")}
+            data-action="rescan-library"
           >
             {rescanMutation.isPending ? (
               <Loader2 className="h-3.5 w-3.5 animate-spin" />

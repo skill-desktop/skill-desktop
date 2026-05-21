@@ -1,6 +1,6 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
-import { Link, Github, Server, Globe, BookOpen, Loader2, Check, AlertCircle, ExternalLink } from "lucide-react";
+import { Link, Github, Server, Globe, BookOpen, HardDrive, Loader2, Check, AlertCircle, ExternalLink } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -23,6 +23,8 @@ import {
   useFeaturedMcpServers,
   useSearchMcpRegistry,
   useImportMcpRegistryServer,
+  usePreviewLocalSkill,
+  useImportLocalSkillsBatch,
   type McpRegistryEntry,
   type McpRegistry,
 } from "@/hooks";
@@ -33,6 +35,7 @@ import {
   McpImportPanel,
   RegistryImportPanel,
   SkillPreviewPanel,
+  LocalImportPanel,
   type ImportSource,
   type PreviewData,
   type GitHubFileEntry,
@@ -122,7 +125,7 @@ const GITHUB_REPO = {
   branch: "main",
 };
 
-type ExtendedImportSource = ImportSource | "examples";
+type ExtendedImportSource = ImportSource | "examples" | "local";
 
 interface ImportSkillDialogProps {
   open: boolean;
@@ -150,6 +153,16 @@ export function ImportSkillDialog({ open, onOpenChange }: ImportSkillDialogProps
   const [importingIds, setImportingIds] = React.useState<Set<string>>(new Set());
   const [importedIds, setImportedIds] = React.useState<Set<string>>(new Set());
   const [exampleErrors, setExampleErrors] = React.useState<Record<string, string>>({});
+
+  // Local import state
+  const [localImportResult, setLocalImportResult] = React.useState<{
+    imported: number;
+    skipped: number;
+    failed: number;
+  } | null>(null);
+  const [isImportingLocalPreview, setIsImportingLocalPreview] = React.useState(false);
+  const previewLocalMutation = usePreviewLocalSkill();
+  const importLocalBatchMutation = useImportLocalSkillsBatch();
 
   const { libraryPath } = useSettingsStore();
   const previewMutation = usePreviewSkillFromUrl();
@@ -479,6 +492,66 @@ export function ImportSkillDialog({ open, onOpenChange }: ImportSkillDialogProps
     setImportSuccess(false);
   };
 
+  // ===== Local import handlers =====
+
+  const handlePreviewLocal = React.useCallback(
+    async (path: string) => {
+      try {
+        const result = await previewLocalMutation.mutateAsync(path);
+        // Reuse the standard preview panel (right pane).
+        setPreview(result);
+      } catch (e) {
+        console.error("Failed to preview local skill:", e);
+      }
+    },
+    [previewLocalMutation]
+  );
+
+  const handleImportLocalBatch = React.useCallback(
+    async (paths: string[]) => {
+      setLocalImportResult(null);
+      try {
+        const result = await importLocalBatchMutation.mutateAsync(paths);
+        setLocalImportResult({
+          imported: result.imported,
+          skipped: result.skipped,
+          failed: result.errors.length,
+        });
+      } catch (e) {
+        console.error("Local batch import failed:", e);
+        setLocalImportResult({
+          imported: 0,
+          skipped: 0,
+          failed: paths.length,
+        });
+      }
+    },
+    [importLocalBatchMutation]
+  );
+
+  // Import the currently-previewed local skill (right pane "Import to Library" button).
+  // The preview's `sourceUrl` is a `file://` URI we put there in `preview_local_skill`.
+  const handleImportLocalPreview = React.useCallback(async () => {
+    if (!preview) return;
+    const sourceUrl = preview.sourceUrl;
+    if (!sourceUrl.startsWith("file://")) return;
+    const path = decodeURIComponent(sourceUrl.replace(/^file:\/\//, ""));
+
+    setIsImportingLocalPreview(true);
+    try {
+      await importLocalBatchMutation.mutateAsync([path]);
+      setImportSuccess(true);
+      setTimeout(() => {
+        setPreview(null);
+        setImportSuccess(false);
+      }, 1500);
+    } catch (e) {
+      console.error("Failed to import local preview:", e);
+    } finally {
+      setIsImportingLocalPreview(false);
+    }
+  }, [preview, importLocalBatchMutation]);
+
   // Example skills handlers
   const handleImportExample = React.useCallback(async (skill: ExampleSkill) => {
     setImportingIds(prev => new Set(prev).add(skill.id));
@@ -517,6 +590,7 @@ export function ImportSkillDialog({ open, onOpenChange }: ImportSkillDialogProps
   }, [importedIds, importingIds, handleImportExample]);
 
   const sources = [
+    { id: "local", icon: HardDrive, label: t("hub.source.local") },
     { id: "examples", icon: BookOpen, label: t("library.exampleSkills") },
     { id: "url", icon: Link, label: t("hub.source.url") },
     { id: "github", icon: Github, label: t("hub.source.github") },
@@ -562,6 +636,16 @@ export function ImportSkillDialog({ open, onOpenChange }: ImportSkillDialogProps
           <div className="w-[340px] border-r border-border-default flex flex-col bg-bg-primary">
             <ScrollArea className="flex-1">
               <div className="p-4">
+                {importSource === "local" && (
+                  <LocalImportPanel
+                    libraryPath={libraryPath}
+                    onPreviewCandidate={handlePreviewLocal}
+                    onImportSelected={handleImportLocalBatch}
+                    isImporting={importLocalBatchMutation.isPending}
+                    lastImportResult={localImportResult}
+                  />
+                )}
+
                 {importSource === "examples" && (
                   <div className="space-y-4">
                     <div className="flex items-center justify-between">
@@ -742,9 +826,27 @@ export function ImportSkillDialog({ open, onOpenChange }: ImportSkillDialogProps
                 preview={preview}
                 onClearPreview={clearPreview}
                 importSuccess={importSuccess}
-                isImporting={registryPreview ? importRegistryMutation.isPending : importMutation.isPending}
-                importError={registryPreview ? importRegistryMutation.error : importMutation.error}
-                onImport={registryPreview ? handleImportRegistryEntry : handleImport}
+                isImporting={
+                  importSource === "local"
+                    ? isImportingLocalPreview
+                    : registryPreview
+                    ? importRegistryMutation.isPending
+                    : importMutation.isPending
+                }
+                importError={
+                  importSource === "local"
+                    ? importLocalBatchMutation.error
+                    : registryPreview
+                    ? importRegistryMutation.error
+                    : importMutation.error
+                }
+                onImport={
+                  importSource === "local"
+                    ? handleImportLocalPreview
+                    : registryPreview
+                    ? handleImportRegistryEntry
+                    : handleImport
+                }
               />
             ) : (
               <div className="flex flex-col items-center justify-center h-full text-center text-text-muted p-8">

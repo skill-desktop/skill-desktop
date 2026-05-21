@@ -206,7 +206,12 @@ jobs:
       # --- Stamp the tag's version into the three places it lives. Using node
       # (always available on every runner image) keeps this portable; sed
       # required separate Linux/macOS flag handling and silently no-op'd on
-      # malformed input. ---
+      # malformed input.
+      #
+      # The script is idempotent: if a file already matches the tag's version
+      # we simply leave it alone. This matters because contributors may bump
+      # the manifests locally before tagging, so demanding a real diff on
+      # every file would brick those releases. ---
       - name: Sync version from tag
         shell: bash
         env:
@@ -220,6 +225,10 @@ jobs:
 
             const updateJson = (p) => {
               const j = JSON.parse(fs.readFileSync(p, 'utf8'));
+              if (j.version === version) {
+                console.log('Skipped', p, '(already', version + ')');
+                return;
+              }
               j.version = version;
               fs.writeFileSync(p, JSON.stringify(j, null, 2) + '\n');
               console.log('Updated', p, '->', version);
@@ -229,15 +238,17 @@ jobs:
 
             const cargoPath = 'src-tauri/Cargo.toml';
             const cargo = fs.readFileSync(cargoPath, 'utf8');
-            const updated = cargo.replace(
-              /^version\s*=\s*\"[^\"]*\"/m,
-              'version = \"' + version + '\"'
-            );
-            if (cargo === updated) {
-              throw new Error('Failed to update version in ' + cargoPath);
+            const versionRegex = /^version\s*=\s*\"[^\"]*\"/m;
+            if (!versionRegex.test(cargo)) {
+              throw new Error('Could not find version line in ' + cargoPath);
             }
-            fs.writeFileSync(cargoPath, updated);
-            console.log('Updated', cargoPath, '->', version);
+            const updated = cargo.replace(versionRegex, 'version = \"' + version + '\"');
+            if (cargo === updated) {
+              console.log('Skipped', cargoPath, '(already', version + ')');
+            } else {
+              fs.writeFileSync(cargoPath, updated);
+              console.log('Updated', cargoPath, '->', version);
+            }
           "
 
       - name: Install frontend dependencies

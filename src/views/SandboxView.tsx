@@ -83,11 +83,32 @@ export const SandboxView: React.FC = () => {
     setSelectedScript(null);
   };
 
-  // Execute skill script
+  // Execute the selected script. Skills without any scripts can't actually run
+  // here — we surface that as a real validation error rather than fabricating a
+  // "success" result (the old behaviour silently faked a stdout payload, which
+  // made it look like the skill had run when nothing happened).
   const handleExecute = async () => {
     if (!selectedSkill) return;
 
-    // Check for high-risk permissions
+    if (!selectedScript) {
+      setExecutionResult({
+        success: false,
+        stdout: "",
+        stderr: scripts.length === 0
+          ? t(
+              "sandbox.noScriptsError",
+              "This skill has no scripts/ directory, so there is nothing to execute. Add an executable file under scripts/ in the skill to enable running it from the sandbox."
+            )
+          : t(
+              "sandbox.selectScriptError",
+              "Select a script from the Scripts tab to execute."
+            ),
+        exitCode: null,
+        durationMs: 0,
+      });
+      return;
+    }
+
     if (hasHighRiskPermissions && !showConfirmDialog) {
       setShowConfirmDialog(true);
       return;
@@ -96,56 +117,39 @@ export const SandboxView: React.FC = () => {
     setShowConfirmDialog(false);
     setExecutionResult(null);
 
-    // If we have a script selected, execute it
-    if (selectedScript) {
-      try {
-        // Convert params to args format
-        const args = Object.entries(paramValues)
-          .filter(([_, v]) => v.trim())
-          .map(([k, v]) => `--${k}=${v}`);
+    try {
+      const args = Object.entries(paramValues)
+        .filter(([_, v]) => v.trim())
+        .map(([k, v]) => `--${k}=${v}`);
 
-        const result = await executeScriptMutation.mutateAsync({
-          skillHash: selectedSkill.hash,
-          scriptPath: selectedScript,
-          args,
-          envVars: {},
-        });
+      const result = await executeScriptMutation.mutateAsync({
+        skillHash: selectedSkill.hash,
+        scriptPath: selectedScript,
+        args,
+        envVars: {},
+      });
 
-        setExecutionResult(result);
-        setExecutionHistory((prev) => [{
-          skillName: selectedSkill.name,
-          scriptPath: selectedScript,
-          params: { ...paramValues },
-          result,
-          timestamp: new Date().toISOString(),
-        }, ...prev].slice(0, 20));
-      } catch (error) {
-        const errorResult: ExecutionResult = {
-          success: false,
-          stdout: "",
-          stderr: String(error),
-          exitCode: null,
-          durationMs: 0,
-        };
-        setExecutionResult(errorResult);
-      }
-    } else {
-      // Mock execution for skills without scripts
-      const mockResult: ExecutionResult = {
-        success: true,
-        stdout: generateMockOutput(selectedSkill, paramValues),
-        stderr: "",
-        exitCode: 0,
-        durationMs: Math.floor(Math.random() * 500) + 100,
-      };
-
-      setExecutionResult(mockResult);
-      setExecutionHistory((prev) => [{
-        skillName: selectedSkill.name,
-        params: { ...paramValues },
-        result: mockResult,
-        timestamp: new Date().toISOString(),
-      }, ...prev].slice(0, 20));
+      setExecutionResult(result);
+      setExecutionHistory((prev) =>
+        [
+          {
+            skillName: selectedSkill.name,
+            scriptPath: selectedScript,
+            params: { ...paramValues },
+            result,
+            timestamp: new Date().toISOString(),
+          },
+          ...prev,
+        ].slice(0, 20)
+      );
+    } catch (error) {
+      setExecutionResult({
+        success: false,
+        stdout: "",
+        stderr: error instanceof Error ? error.message : String(error),
+        exitCode: null,
+        durationMs: 0,
+      });
     }
   };
 
@@ -163,12 +167,16 @@ export const SandboxView: React.FC = () => {
   };
 
   // Validate required parameters
+  // Form is "valid" when every required parameter has a value AND a script is
+  // actually selected. Without a script there is nothing to execute, so we
+  // disable the button rather than fake a result.
   const isValid = React.useMemo(() => {
     if (!selectedSkill) return false;
+    if (!selectedScript) return false;
     return selectedSkill.parameters
       .filter((p) => p.required)
       .every((p) => paramValues[p.name]?.trim());
-  }, [selectedSkill, paramValues]);
+  }, [selectedSkill, selectedScript, paramValues]);
 
   const isExecuting = executeScriptMutation.isPending;
 
@@ -541,23 +549,3 @@ const ParameterInput: React.FC<ParameterInputProps> = ({ param, value, onChange 
     </div>
   );
 };
-
-// Generate mock output based on skill and parameters (fallback for skills without scripts)
-function generateMockOutput(skill: Skill, params: Record<string, string>): string {
-  const output = {
-    skill: skill.name,
-    version: skill.version,
-    parameters: params,
-    result: {
-      status: "success",
-      message: `Skill "${skill.name}" simulated successfully with ${Object.keys(params).length} parameters.`,
-      note: "This is a mock execution. Add scripts to the skill's scripts/ directory to enable real execution.",
-      data: {
-        timestamp: new Date().toISOString(),
-        executionId: Math.random().toString(36).substring(7),
-      },
-    },
-  };
-
-  return JSON.stringify(output, null, 2);
-}

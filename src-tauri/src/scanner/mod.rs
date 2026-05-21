@@ -7,6 +7,7 @@ use crate::types::{Skill, SkillMetadata, SkillResource, SkillResources};
 
 pub mod watcher;
 pub mod risk_analyzer;
+pub mod local_import;
 
 pub use watcher::FileWatcher;
 pub use risk_analyzer::{analyze_file, analyze_content, RiskLevel};

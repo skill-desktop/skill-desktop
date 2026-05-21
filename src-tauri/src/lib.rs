@@ -138,6 +138,11 @@ pub fn run() {
             commands::preview_github_skill,
             commands::import_github_skill,
             commands::import_github_directory,
+            // Local import commands (folder, .zip, .skill, loose .md)
+            commands::preview_local_skill,
+            commands::import_local_skill,
+            commands::import_local_skills_batch,
+            commands::scan_directory_for_skills,
             // File watcher commands
             commands::start_file_watcher,
             commands::stop_file_watcher,

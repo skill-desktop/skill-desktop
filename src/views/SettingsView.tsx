@@ -37,8 +37,9 @@ import {
 import type { SupportedLanguage } from "@/i18n";
 import { LLMSettingsPanel, CLISettingsPanel } from "@/components/settings";
 
-const DOCUMENTATION_URL = "https://github.com/anthropics/skill-desktop#readme";
-const REPORT_ISSUE_URL = "https://github.com/anthropics/skill-desktop/issues/new";
+const DOCUMENTATION_URL = "https://github.com/skill-desktop/skill-desktop#readme";
+const REPORT_ISSUE_URL = "https://github.com/skill-desktop/skill-desktop/issues/new";
+const RELEASES_URL = "https://github.com/skill-desktop/skill-desktop/releases";
 
 async function openUrl(url: string): Promise<void> {
   try {
@@ -168,7 +169,7 @@ export const SettingsView: React.FC = () => {
   };
 
   const handleCheckUpdates = async () => {
-    await openUrl("https://github.com/anthropics/skill-desktop/releases");
+    await openUrl(RELEASES_URL);
   };
 
   const renderContent = () => {
@@ -312,7 +313,8 @@ export const SettingsView: React.FC = () => {
           <Section title={t("settings.about.title")} titleSize="lg">
             <div className="space-y-2 text-sm">
               <p className="text-text-primary">
-                {t("app.name")} <span className="text-text-muted">v0.1.0</span>
+                {t("app.name")}{" "}
+                <span className="font-mono text-text-muted">v{__APP_VERSION__}</span>
               </p>
               <p className="text-text-secondary">{t("app.description")}</p>
             </div>

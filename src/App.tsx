@@ -101,12 +101,15 @@ function AppContent() {
   // Global keyboard shortcuts
   React.useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // ⌘K or Ctrl+K - Focus search
+      // ⌘K or Ctrl+K - Focus the global search input. We target the input by
+      // data-attribute (rather than by type or i18n'd label) so it keeps
+      // working in every locale and even when other text inputs are mounted.
       if ((e.metaKey || e.ctrlKey) && e.key === "k") {
-        e.preventDefault();
-        // Focus the search input in the header
-        const searchInput = document.querySelector('input[type="text"]') as HTMLInputElement;
+        const searchInput = document.querySelector(
+          '[data-action="header-search"]'
+        ) as HTMLInputElement | null;
         if (searchInput) {
+          e.preventDefault();
           searchInput.focus();
           searchInput.select();
         }
@@ -118,12 +121,15 @@ function AppContent() {
         setCurrentView("settings");
       }
 
-      // ⌘R or Ctrl+R - Refresh (only in library view)
+      // ⌘R or Ctrl+R - Refresh (only in library view). Match by data-attribute
+      // so non-English locales still trigger the rescan instead of falling back
+      // to the browser's default reload behaviour.
       if ((e.metaKey || e.ctrlKey) && e.key === "r" && currentView === "library") {
-        e.preventDefault();
-        // Trigger refresh button click
-        const refreshButton = document.querySelector('button[title="Rescan library"]') as HTMLButtonElement;
+        const refreshButton = document.querySelector(
+          'button[data-action="rescan-library"]'
+        ) as HTMLButtonElement | null;
         if (refreshButton && !refreshButton.disabled) {
+          e.preventDefault();
           refreshButton.click();
         }
       }
