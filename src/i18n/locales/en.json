@@ -321,7 +321,7 @@
     "scanFolder": "Scan folder",
     "clearAll": "Clear all",
     "importSelected": "Import {{count}} selected",
-    "candidates": "Found {{count}} candidates",
+    "candidatesCount": "{{valid}} valid of {{total}} candidates",
     "dropZone": {
       "title": "Drop folders or skill files here",
       "subtitle": "Folders, .zip / .skill archives, or loose SKILL.md files"

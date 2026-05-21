@@ -321,7 +321,7 @@
     "scanFolder": "扫描文件夹",
     "clearAll": "全部清除",
     "importSelected": "导入选中的 {{count}} 项",
-    "candidates": "已发现 {{count}} 个候选",
+    "candidatesCount": "{{valid}} 个有效 / 共 {{total}} 个候选",
     "dropZone": {
       "title": "拖放文件夹或技能文件到此处",
       "subtitle": "支持文件夹、.zip / .skill 压缩包或 SKILL.md 文件"

@@ -134,7 +134,7 @@ interface ImportSkillDialogProps {
 
 export function ImportSkillDialog({ open, onOpenChange }: ImportSkillDialogProps) {
   const { t } = useTranslation();
-  const [importSource, setImportSource] = React.useState<ExtendedImportSource>("examples");
+  const [importSource, setImportSource] = React.useState<ExtendedImportSource>("local");
   const [url, setUrl] = React.useState("");
   const [preview, setPreview] = React.useState<PreviewData | null>(null);
   const [importSuccess, setImportSuccess] = React.useState(false);
