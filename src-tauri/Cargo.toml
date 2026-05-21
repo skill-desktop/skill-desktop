@@ -1,6 +1,6 @@
 [package]
 name = "skill-desktop"
-version = "0.4.2"
+version = "0.4.3"
 description = "Agent Skill management infrastructure for developers"
 authors = ["wzy"]
 edition = "2021"
