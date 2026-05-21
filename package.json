@@ -1,7 +1,7 @@
 {
   "name": "skill-desktop",
   "private": true,
-  "version": "0.4.3",
+  "version": "0.5.0",
   "pnpm": {
     "ignoredBuiltDependencies": [
       "esbuild"
