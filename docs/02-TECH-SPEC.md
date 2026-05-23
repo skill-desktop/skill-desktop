@@ -1183,7 +1183,7 @@ pnpm tauri build
 
 应用需要访问以下目录：
 - `$APP/data/` - 数据库文件
-- `$HOME/SkillLibrary/` - 默认 Library 目录
+- `$HOME/.skill_desktop/` - 默认 Library 目录（Skill Desktop 拥有的中央存储位置）
 - 用户自定义的 Library 目录
 - Space 的 Active 目录
 

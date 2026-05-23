@@ -60,14 +60,23 @@
 
 ## 特性
 
-### 技能库管理器
-所有技能的中央枢纽。自动扫描目录、索引元数据，保持一切同步。
+### 技能库管理器 — 一个中央技能库
+所有技能集中存放在 Skill Desktop 拥有并维护的固定位置（默认 `~/.skill_desktop/`）。
 
+- **多级目录树** - 支持嵌套文件夹、一键展开/折叠、右键在 Finder 中显示
 - **自动发现** - 指定一个文件夹，剩下的交给我们
 - **实时同步** - 文件变更即时检测
 - **智能搜索** - 按名称、标签或权限查找技能
 - **完整 Agent Skills 支持** - SKILL.md 以及 scripts、references、assets 目录
 - **风险分析** - 自动代码扫描，识别潜在安全风险
+
+### AI 工具同步 — 一个技能库，所有 AI 工具
+把中央技能库里的任意技能，同步到各 AI 工具实际读取的目录。
+
+- **自动检测已安装工具** - Claude Code、Cursor、Codex、Gemini CLI、OpenCode、Windsurf 以及跨工具的 `~/.agents/skills/` 标准
+- **按技能、按工具独立控制** - 每个技能可独立 install / uninstall 到任意工具，状态徽章一目了然
+- **软链接而非拷贝** - 唯一真相在 `~/.skill_desktop/`，各工具看到的是实时软链接
+- **批量安装/移除** - 一键将技能推送到所有已激活的工具，或一键全部回收
 
 ### 技能创建器
 使用引导式向导创建符合 Agent Skills 标准的新技能。
@@ -82,15 +91,20 @@
 
 - **一键切换** - 在不同上下文之间即时跳转
 - **软链接魔法** - 技能是链接的，不是复制的
-- **导出配置** - 生成 `claude_desktop_config.json` 和 MCP 配置
+- **按空间可见性** - 只展示当前项目需要的技能
 
 ### 技能中心
 从社区发现和导入技能。
 
-- **URL 导入** - 粘贴链接，预览代码，放心导入
+- **URL / 本地导入** - 粘贴链接、拖入文件夹/zip，预览后放心导入
 - **GitHub 集成** - 直接从仓库导入（包括 [anthropics/skills](https://github.com/anthropics/skills)）
-- **MCP 注册表** - 浏览并从 Glama、MCP.so、MCPServers.org 和 Smithery 导入
+- **MCP 注册表** - 浏览并从 Glama、MCP.so、MCPServers.org 和 Smithery 导入，还可将 MCP 工具转换为技能
 - **安全优先** - 导入前审查权限和风险分析
+
+### 引导与体验
+- **首次运行向导** - 自动指向 `~/.skill_desktop/`，检测本机 AI 工具，未安装的提供官方安装链接
+- **⌘K 命令面板 + ⌘1-6 视图切换** - 按 `?` 随时打开快捷键速查表
+- **多语言** - English & 简体中文
 
 ### 内置安全
 每个技能都声明其权限。你始终掌控一切。
@@ -132,11 +146,11 @@ chmod +x Skill-Desktop.AppImage
 
 ## 快速开始
 
-1. **设置技能库路径** - 选择你的技能存放位置
-2. **创建技能** - 使用向导创建你的第一个技能
-3. **创建工作空间** - 以你的项目或 Agent 命名
-4. **切换技能** - 为每个空间启用/禁用技能
-5. **导出配置** - 为 Claude、GPT 或自定义 Agent 生成配置
+1. **打开应用** - 首次启动时 Skill Desktop 会创建 `~/.skill_desktop/` 作为中央技能库
+2. **创建或导入技能** - 用向导、粘贴 URL、拖入文件夹，或浏览技能中心
+3. **同步到你的 AI 工具** - 选择本机检测到的工具（Claude Code / Cursor / Codex / Gemini CLI / OpenCode / Windsurf），一键同步
+4. **创建工作空间**（可选）- 按项目/Agent 精选可见的技能
+5. **改一次，处处生效** - 文件在 `~/.skill_desktop/`，软链接保持所有 AI 工具实时同步
 
 ## Agent Skills 标准
 
@@ -147,26 +161,29 @@ Skill Desktop 遵循 Anthropic 创建的 [Agent Skills](https://agentskills.io) 
 技能以目录形式组织，包含 `SKILL.md` 文件和可选的资源文件夹：
 
 ```
-~/SkillLibrary/
+~/.skill_desktop/                  # Skill Desktop 的中央技能库（默认）
 ├── web-search/
-│   ├── SKILL.md              # 主技能文件（必需）
-│   ├── LICENSE.txt           # 许可证文件（可选）
-│   ├── scripts/              # 可执行代码（可选）
+│   ├── SKILL.md                   # 主技能文件（必需）
+│   ├── LICENSE.txt                # 许可证文件（可选）
+│   ├── scripts/                   # 可执行代码（可选）
 │   │   ├── search.py
 │   │   └── parse_results.py
-│   ├── references/           # 文档（可选）
+│   ├── references/                # 文档（可选）
 │   │   └── api_docs.md
-│   └── assets/               # 模板、图片等（可选）
+│   └── assets/                    # 模板、图片等（可选）
 │       └── template.html
-├── code-executor/
-│   ├── SKILL.md
-│   └── scripts/
-│       └── sandbox.py
+├── research/                      # 完全支持嵌套目录
+│   ├── deep-research/
+│   │   └── SKILL.md
+│   └── citation-checker/
+│       └── SKILL.md
 └── data-analyzer/
     ├── SKILL.md
     └── references/
         └── schema.md
 ```
+
+从这个唯一的真相源出发，Skill Desktop 会向每个 AI 工具自己的技能目录创建软链接（如 `~/.claude/skills/`、`~/.cursor/skills/`、`~/.codex/skills/`、`~/.gemini/skills/`、`~/.agents/skills/`）。
 
 ### 资源目录
 
@@ -264,16 +281,19 @@ pnpm tauri build
 
 ## 路线图
 
-- [x] 核心技能库管理
-- [x] 工作空间
-- [x] 基础 UI 框架
-- [x] URL 导入
+- [x] 核心技能库管理（多级目录树）
+- [x] 工作空间（按技能可见性）
+- [x] 首次运行引导向导
+- [x] URL / 本地文件 / 本地文件夹导入
 - [x] GitHub 集成（支持完整目录导入）
-- [x] MCP 注册表支持（Glama、MCP.so、MCPServers.org、Smithery）
+- [x] MCP 注册表支持（Glama、MCP.so、MCPServers.org、Smithery）— 可将 MCP 工具转为技能
 - [x] 风险分析
 - [x] Agent Skills 标准支持（SKILL.md、scripts、references、assets）
 - [x] 技能创建向导
-- [ ] 调试沙箱
+- [x] 自动检测已安装 AI 工具（Claude Code、Cursor、Codex、Gemini CLI、OpenCode、Windsurf）
+- [x] 按工具的 install / uninstall（软链接方式）
+- [x] ⌘K 命令面板与全局快捷键
+- [ ] 调试沙箱 UI
 - [ ] 云端同步（可选）
 - [ ] VS Code 扩展
 

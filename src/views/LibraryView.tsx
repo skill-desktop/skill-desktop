@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import { Trash2, X, Loader2, Shield, ShieldAlert, Filter, Folder, FolderPlus, Download, Plus, Import, ArrowUpDown, ArrowUp, ArrowDown, Share2 } from "lucide-react";
 import { invoke } from "@tauri-apps/api/core";
 import { useAppStore, useSettingsStore } from "@/stores";
-import { useSkills, useSearchSkills, useDeleteSkillsBatch, useQuarantinedSkills, useSetSkillQuarantine, useSpaces, useSetBulkSkillVisibility, useExportSkillsBatch, useExportSkillsBatchJson, useSetSkillCategory, useDetectAiTools, useInstallSkillToTool, type InstallTargetKind } from "@/hooks";
+import { useSkills, useSearchSkills, useDeleteSkillsBatch, useQuarantinedSkills, useSetSkillQuarantine, useSpaces, useSetBulkSkillVisibility, useExportSkillsBatch, useExportSkillsBatchJson, useDetectAiTools, useInstallSkillToTool, type InstallTargetKind } from "@/hooks";
 import { toast } from "@/components/ui";
 import { SkillList, SkillDetail, CreateSkillDialog, ImportSkillDialog } from "@/components/library";
 import { WorkspaceSwitcher } from "@/components/spaces";
@@ -22,7 +22,6 @@ import {
   DropdownMenuTrigger,
   DropdownMenuContent,
   DropdownMenuItem,
-  Input,
   ConfirmDialog,
   EmptyState,
   Separator,
@@ -49,11 +48,6 @@ export const LibraryView: React.FC = () => {
   const [showAddToSpaceDialog, setShowAddToSpaceDialog] = React.useState(false);
   const [showCreateSkillDialog, setShowCreateSkillDialog] = React.useState(false);
   const [showImportSkillDialog, setShowImportSkillDialog] = React.useState(false);
-  
-  // Category state
-  const [showNewCategoryDialog, setShowNewCategoryDialog] = React.useState(false);
-  const [newCategoryName, setNewCategoryName] = React.useState("");
-  const [pendingSkillHash, setPendingSkillHash] = React.useState<string | null>(null);
 
   // Fetch skills from backend
   const { data: allSkills = [], isLoading, error } = useSkills();
@@ -65,7 +59,6 @@ export const LibraryView: React.FC = () => {
   const exportBatchMutation = useExportSkillsBatch();
   const exportBatchJsonMutation = useExportSkillsBatchJson();
   const [showExportDialog, setShowExportDialog] = React.useState(false);
-  const setSkillCategoryMutation = useSetSkillCategory();
   const { data: detectedTools = [] } = useDetectAiTools();
   const installMutation = useInstallSkillToTool();
   const [showInstallDialog, setShowInstallDialog] = React.useState(false);
@@ -223,9 +216,9 @@ export const LibraryView: React.FC = () => {
       // Use custom Tauri command for file save with dialog
       await invoke<string | null>("save_file_with_dialog", {
         content,
-        defaultName: `skills-export-${new Date().toISOString().split("T")[0]}.md`,
-        filterName: "Markdown",
-        filterExtensions: ["md"],
+        default_name: `skills-export-${new Date().toISOString().split("T")[0]}.md`,
+        filter_name: "Markdown",
+        filter_extensions: ["md"],
       });
       
       setShowExportDialog(false);
@@ -245,9 +238,9 @@ export const LibraryView: React.FC = () => {
       // Use custom Tauri command for file save with dialog
       await invoke<string | null>("save_file_with_dialog", {
         content,
-        defaultName: `skills-export-${new Date().toISOString().split("T")[0]}.json`,
-        filterName: "JSON",
-        filterExtensions: ["json"],
+        default_name: `skills-export-${new Date().toISOString().split("T")[0]}.json`,
+        filter_name: "JSON",
+        filter_extensions: ["json"],
       });
       
       setShowExportDialog(false);
@@ -296,39 +289,6 @@ export const LibraryView: React.FC = () => {
       toast.error(t("library.batchInstall.allFailed", { tool: label }));
     }
   };
-
-  // Category handlers
-  const handleMoveToCategory = async (skillHash: string, category: string) => {
-    try {
-      await setSkillCategoryMutation.mutateAsync({ hash: skillHash, category });
-    } catch (error) {
-      console.error("Failed to move skill to category:", error);
-    }
-  };
-
-  const handleCreateCategory = async () => {
-    if (!newCategoryName.trim()) return;
-    
-    // If there's a pending skill to move, move it to the new category
-    if (pendingSkillHash) {
-      try {
-        await setSkillCategoryMutation.mutateAsync({ hash: pendingSkillHash, category: newCategoryName.trim() });
-      } catch (error) {
-        console.error("Failed to move skill to new category:", error);
-      }
-    }
-    
-    setShowNewCategoryDialog(false);
-    setNewCategoryName("");
-    setPendingSkillHash(null);
-  };
-
-  // Handler for opening new category dialog with a pending skill
-  const handleAddCategoryWithSkill = (skillHash?: string) => {
-    setPendingSkillHash(skillHash || null);
-    setShowNewCategoryDialog(true);
-  };
-
 
   if (!libraryPath) {
     return (
@@ -556,15 +516,13 @@ export const LibraryView: React.FC = () => {
         <div className="flex flex-1 overflow-hidden">
           {/* Skill list */}
           <div className="flex-1 overflow-hidden">
-            <SkillList 
-              skills={skills} 
+            <SkillList
+              skills={skills}
               selectionMode={selectionMode}
               selectedHashes={selectedHashes}
               onToggleSelection={toggleSelection}
               onEnterSelectionMode={() => setSelectionMode(true)}
               quarantinedHashes={quarantinedSet}
-              onMoveToCategory={handleMoveToCategory}
-              onAddCategory={handleAddCategoryWithSkill}
             />
           </div>
 
@@ -775,37 +733,6 @@ export const LibraryView: React.FC = () => {
               disabled={isBatchInstalling}
             >
               {t("common.cancel")}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Create Category Dialog */}
-      <Dialog open={showNewCategoryDialog} onOpenChange={setShowNewCategoryDialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>{t("library.newCategory")}</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <label className="text-sm font-medium">{t("library.categoryName")}</label>
-              <Input
-                value={newCategoryName}
-                onChange={(e) => setNewCategoryName(e.target.value)}
-                placeholder="My Category"
-                autoFocus
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") handleCreateCategory();
-                }}
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="secondary" onClick={() => setShowNewCategoryDialog(false)}>
-              {t("common.cancel")}
-            </Button>
-            <Button onClick={handleCreateCategory} disabled={!newCategoryName.trim()}>
-              {t("common.create")}
             </Button>
           </DialogFooter>
         </DialogContent>

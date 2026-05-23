@@ -459,8 +459,10 @@ async function openExternalUrl(url: string): Promise<void> {
 const StepTools: React.FC<StepToolsProps> = ({ detected, selected, onToggle }) => {
   const { t } = useTranslation();
 
-  // Hide the cross-tool "Agent Skills standard" entry here — when the user
-  // sets library path to ~/.agents/skills/ the standard is already covered.
+  // Hide the cross-tool "Agent Skills standard" entry here — the user picks
+  // concrete AI tools (Claude / Cursor / Codex / Gemini) to install into; the
+  // cross-tool ~/.agents/skills/ target is reachable later from the
+  // InstallSkillDialog and the SkillCard install badges.
   const tools = detected.filter((d) => d.kind !== "agents");
   const installedTools = tools.filter((d) => d.exists);
   const noToolsDetected = installedTools.length === 0;

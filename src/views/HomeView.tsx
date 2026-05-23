@@ -419,7 +419,11 @@ export const HomeView: React.FC = () => {
 
   return (
     <ScrollArea className="h-full">
-      <div className="mx-auto max-w-5xl space-y-10 px-8 py-10">
+      {/* `min-w-0` is critical here: the outer ScrollArea is a flex child and
+          without it grid/flex children inside can grow past the container,
+          pushing the entire view into horizontal overflow when a single skill
+          has a very long description / source URL. */}
+      <div className="mx-auto min-w-0 max-w-5xl space-y-10 px-8 py-10">
         {/* Hero */}
         <header className="space-y-3">
           <h1 className="text-3xl font-semibold tracking-tight text-text-primary">
@@ -432,7 +436,7 @@ export const HomeView: React.FC = () => {
 
         {/* Quick action grid */}
         <Section title={t("home.quickActions")} titleSize="sm">
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-4">
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-[repeat(2,minmax(0,1fr))] lg:grid-cols-[repeat(4,minmax(0,1fr))]">
             <QuickActionCard
               icon={<UploadCloud className="h-5 w-5" />}
               title={t("home.actions.importLocal")}
@@ -587,14 +591,14 @@ export const HomeView: React.FC = () => {
                   return (
                     <div
                       key={u.skillHash}
-                      className="flex items-center gap-3 rounded-lg bg-bg-secondary px-3 py-2"
+                      className="flex min-w-0 items-center gap-3 rounded-lg bg-bg-secondary px-3 py-2"
                     >
                       <Layers className="h-4 w-4 shrink-0 text-text-muted" />
                       <div className="min-w-0 flex-1">
                         <div className="truncate text-sm font-medium text-text-primary">
                           {u.skillName}
                         </div>
-                        <div className="truncate text-[10px] text-text-muted">
+                        <div className="truncate text-[10px] text-text-muted" title={u.sourceUrl}>
                           {u.sourceUrl}
                         </div>
                       </div>
@@ -618,14 +622,15 @@ export const HomeView: React.FC = () => {
           </div>
         )}
 
-        {/* Detected AI tools */}
+        {/* Detected AI tools. `minmax(0, 1fr)` keeps long install paths from
+            pushing the page into horizontal overflow on narrow windows. */}
         {detected.length > 0 && (
           <Section
             title={t("home.detectedTools.title")}
             description={t("home.detectedTools.subtitle")}
             titleSize="sm"
           >
-            <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
+            <div className="grid grid-cols-1 gap-2 md:grid-cols-[repeat(2,minmax(0,1fr))]">
               {detected.map((tool) => (
                 <DetectedToolCard
                   key={tool.kind}
@@ -637,10 +642,14 @@ export const HomeView: React.FC = () => {
           </Section>
         )}
 
-        {/* Library card + Recent skills, two-column on wide screens */}
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_1.6fr]">
+        {/* Library card + Recent skills, two-column on wide screens.
+            `minmax(0, *fr)` (instead of plain `1fr`) tells grid that columns
+            may shrink to zero; without it, an unusually long string inside a
+            child can blow the column past its fr share and force horizontal
+            page scroll. */}
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.6fr)]">
           {/* Library summary */}
-          <Section title={t("home.library.title")} titleSize="sm">
+          <Section title={t("home.library.title")} titleSize="sm" className="min-w-0">
             <div className="rounded-2xl border border-border-default bg-bg-secondary p-5">
               <div className="flex items-center gap-3">
                 <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-accent-blue/10 text-accent-blue">
@@ -708,6 +717,7 @@ export const HomeView: React.FC = () => {
           <Section
             title={t("home.recentSkills.title")}
             titleSize="sm"
+            className="min-w-0"
             actions={
               skills.length > 0 ? (
                 <Button

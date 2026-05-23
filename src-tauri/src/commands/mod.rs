@@ -27,9 +27,10 @@ pub struct DefaultPaths {
 
 /// Default paths shown in the UI ("Use Default" button).
 ///
-/// Skill library defaults to ~/.agents/skills/ (the cross-tool Agent Skills convention),
-/// falling back to the sandboxed app data directory only if $HOME is unavailable.
-#[tauri::command]
+/// Skill library defaults to ~/.skill_desktop/ — a Skill Desktop-owned storage location,
+/// distinct from the cross-tool ~/.agents/skills/ directory so the two never collide.
+/// Falls back to the sandboxed app data directory only if $HOME is unavailable.
+#[tauri::command(rename_all = "snake_case")]
 pub fn get_default_paths(app_handle: AppHandle) -> Result<DefaultPaths, String> {
     let app_data_dir = app_handle
         .path()
@@ -40,7 +41,7 @@ pub fn get_default_paths(app_handle: AppHandle) -> Result<DefaultPaths, String> 
     let config_path = app_data_dir.join("config");
 
     let skill_path = dirs::home_dir()
-        .map(|h| h.join(".agents").join("skills"))
+        .map(|h| h.join(".skill_desktop"))
         .unwrap_or_else(|| data_path.join("skills"));
 
     let os_name = if cfg!(target_os = "windows") {
@@ -62,8 +63,8 @@ pub fn get_default_paths(app_handle: AppHandle) -> Result<DefaultPaths, String> 
 }
 
 /// Ensure the default skill directory exists and return the path.
-/// Uses the same default resolution as `get_default_paths` (prefers ~/.agents/skills/).
-#[tauri::command]
+/// Uses the same default resolution as `get_default_paths` (prefers ~/.skill_desktop/).
+#[tauri::command(rename_all = "snake_case")]
 pub fn ensure_default_skill_path(app_handle: AppHandle) -> Result<String, String> {
     let paths = get_default_paths(app_handle)?;
     let skill_path = PathBuf::from(&paths.skill_library_path);
@@ -83,7 +84,7 @@ pub struct LibraryState {
 
 /// Get all skills from the library directory
 /// Scans for skill directories containing SKILL.md files
-#[tauri::command]
+#[tauri::command(rename_all = "snake_case")]
 pub async fn get_all_skills(
     library_state: State<'_, LibraryState>,
     db_state: State<'_, DatabaseState>,
@@ -115,7 +116,7 @@ pub async fn get_all_skills(
 
 /// Set skill category. Persists both legacy `skill_hash` and the stable `skill_id`
 /// so the assignment survives future SKILL.md edits.
-#[tauri::command]
+#[tauri::command(rename_all = "snake_case")]
 pub async fn set_skill_category(
     hash: String,
     category: String,
@@ -128,7 +129,7 @@ pub async fn set_skill_category(
 }
 
 /// Search skills by query
-#[tauri::command]
+#[tauri::command(rename_all = "snake_case")]
 pub async fn search_skills(
     query: String,
     library_state: State<'_, LibraryState>,
@@ -151,7 +152,7 @@ pub async fn search_skills(
 }
 
 /// Get skill content by hash
-#[tauri::command]
+#[tauri::command(rename_all = "snake_case")]
 pub async fn get_skill_content(
     hash: String,
     library_state: State<'_, LibraryState>,
@@ -168,7 +169,7 @@ pub async fn get_skill_content(
 }
 
 /// Set library path
-#[tauri::command]
+#[tauri::command(rename_all = "snake_case")]
 pub async fn set_library_path(
     path: String,
     library_state: State<'_, LibraryState>,
@@ -204,7 +205,7 @@ pub async fn set_library_path(
 }
 
 /// Get current library path
-#[tauri::command]
+#[tauri::command(rename_all = "snake_case")]
 pub async fn get_library_path(library_state: State<'_, LibraryState>) -> Result<String, String> {
     let guard = library_state.path.lock().map_err(|e| e.to_string())?;
     Ok(guard
@@ -214,7 +215,7 @@ pub async fn get_library_path(library_state: State<'_, LibraryState>) -> Result<
 }
 
 /// Rescan library directory
-#[tauri::command]
+#[tauri::command(rename_all = "snake_case")]
 pub async fn rescan_library(
     library_state: State<'_, LibraryState>,
     db_state: State<'_, DatabaseState>,
@@ -266,14 +267,14 @@ fn chrono_now() -> String {
 }
 
 /// Get all spaces
-#[tauri::command]
+#[tauri::command(rename_all = "snake_case")]
 pub async fn get_all_spaces(spaces_state: State<'_, SpacesState>) -> Result<Vec<Space>, String> {
     let guard = spaces_state.spaces.lock().map_err(|e| e.to_string())?;
     Ok(guard.clone())
 }
 
 /// Create a new space
-#[tauri::command]
+#[tauri::command(rename_all = "snake_case")]
 pub async fn create_space(
     name: String,
     active_dir: String,
@@ -311,7 +312,7 @@ pub async fn create_space(
 }
 
 /// Update an existing space
-#[tauri::command]
+#[tauri::command(rename_all = "snake_case")]
 pub async fn update_space(
     id: String,
     name: Option<String>,
@@ -365,7 +366,7 @@ pub async fn update_space(
 }
 
 /// Delete a space
-#[tauri::command]
+#[tauri::command(rename_all = "snake_case")]
 pub async fn delete_space(
     id: String,
     spaces_state: State<'_, SpacesState>,
@@ -396,7 +397,7 @@ pub async fn delete_space(
 }
 
 /// Get a single space by ID
-#[tauri::command]
+#[tauri::command(rename_all = "snake_case")]
 pub async fn get_space(
     id: String,
     spaces_state: State<'_, SpacesState>,
@@ -410,7 +411,7 @@ pub async fn get_space(
 }
 
 /// Sync space symlinks
-#[tauri::command]
+#[tauri::command(rename_all = "snake_case")]
 pub async fn sync_space(
     library_path: String,
     active_path: String,
@@ -428,7 +429,7 @@ pub async fn sync_space(
 /// Also cleans up any installation records pointing at this skill so the database
 /// doesn't end up with orphan rows (and any dangling symlinks in AI tool directories
 /// are removed best-effort).
-#[tauri::command]
+#[tauri::command(rename_all = "snake_case")]
 pub async fn delete_skill(
     hash: String,
     library_state: State<'_, LibraryState>,
@@ -453,7 +454,7 @@ pub async fn delete_skill(
 }
 
 /// Delete multiple skills, each as the entire skill directory.
-#[tauri::command]
+#[tauri::command(rename_all = "snake_case")]
 pub async fn delete_skills_batch(
     hashes: Vec<String>,
     library_state: State<'_, LibraryState>,
@@ -573,7 +574,7 @@ impl Default for QuarantineState {
 /// Set quarantine status for a skill.
 /// Persists both `skill_hash` (legacy) and `skill_id` (stable) so the setting survives
 /// future edits to SKILL.md.
-#[tauri::command]
+#[tauri::command(rename_all = "snake_case")]
 pub async fn set_skill_quarantine(
     hash: String,
     is_quarantined: bool,
@@ -598,7 +599,7 @@ pub async fn set_skill_quarantine(
 /// Get the set of quarantined skill hashes for the current library.
 /// Includes both legacy `skill_hash` entries and entries that have been migrated to
 /// `skill_id` (we resolve `skill_id` back to the current hash via the library scan).
-#[tauri::command]
+#[tauri::command(rename_all = "snake_case")]
 pub async fn get_quarantined_skills(
     library_state: State<'_, LibraryState>,
     quarantine_state: State<'_, QuarantineState>,
@@ -650,7 +651,7 @@ fn resolve_skill_id_from_hash(
 }
 
 /// Show file in system file manager (Finder on macOS)
-#[tauri::command]
+#[tauri::command(rename_all = "snake_case")]
 pub async fn show_in_folder(path: String) -> Result<(), String> {
     let path = PathBuf::from(&path);
 
@@ -689,7 +690,7 @@ pub async fn show_in_folder(path: String) -> Result<(), String> {
 }
 
 /// Open a file with the default application
-#[tauri::command]
+#[tauri::command(rename_all = "snake_case")]
 pub async fn open_file(path: String) -> Result<(), String> {
     let path = PathBuf::from(&path);
 
@@ -725,7 +726,7 @@ pub async fn open_file(path: String) -> Result<(), String> {
 }
 
 /// Preview skill from URL (fetch and parse without saving)
-#[tauri::command]
+#[tauri::command(rename_all = "snake_case")]
 pub async fn preview_skill_from_url(url: String) -> Result<SkillPreview, String> {
     // Fetch content from URL
     let response = reqwest::get(&url)
@@ -791,7 +792,7 @@ fn analyze_content_risk(content: &str, extension: Option<&str>) -> Option<crate:
 
 /// Import skill from URL to library
 /// Creates a skill directory with SKILL.md file
-#[tauri::command]
+#[tauri::command(rename_all = "snake_case")]
 pub async fn import_skill_from_url(
     url: String,
     library_state: State<'_, LibraryState>,
@@ -855,7 +856,7 @@ pub async fn import_skill_from_url(
 /// because `skillId` would require a metadata round-trip and would still need
 /// the on-disk path; the hash uniquely points at a directory via the
 /// scanner's normal indexing. Returns the freshly-scanned Skill on success.
-#[tauri::command]
+#[tauri::command(rename_all = "snake_case")]
 pub async fn update_skill_from_url(
     current_hash: String,
     source_url: String,
@@ -943,7 +944,7 @@ pub struct SkillPreview {
 }
 
 /// Export configuration for Claude Desktop
-#[tauri::command]
+#[tauri::command(rename_all = "snake_case")]
 pub async fn export_claude_config(
     space_id: String,
     library_state: State<'_, LibraryState>,
@@ -1025,7 +1026,7 @@ pub async fn export_claude_config(
 }
 
 /// Export configuration as generic JSON
-#[tauri::command]
+#[tauri::command(rename_all = "snake_case")]
 pub async fn export_generic_config(
     space_id: String,
     library_state: State<'_, LibraryState>,
@@ -1075,7 +1076,7 @@ pub async fn export_generic_config(
 }
 
 /// Export configuration as MCP-compatible format
-#[tauri::command]
+#[tauri::command(rename_all = "snake_case")]
 pub async fn export_mcp_config(
     space_id: String,
     library_state: State<'_, LibraryState>,
@@ -1209,7 +1210,7 @@ fn get_all_skills_internal(library_path: &PathBuf) -> Result<Vec<Skill>, String>
 
 /// Set skill visibility in a space.
 /// Persists both `skill_hash` (legacy) and `skill_id` (stable) for migration safety.
-#[tauri::command]
+#[tauri::command(rename_all = "snake_case")]
 pub async fn set_skill_visibility(
     space_id: String,
     skill_hash: String,
@@ -1238,7 +1239,7 @@ pub async fn set_skill_visibility(
 
 /// Get visible skills for a space.
 /// Prefers visibility lookups keyed by skill_id (stable), falling back to skill_hash.
-#[tauri::command]
+#[tauri::command(rename_all = "snake_case")]
 pub async fn get_visible_skills(
     space_id: String,
     library_state: State<'_, LibraryState>,
@@ -1309,7 +1310,7 @@ fn filter_visible_skills(
 /// Get visibility status for all skills in a space, keyed by current hash.
 /// Frontends use this to render checkboxes; we project skill_id-keyed entries back to
 /// the current hash by scanning the library.
-#[tauri::command]
+#[tauri::command(rename_all = "snake_case")]
 pub async fn get_skill_visibility_map(
     space_id: String,
     library_state: State<'_, LibraryState>,
@@ -1342,7 +1343,7 @@ pub async fn get_skill_visibility_map(
 
 /// Set visibility for multiple skills at once.
 /// Resolves each hash to its skill_id and persists both for migration safety.
-#[tauri::command]
+#[tauri::command(rename_all = "snake_case")]
 pub async fn set_bulk_skill_visibility(
     space_id: String,
     skill_hashes: Vec<String>,
@@ -1392,7 +1393,7 @@ pub async fn set_bulk_skill_visibility(
 
 /// Initialize all skills as visible for a space. Persists both `skill_hash` and
 /// `skill_id` so the assignment survives later edits to SKILL.md.
-#[tauri::command]
+#[tauri::command(rename_all = "snake_case")]
 pub async fn init_space_visibility(
     space_id: String,
     library_state: State<'_, LibraryState>,
@@ -1445,7 +1446,7 @@ pub struct GitHubFileEntry {
 }
 
 /// Browse GitHub repository contents
-#[tauri::command]
+#[tauri::command(rename_all = "snake_case")]
 pub async fn browse_github_repo(
     owner: String,
     repo: String,
@@ -1495,7 +1496,7 @@ pub async fn browse_github_repo(
 }
 
 /// Preview a skill file from GitHub
-#[tauri::command]
+#[tauri::command(rename_all = "snake_case")]
 pub async fn preview_github_skill(
     owner: String,
     repo: String,
@@ -1548,7 +1549,7 @@ pub async fn preview_github_skill(
 /// Import a skill from GitHub to library
 /// If path points to a SKILL.md file, imports the entire skill directory
 /// If path points to a directory containing SKILL.md, imports all files
-#[tauri::command]
+#[tauri::command(rename_all = "snake_case")]
 pub async fn import_github_skill(
     owner: String,
     repo: String,
@@ -1786,7 +1787,7 @@ fn import_github_skill_resources_inner<'a>(
 /// becomes its own skill directory under `library_path`. We follow the Agent Skills
 /// convention: every skill lives in its own folder with a `SKILL.md` inside, plus optional
 /// scripts/ references/ assets/ subdirectories that we copy alongside.
-#[tauri::command]
+#[tauri::command(rename_all = "snake_case")]
 pub async fn import_github_directory(
     owner: String,
     repo: String,
@@ -1913,7 +1914,7 @@ pub struct ImportResult {
 
 /// Preview a single local source (folder, .zip, .skill, or .md). Extracts archives
 /// to a temp directory if needed (cleaned up before returning).
-#[tauri::command]
+#[tauri::command(rename_all = "snake_case")]
 pub async fn preview_local_skill(path: String) -> Result<SkillPreview, String> {
     let p = PathBuf::from(&path);
     let (metadata, content, source_type, temp_dir) =
@@ -1949,7 +1950,7 @@ pub async fn preview_local_skill(path: String) -> Result<SkillPreview, String> {
 }
 
 /// Import a single local source into the library. Returns the resulting Skill.
-#[tauri::command]
+#[tauri::command(rename_all = "snake_case")]
 pub async fn import_local_skill(
     path: String,
     library_state: State<'_, LibraryState>,
@@ -1971,7 +1972,7 @@ pub async fn import_local_skill(
 
 /// Import many local sources at once. Each source can be a folder / .zip /
 /// .skill / .md. Returns an aggregated `ImportResult`.
-#[tauri::command]
+#[tauri::command(rename_all = "snake_case")]
 pub async fn import_local_skills_batch(
     paths: Vec<String>,
     library_state: State<'_, LibraryState>,
@@ -2006,7 +2007,7 @@ pub async fn import_local_skills_batch(
 ///
 /// Used by the "Scan Folder" entry point in the import dialog so users can pick
 /// which discovered skills to actually import.
-#[tauri::command]
+#[tauri::command(rename_all = "snake_case")]
 pub async fn scan_directory_for_skills(
     path: String,
 ) -> Result<Vec<crate::scanner::local_import::LocalSkillCandidate>, String> {
@@ -2173,7 +2174,7 @@ fn ingest_candidates_list(
 // ========== File Watcher Commands ==========
 
 /// Start file watcher for library directory
-#[tauri::command]
+#[tauri::command(rename_all = "snake_case")]
 pub async fn start_file_watcher(
     library_state: State<'_, LibraryState>,
     watcher_state: State<'_, WatcherState>,
@@ -2199,7 +2200,7 @@ pub async fn start_file_watcher(
 }
 
 /// Stop file watcher
-#[tauri::command]
+#[tauri::command(rename_all = "snake_case")]
 pub async fn stop_file_watcher(
     watcher_state: State<'_, WatcherState>,
 ) -> Result<bool, String> {
@@ -2209,7 +2210,7 @@ pub async fn stop_file_watcher(
 }
 
 /// Check if file watcher is running
-#[tauri::command]
+#[tauri::command(rename_all = "snake_case")]
 pub async fn is_file_watcher_running(
     watcher_state: State<'_, WatcherState>,
 ) -> Result<bool, String> {
@@ -2243,7 +2244,7 @@ struct McpToolRaw {
 }
 
 /// Connect to MCP server and list available tools
-#[tauri::command]
+#[tauri::command(rename_all = "snake_case")]
 pub async fn connect_mcp_server(url: String) -> Result<Vec<McpTool>, String> {
     // MCP servers typically expose a JSON-RPC endpoint
     // We'll try to list tools using the standard MCP protocol
@@ -2295,7 +2296,7 @@ pub async fn connect_mcp_server(url: String) -> Result<Vec<McpTool>, String> {
 }
 
 /// Convert MCP tool to Skill and save to library
-#[tauri::command]
+#[tauri::command(rename_all = "snake_case")]
 pub async fn import_mcp_tool_as_skill(
     server_url: String,
     tool_name: String,
@@ -2473,7 +2474,7 @@ pub struct McpRegistryEntry {
 }
 
 /// Search MCP registries for servers
-#[tauri::command]
+#[tauri::command(rename_all = "snake_case")]
 pub async fn search_mcp_registry(
     query: String,
     registry: Option<McpRegistry>,
@@ -2515,7 +2516,7 @@ pub async fn search_mcp_registry(
 }
 
 /// Get popular/featured MCP servers from registries
-#[tauri::command]
+#[tauri::command(rename_all = "snake_case")]
 pub async fn get_featured_mcp_servers(
     registry: Option<McpRegistry>,
 ) -> Result<Vec<McpRegistryEntry>, String> {
@@ -2555,7 +2556,7 @@ pub async fn get_featured_mcp_servers(
 }
 
 /// Get MCP server details from registry
-#[tauri::command]
+#[tauri::command(rename_all = "snake_case")]
 pub async fn get_mcp_server_details(
     server_id: String,
     registry: McpRegistry,
@@ -3173,7 +3174,7 @@ fn parse_smithery_server(server: &serde_json::Value) -> Result<McpRegistryEntry,
 }
 
 /// Import MCP server from registry as skill
-#[tauri::command]
+#[tauri::command(rename_all = "snake_case")]
 pub async fn import_mcp_registry_server(
     entry: McpRegistryEntry,
     library_state: State<'_, LibraryState>,
@@ -3335,7 +3336,7 @@ fn get_settings_file_path(app_handle: &AppHandle) -> Result<PathBuf, String> {
 }
 
 /// Load app settings from JSON file
-#[tauri::command]
+#[tauri::command(rename_all = "snake_case")]
 pub async fn load_app_settings(app_handle: AppHandle) -> Result<AppSettings, String> {
     let settings_path = get_settings_file_path(&app_handle)?;
     
@@ -3353,7 +3354,7 @@ pub async fn load_app_settings(app_handle: AppHandle) -> Result<AppSettings, Str
 }
 
 /// Save app settings to JSON file
-#[tauri::command]
+#[tauri::command(rename_all = "snake_case")]
 pub async fn save_app_settings(
     app_handle: AppHandle,
     settings: AppSettings,
@@ -3370,7 +3371,7 @@ pub async fn save_app_settings(
 }
 
 /// Update a single setting in the app settings
-#[tauri::command]
+#[tauri::command(rename_all = "snake_case")]
 pub async fn update_app_setting(
     app_handle: AppHandle,
     key: String,
@@ -3404,7 +3405,7 @@ pub async fn update_app_setting(
 // ========== Batch Export Commands ==========
 
 /// Export multiple skills as a single combined file
-#[tauri::command]
+#[tauri::command(rename_all = "snake_case")]
 pub async fn export_skills_batch(
     skill_hashes: Vec<String>,
     library_state: State<'_, LibraryState>,
@@ -3453,7 +3454,7 @@ pub async fn export_skills_batch(
 }
 
 /// Export multiple skills as JSON
-#[tauri::command]
+#[tauri::command(rename_all = "snake_case")]
 pub async fn export_skills_batch_json(
     skill_hashes: Vec<String>,
     library_state: State<'_, LibraryState>,
@@ -3506,7 +3507,7 @@ pub async fn export_skills_batch_json(
 // ========== Version History Commands ==========
 
 /// Record a skill change in history
-#[tauri::command]
+#[tauri::command(rename_all = "snake_case")]
 pub async fn record_skill_change(
     skill_hash: String,
     skill_name: String,
@@ -3519,7 +3520,7 @@ pub async fn record_skill_change(
 }
 
 /// Get history for a specific skill
-#[tauri::command]
+#[tauri::command(rename_all = "snake_case")]
 pub async fn get_skill_history(
     skill_hash: String,
     db_state: State<'_, DatabaseState>,
@@ -3528,7 +3529,7 @@ pub async fn get_skill_history(
 }
 
 /// Get recent skill history across all skills
-#[tauri::command]
+#[tauri::command(rename_all = "snake_case")]
 pub async fn get_recent_skill_history(
     limit: Option<i64>,
     db_state: State<'_, DatabaseState>,
@@ -3539,7 +3540,7 @@ pub async fn get_recent_skill_history(
 // ========== Update Detection Commands ==========
 
 /// Check if a skill from URL has updates available
-#[tauri::command]
+#[tauri::command(rename_all = "snake_case")]
 pub async fn check_skill_update(
     source_url: String,
     current_hash: String,
@@ -3589,7 +3590,7 @@ pub struct UpdateCheckResult {
 }
 
 /// Check updates for all skills with source URLs
-#[tauri::command]
+#[tauri::command(rename_all = "snake_case")]
 pub async fn check_all_skill_updates(
     library_state: State<'_, LibraryState>,
 ) -> Result<Vec<SkillUpdateInfo>, String> {
@@ -3702,7 +3703,7 @@ pub struct LLMTestResult {
 }
 
 /// Test LLM provider connection
-#[tauri::command]
+#[tauri::command(rename_all = "snake_case")]
 pub async fn test_llm_connection(request: LLMTestRequest) -> Result<LLMTestResult, String> {
     let client = reqwest::Client::new();
     
@@ -3851,7 +3852,7 @@ async fn test_openai_responses(client: &reqwest::Client, request: &LLMTestReques
 // ========== File Save Commands ==========
 
 /// Save content to a file (with file dialog)
-#[tauri::command]
+#[tauri::command(rename_all = "snake_case")]
 pub async fn save_file_with_dialog(
     app_handle: AppHandle,
     content: String,
@@ -4083,7 +4084,7 @@ Note: This is a text placeholder. Actual assets can be any file type.
 }
 
 /// Create a new skill with the standard directory structure
-#[tauri::command]
+#[tauri::command(rename_all = "snake_case")]
 pub async fn create_skill(
     request: CreateSkillRequest,
     library_state: State<'_, LibraryState>,
@@ -4182,7 +4183,7 @@ pub async fn create_skill(
 }
 
 /// Validate a skill name without creating it
-#[tauri::command]
+#[tauri::command(rename_all = "snake_case")]
 pub async fn validate_skill_name_cmd(name: String) -> Result<(), String> {
     validate_skill_name(&name)
 }
@@ -4303,7 +4304,7 @@ pub(crate) fn sanitize_skill_name(input: &str) -> Result<String, String> {
 }
 
 /// Validate a skill description without creating it
-#[tauri::command]
+#[tauri::command(rename_all = "snake_case")]
 pub async fn validate_skill_description_cmd(description: String) -> Result<(), String> {
     validate_skill_description(&description)
 }
@@ -4313,7 +4314,7 @@ pub async fn validate_skill_description_cmd(description: String) -> Result<(), S
 /// `resource_path` is treated as relative to the skill directory. We canonicalise the
 /// resolved path and verify it still lives under the skill directory before reading,
 /// so a malicious request like `../../etc/passwd` is rejected rather than served.
-#[tauri::command]
+#[tauri::command(rename_all = "snake_case")]
 pub async fn get_skill_resource_content(
     skill_hash: String,
     resource_path: String,
@@ -4379,7 +4380,7 @@ fn resolve_inside(base: &std::path::Path, relative: &str) -> Result<PathBuf, Str
 }
 
 /// Open skill directory in system file manager
-#[tauri::command]
+#[tauri::command(rename_all = "snake_case")]
 pub async fn open_skill_directory(skill_dir: String) -> Result<(), String> {
     let path = PathBuf::from(&skill_dir);
     
@@ -4437,7 +4438,7 @@ pub struct ExecutionResult {
 /// Refuses to execute when:
 /// - the skill is quarantined (security: the user has explicitly flagged it as untrusted)
 /// - `script_path` would resolve outside `<skill_dir>/scripts/` (path traversal defence)
-#[tauri::command]
+#[tauri::command(rename_all = "snake_case")]
 pub async fn execute_skill_script(
     skill_hash: String,
     script_path: String,
@@ -4591,7 +4592,7 @@ pub async fn execute_skill_script(
 }
 
 /// Get available scripts for a skill
-#[tauri::command]
+#[tauri::command(rename_all = "snake_case")]
 pub async fn get_skill_scripts(
     skill_hash: String,
     library_state: State<'_, LibraryState>,
@@ -4639,7 +4640,7 @@ use crate::types::{
 };
 
 /// Get all AI tools configurations
-#[tauri::command]
+#[tauri::command(rename_all = "snake_case")]
 pub async fn get_ai_tools_config() -> Result<AIToolsConfigSummary, String> {
     let claude_code = get_claude_code_config_internal()?;
     let cursor = get_cursor_config_internal()?;
@@ -4653,7 +4654,7 @@ pub async fn get_ai_tools_config() -> Result<AIToolsConfigSummary, String> {
 }
 
 /// Get Claude Code configuration
-#[tauri::command]
+#[tauri::command(rename_all = "snake_case")]
 pub async fn get_claude_code_config() -> Result<ClaudeCodeConfig, String> {
     get_claude_code_config_internal()
 }
@@ -4678,7 +4679,7 @@ fn get_claude_code_config_internal() -> Result<ClaudeCodeConfig, String> {
 }
 
 /// Save Claude Code global configuration
-#[tauri::command]
+#[tauri::command(rename_all = "snake_case")]
 pub async fn save_claude_code_config(content: String) -> Result<(), String> {
     let home_dir = dirs::home_dir()
         .ok_or_else(|| "Unable to determine home directory".to_string())?;
@@ -4695,7 +4696,7 @@ pub async fn save_claude_code_config(content: String) -> Result<(), String> {
 }
 
 /// Get Cursor configuration
-#[tauri::command]
+#[tauri::command(rename_all = "snake_case")]
 pub async fn get_cursor_config() -> Result<CursorConfig, String> {
     get_cursor_config_internal()
 }
@@ -4781,7 +4782,7 @@ fn get_cursor_global_rules() -> Option<String> {
 }
 
 /// Save Cursor legacy rules (.cursorrules)
-#[tauri::command]
+#[tauri::command(rename_all = "snake_case")]
 pub async fn save_cursor_legacy_rules(content: String) -> Result<(), String> {
     let home_dir = dirs::home_dir()
         .ok_or_else(|| "Unable to determine home directory".to_string())?;
@@ -4793,7 +4794,7 @@ pub async fn save_cursor_legacy_rules(content: String) -> Result<(), String> {
 }
 
 /// Scan a project directory for Cursor MDC rules
-#[tauri::command]
+#[tauri::command(rename_all = "snake_case")]
 pub async fn scan_cursor_mdc_rules(project_path: String) -> Result<Vec<CursorMdcRule>, String> {
     let project_dir = PathBuf::from(&project_path);
     let rules_dir = project_dir.join(".cursor").join("rules");
@@ -4967,7 +4968,7 @@ fn extract_mdc_fields_line_based(yaml_str: &str) -> (Option<String>, Option<Stri
 }
 
 /// Save a Cursor MDC rule file
-#[tauri::command]
+#[tauri::command(rename_all = "snake_case")]
 pub async fn save_cursor_mdc_rule(
     project_path: String,
     rule_name: String,
@@ -5000,7 +5001,7 @@ pub async fn save_cursor_mdc_rule(
 }
 
 /// Get OpenCode configuration
-#[tauri::command]
+#[tauri::command(rename_all = "snake_case")]
 pub async fn get_opencode_config() -> Result<OpenCodeConfig, String> {
     get_opencode_config_internal()
 }
@@ -5037,7 +5038,7 @@ fn get_opencode_config_internal() -> Result<OpenCodeConfig, String> {
 }
 
 /// Save OpenCode global AGENTS.md
-#[tauri::command]
+#[tauri::command(rename_all = "snake_case")]
 pub async fn save_opencode_agents_md(content: String) -> Result<(), String> {
     let home_dir = dirs::home_dir()
         .ok_or_else(|| "Unable to determine home directory".to_string())?;
@@ -5054,7 +5055,7 @@ pub async fn save_opencode_agents_md(content: String) -> Result<(), String> {
 }
 
 /// Save OpenCode global config JSON
-#[tauri::command]
+#[tauri::command(rename_all = "snake_case")]
 pub async fn save_opencode_config_json(content: String) -> Result<(), String> {
     let home_dir = dirs::home_dir()
         .ok_or_else(|| "Unable to determine home directory".to_string())?;
@@ -5071,7 +5072,7 @@ pub async fn save_opencode_config_json(content: String) -> Result<(), String> {
 }
 
 /// Scan a project directory for project-specific config files
-#[tauri::command]
+#[tauri::command(rename_all = "snake_case")]
 pub async fn scan_project_ai_configs(project_path: String) -> Result<Vec<ProjectConfig>, String> {
     let project_dir = PathBuf::from(&project_path);
     
@@ -5161,7 +5162,7 @@ fn format_timestamp(secs: i64) -> String {
 }
 
 /// Save a project-specific config file
-#[tauri::command]
+#[tauri::command(rename_all = "snake_case")]
 pub async fn save_project_config(config_path: String, content: String) -> Result<(), String> {
     let path = PathBuf::from(&config_path);
     
@@ -5178,7 +5179,7 @@ pub async fn save_project_config(config_path: String, content: String) -> Result
 }
 
 /// Create a new project config file
-#[tauri::command]
+#[tauri::command(rename_all = "snake_case")]
 pub async fn create_project_config(
     project_path: String,
     config_type: String, // "claude", "cursor", "opencode"
@@ -5266,7 +5267,7 @@ pub async fn create_project_config(
 }
 
 /// Delete a project config file
-#[tauri::command]
+#[tauri::command(rename_all = "snake_case")]
 pub async fn delete_project_config(config_path: String) -> Result<(), String> {
     let path = PathBuf::from(&config_path);
     
@@ -5281,7 +5282,7 @@ pub async fn delete_project_config(config_path: String) -> Result<(), String> {
 
 /// Apply CLI environment variables to shell config
 /// This generates shell export commands and optionally writes to shell config file
-#[tauri::command]
+#[tauri::command(rename_all = "snake_case")]
 pub async fn apply_cli_env_vars(
     env_vars: std::collections::HashMap<String, String>,
 ) -> Result<String, String> {
@@ -5295,7 +5296,7 @@ pub async fn apply_cli_env_vars(
 }
 
 /// Get shell config file path based on current shell
-#[tauri::command]
+#[tauri::command(rename_all = "snake_case")]
 pub fn get_shell_config_path() -> Result<ShellConfigInfo, String> {
     let home_dir = dirs::home_dir()
         .ok_or_else(|| "Unable to determine home directory".to_string())?;
@@ -5335,7 +5336,7 @@ pub struct ShellConfigInfo {
 }
 
 /// Write CLI environment variables to shell config file
-#[tauri::command]
+#[tauri::command(rename_all = "snake_case")]
 pub async fn write_cli_to_shell_config(
     env_vars: std::collections::HashMap<String, String>,
     tool_name: String,
@@ -5405,7 +5406,7 @@ pub async fn write_cli_to_shell_config(
 }
 
 /// Remove CLI config from shell config file
-#[tauri::command]
+#[tauri::command(rename_all = "snake_case")]
 pub async fn remove_cli_from_shell_config(tool_name: String) -> Result<(), String> {
     let shell_info = get_shell_config_path()?;
     let config_path = PathBuf::from(&shell_info.config_path);
@@ -5453,7 +5454,7 @@ pub async fn remove_cli_from_shell_config(tool_name: String) -> Result<(), Strin
 }
 
 /// Generate Gemini CLI settings.json content
-#[tauri::command]
+#[tauri::command(rename_all = "snake_case")]
 pub fn generate_gemini_config(api_key: String, model: Option<String>) -> Result<String, String> {
     let config = serde_json::json!({
         "apiKey": api_key,
@@ -5464,7 +5465,7 @@ pub fn generate_gemini_config(api_key: String, model: Option<String>) -> Result<
 }
 
 /// Write Gemini CLI config to ~/.gemini/settings.json
-#[tauri::command]
+#[tauri::command(rename_all = "snake_case")]
 pub async fn write_gemini_config(api_key: String, model: Option<String>) -> Result<(), String> {
     let home_dir = dirs::home_dir()
         .ok_or_else(|| "Unable to determine home directory".to_string())?;
@@ -5483,7 +5484,7 @@ pub async fn write_gemini_config(api_key: String, model: Option<String>) -> Resu
 }
 
 /// Generate OpenCode config JSON content
-#[tauri::command]
+#[tauri::command(rename_all = "snake_case")]
 pub fn generate_opencode_cli_config(
     provider: String,
     _api_key: String, // API key is stored in auth.json, not config
@@ -5507,7 +5508,7 @@ pub fn generate_opencode_cli_config(
 }
 
 /// Write OpenCode config to ~/.config/opencode/opencode.json
-#[tauri::command]
+#[tauri::command(rename_all = "snake_case")]
 pub async fn write_opencode_cli_config(
     provider: String,
     base_url: Option<String>,
@@ -5547,12 +5548,12 @@ pub async fn write_opencode_cli_config(
 }
 
 
-#[tauri::command]
+#[tauri::command(rename_all = "snake_case")]
 pub async fn read_text_file(path: String) -> Result<String, String> {
     std::fs::read_to_string(&path).map_err(|e| format!("Failed to read file: {}", e))
 }
 
-#[tauri::command]
+#[tauri::command(rename_all = "snake_case")]
 pub async fn save_text_file(path: String, content: String) -> Result<(), String> {
     std::fs::write(&path, &content).map_err(|e| format!("Failed to write file: {}", e))
 }
@@ -5620,7 +5621,7 @@ pub struct InstallTargetInfo {
 }
 
 /// Get the list of well-known install targets and their default paths.
-#[tauri::command]
+#[tauri::command(rename_all = "snake_case")]
 pub async fn list_install_targets() -> Result<Vec<InstallTargetInfo>, String> {
     let targets = [
         (InstallTargetKind::AgentsStandard, "Agent Skills standard (~/.agents/skills/)"),
@@ -5652,7 +5653,7 @@ pub struct InstallSkillResult {
 
 /// Install a skill to an AI tool's skills directory by creating a symlink.
 /// The link is named after the skill's directory name (Agent Skills convention).
-#[tauri::command]
+#[tauri::command(rename_all = "snake_case")]
 pub async fn install_skill_to_tool(
     skill_id: String,
     target_kind: String,
@@ -5727,7 +5728,7 @@ pub async fn install_skill_to_tool(
 }
 
 /// Remove a previously created install symlink. Idempotent: missing link is not an error.
-#[tauri::command]
+#[tauri::command(rename_all = "snake_case")]
 pub async fn uninstall_skill_from_tool(
     skill_id: String,
     linked_path: String,
@@ -5763,7 +5764,7 @@ pub async fn uninstall_skill_from_tool(
 }
 
 /// List all skill installations across all targets, optionally filtered by skill_id.
-#[tauri::command]
+#[tauri::command(rename_all = "snake_case")]
 pub async fn list_skill_installations(
     skill_id: Option<String>,
     db_state: State<'_, DatabaseState>,
@@ -5801,7 +5802,7 @@ pub struct DetectedAiTool {
 /// - Home view "Detected AI tools" cards
 /// - QuickInstallSheet default-checked install targets
 /// - First-launch onboarding suggestions
-#[tauri::command]
+#[tauri::command(rename_all = "snake_case")]
 pub async fn detect_ai_tools() -> Result<Vec<DetectedAiTool>, String> {
     let kinds: [(InstallTargetKind, &str); 5] = [
         (InstallTargetKind::AgentsStandard, "Agent Skills standard"),

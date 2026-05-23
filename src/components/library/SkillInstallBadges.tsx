@@ -1,5 +1,6 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
+import { Bot, Zap, Code2, Sparkles, TerminalSquare, Check, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "@/components/ui";
 import {
@@ -9,6 +10,7 @@ import {
   useUninstallSkillFromTool,
   type InstallTargetKind,
   type SkillInstallation,
+  type DetectedAiTool,
 } from "@/hooks";
 
 interface SkillInstallBadgesProps {
@@ -19,20 +21,51 @@ interface SkillInstallBadgesProps {
    * would also pop the panel open.
    */
   stopPropagation?: boolean;
-  /** Compact mode for list / dense grids — uses smaller icons. */
+  /** Compact mode (icon-only chips) for list / dense grids. */
   compact?: boolean;
 }
 
 /**
- * Tiny per-AI-tool "install badge" strip we draw on every SkillCard. Each
- * badge is a 1-letter circle: filled when the skill is symlinked into that
- * tool's `~/.X/skills/` directory, hollow when it isn't. Clicking toggles the
- * install state without going through the full InstallSkillDialog — that
- * dialog is still reachable via the right-click menu for custom paths.
+ * Pick a recognisable icon for each known AI tool. Falls back to a generic
+ * terminal icon when we don't have a special case for the `kind`. The icons
+ * read better than the previous single-letter approach because two tools
+ * (Claude / Cursor / Codex) share the same first letter.
+ */
+function toolIcon(kind: string, className?: string) {
+  const cls = cn("h-3 w-3", className);
+  switch (kind) {
+    case "claude":
+      return <Bot className={cls} aria-hidden />;
+    case "cursor":
+      return <Zap className={cls} aria-hidden />;
+    case "codex":
+      return <Code2 className={cls} aria-hidden />;
+    case "gemini":
+      return <Sparkles className={cls} aria-hidden />;
+    case "agents":
+    default:
+      return <TerminalSquare className={cls} aria-hidden />;
+  }
+}
+
+/**
+ * A short, friendly label for a tool — drops the long parenthetical part
+ * we send from Rust (`Claude Code (~/.claude/skills/)` → `Claude Code`).
+ */
+function shortLabel(tool: DetectedAiTool): string {
+  return tool.label.replace(/\s*\(.*\)\s*$/, "").trim() || tool.label;
+}
+
+/**
+ * Per-AI-tool install chips drawn on every SkillCard. Each chip toggles the
+ * symlink into that tool's `~/.X/skills/` directory: filled when installed,
+ * outlined when not. Compact mode (used in dense lists) shows just the icon;
+ * full mode shows icon + tool name so users can tell Claude from Cursor at a
+ * glance instead of decoding 1-letter circles.
  *
- * We deliberately keep this read-mostly: badges only render for tools that
+ * We deliberately keep this read-mostly: chips only render for tools that
  * `detect_ai_tools` reports as locally present, plus the "Agent Skills
- * standard" (`~/.agents/skills/`) which is the cross-tool target.
+ * standard" (~/.agents/skills/) cross-tool target.
  */
 export const SkillInstallBadges: React.FC<SkillInstallBadgesProps> = ({
   skillId,
@@ -44,8 +77,11 @@ export const SkillInstallBadges: React.FC<SkillInstallBadgesProps> = ({
   const { data: allInstallations = [] } = useAllSkillInstallations();
   const installMutation = useInstallSkillToTool();
   const uninstallMutation = useUninstallSkillFromTool();
+  const [pendingKind, setPendingKind] = React.useState<InstallTargetKind | null>(
+    null
+  );
 
-  // Find which (kind) targets this skill is currently installed to.
+  // Which (kind) targets this skill is currently installed to.
   const installedByKind = React.useMemo(() => {
     const map = new Map<InstallTargetKind, SkillInstallation>();
     for (const i of allInstallations) {
@@ -54,14 +90,12 @@ export const SkillInstallBadges: React.FC<SkillInstallBadgesProps> = ({
     return map;
   }, [allInstallations, skillId]);
 
-  // Only render badges for tools the user actually has. If nothing is
+  // Only render chips for tools the user actually has. If nothing is
   // detected (very fresh machine) we still surface the Agent Skills standard
   // so the user has something to click; otherwise the strip would be empty
   // and the card would look unfinished.
   const tools = React.useMemo(() => {
-    const visible = detected.filter(
-      (d) => d.exists || d.kind === "agents"
-    );
+    const visible = detected.filter((d) => d.exists || d.kind === "agents");
     return visible.length > 0 ? visible : detected;
   }, [detected]);
 
@@ -75,8 +109,12 @@ export const SkillInstallBadges: React.FC<SkillInstallBadgesProps> = ({
       e.stopPropagation();
       e.preventDefault();
     }
+    if (pendingKind) return; // Guard against double-click while in-flight.
+
     const existing = installedByKind.get(kind);
-    const toolLabel = tools.find((tt) => tt.kind === kind)?.label ?? kind;
+    const toolLabel =
+      tools.find((tt) => tt.kind === kind)?.label ?? String(kind);
+    setPendingKind(kind);
     try {
       if (existing) {
         await uninstallMutation.mutateAsync({
@@ -84,17 +122,13 @@ export const SkillInstallBadges: React.FC<SkillInstallBadgesProps> = ({
           linkedPath: existing.linkedPath,
           targetPath: existing.targetPath,
         });
-        toast.success(
-          t("skillCard.toast.uninstalled", { tool: toolLabel })
-        );
+        toast.success(t("skillCard.toast.uninstalled", { tool: toolLabel }));
       } else {
         await installMutation.mutateAsync({
           skillId,
           targetKind: kind,
         });
-        toast.success(
-          t("skillCard.toast.installed", { tool: toolLabel })
-        );
+        toast.success(t("skillCard.toast.installed", { tool: toolLabel }));
       }
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
@@ -104,49 +138,83 @@ export const SkillInstallBadges: React.FC<SkillInstallBadgesProps> = ({
           : t("skillCard.toast.installFailed", { tool: toolLabel }),
         message
       );
+    } finally {
+      setPendingKind(null);
     }
   };
-
-  const dotSize = compact ? "h-4 w-4 text-[9px]" : "h-[18px] w-[18px] text-[10px]";
 
   return (
     <div
       className={cn(
-        "flex items-center gap-1",
+        "flex flex-wrap items-center gap-1",
         stopPropagation && "pointer-events-auto"
       )}
     >
       {tools.map((tool) => {
         const installed = installedByKind.has(tool.kind);
-        // First non-whitespace character of the label, uppercased. Gives us
-        // a stable, recognisable glyph per tool (C for Claude / Cursor /
-        // Codex — yes, collisions, but the colour/tooltip disambiguate).
-        const glyph = (tool.label.match(/[A-Za-z]/)?.[0] || "?").toUpperCase();
+        const isPending = pendingKind === tool.kind;
+        const label = shortLabel(tool);
+        const title = installed
+          ? t("skillCard.installedIn", { tool: tool.label })
+          : t("skillCard.notInstalledIn", { tool: tool.label });
+
+        // Compact mode: pure icon chip. The icon doubles as install state
+        // (filled background = installed, transparent background = not).
+        if (compact) {
+          return (
+            <button
+              type="button"
+              key={tool.kind}
+              onClick={(e) => handleToggle(e, tool.kind as InstallTargetKind)}
+              title={title}
+              aria-label={title}
+              aria-pressed={installed}
+              className={cn(
+                "flex h-5 w-5 items-center justify-center rounded-md border transition-all",
+                installed
+                  ? "border-accent-blue bg-accent-blue text-white shadow-sm"
+                  : "border-border-default bg-bg-tertiary text-text-muted hover:border-accent-blue hover:text-text-primary",
+                isPending && "opacity-50"
+              )}
+              disabled={isPending}
+            >
+              {isPending ? (
+                <Loader2 className="h-3 w-3 animate-spin" />
+              ) : (
+                toolIcon(tool.kind)
+              )}
+            </button>
+          );
+        }
+
+        // Full mode: icon + label pill. The check overlay on the icon makes
+        // install state legible even when shown side-by-side with non-installed
+        // chips of the same colour family.
         return (
           <button
             type="button"
             key={tool.kind}
-            onClick={(e) => handleToggle(e, tool.kind)}
-            title={
-              installed
-                ? t("skillCard.installedIn", { tool: tool.label })
-                : t("skillCard.notInstalledIn", { tool: tool.label })
-            }
+            onClick={(e) => handleToggle(e, tool.kind as InstallTargetKind)}
+            title={title}
+            aria-label={title}
+            aria-pressed={installed}
+            disabled={isPending}
             className={cn(
-              "flex items-center justify-center rounded-full font-semibold tabular-nums transition-all",
-              dotSize,
+              "flex items-center gap-1 rounded-full border px-1.5 py-0.5 text-[10px] font-medium transition-all",
               installed
-                ? "bg-accent-blue text-white shadow-sm hover:scale-110"
-                : "border border-border-default bg-bg-tertiary text-text-muted hover:border-accent-blue hover:text-text-primary"
+                ? "border-accent-blue bg-accent-blue/10 text-accent-blue hover:bg-accent-blue/20"
+                : "border-border-default bg-bg-tertiary text-text-muted hover:border-accent-blue hover:text-text-primary",
+              isPending && "opacity-50"
             )}
-            disabled={installMutation.isPending || uninstallMutation.isPending}
-            aria-label={
-              installed
-                ? t("skillCard.installedIn", { tool: tool.label })
-                : t("skillCard.notInstalledIn", { tool: tool.label })
-            }
           >
-            {glyph}
+            {isPending ? (
+              <Loader2 className="h-3 w-3 animate-spin" />
+            ) : installed ? (
+              <Check className="h-3 w-3" />
+            ) : (
+              toolIcon(tool.kind)
+            )}
+            <span className="leading-none">{label}</span>
           </button>
         );
       })}

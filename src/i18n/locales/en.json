@@ -24,6 +24,7 @@
     "deselectAll": "Deselect All",
     "noData": "No data",
     "version": "Version",
+    "revealInFinder": "Reveal in Finder",
     "connect": "Connect",
     "preview": "Preview",
     "import": "Import",
@@ -114,7 +115,7 @@
       "libraryLabel": "Library directory",
       "pathPlaceholder": "/absolute/path/to/skills",
       "pickFolder": "Pick a folder",
-      "crossToolHint": "Cross-tool standard — Cursor, Codex, Gemini will see your skills automatically.",
+      "crossToolHint": "Skill Desktop's dedicated storage — keep skills here, then sync to Claude, Cursor, Codex, Gemini directories on demand.",
       "philosophyHint": "Your skills are just files. We index them in SQLite, but the file system is the source of truth — you own them, back them up, version them however you want."
     },
     "step2": {
@@ -124,7 +125,7 @@
       "installCli": "Install",
       "noneInstalledTitle": "No AI tool found on this machine yet",
       "noneInstalledHint": "Tap “Install” next to a tool above to open its official setup guide in your browser. Come back here when it's installed and we'll pick it up automatically.",
-      "crossToolFallback": "You can also skip this step — skills will still land in ~/.agents/skills/, which any tool that follows the Agent Skills standard can read."
+      "crossToolFallback": "You can also skip this step — skills will still be stored in ~/.skill_desktop/, and you can sync them to any AI tool's directory later."
     },
     "step3": {
       "title": "Try a sample skill",
@@ -225,7 +226,7 @@
       "action": "Install all",
       "installedToast_one": "Installed 1 skill",
       "installedToast_other": "Installed {{count}} skills",
-      "partialFailed_one": "{{count}} install failed",
+      "partialFailed_one": "1 install failed",
       "partialFailed_other": "{{count}} installs failed",
       "allFailedToast": "Couldn't install — check permissions"
     }
@@ -295,6 +296,12 @@
     "categoryName": "Category Name",
     "category": {
       "default": "Uncategorized"
+    },
+    "tree": {
+      "expandAll": "Expand all folders",
+      "collapseAll": "Collapse all folders",
+      "expand": "Expand folder",
+      "collapse": "Collapse folder"
     },
     "export": {
       "title": "Export Skills",
@@ -379,6 +386,7 @@
       "install": "Install",
       "installTitle": "Install to AI tool",
       "installedCount": "Installed ({{count}})",
+      "manage": "Manage",
       "runInSandbox": "Run in sandbox",
       "openInSandbox": "Open in full sandbox view"
     },
@@ -473,7 +481,25 @@
     "description": "Creates a symbolic link from this skill into the target tool's skills directory. The tool will discover the skill on next launch.",
     "install": "Install",
     "uninstall": "Uninstall",
-    "alreadyInLibrary": "Already in your skill library"
+    "alreadyInLibrary": "Already in your skill library",
+    "installFailedToast": "Couldn't install in {{tool}}",
+    "activeInCount_one": "Active in 1 AI tool",
+    "activeInCount_other": "Active in {{count}} AI tools",
+    "notActiveAnywhere": "Not active in any AI tool yet",
+    "bulk": {
+      "installAll": "Install in all",
+      "uninstallAll": "Remove all",
+      "installHint_one": "1 detected tool is missing this skill",
+      "installHint_other": "{{count}} detected tools are missing this skill",
+      "nothingToDo": "Every detected tool already has this skill",
+      "installed_one": "Installed in 1 tool",
+      "installed_other": "Installed in {{count}} tools",
+      "uninstalled_one": "Removed from 1 tool",
+      "uninstalled_other": "Removed from {{count}} tools",
+      "partialFailed_one": "1 install failed",
+      "partialFailed_other": "{{count}} installs failed",
+      "allFailed": "All install attempts failed — check permissions"
+    }
   },
   "discover": {
     "title": "Discover",
@@ -602,7 +628,7 @@
       "checkNow": "Check now",
       "lastCheckedAt": "Last checked at {{time}}",
       "noEligible": "No skills in your library have a remote source URL yet. Import a skill from GitHub or a URL and it'll show up here.",
-      "notYetChecked_one": "{{count}} skill has a remote source. Tap “Check now” to see whether a newer version is available.",
+      "notYetChecked_one": "1 skill has a remote source. Tap “Check now” to see whether a newer version is available.",
       "notYetChecked_other": "{{count}} skills have a remote source. Tap “Check now” to see whether newer versions are available.",
       "availableHeading_one": "1 update available",
       "availableHeading_other": "{{count}} updates available",
@@ -631,7 +657,7 @@
     "library": {
       "title": "Library Settings",
       "directory": "Library Directory",
-      "directoryDesc": "Location where your skills are stored",
+      "directoryDesc": "Skill Desktop's central storage directory. Skills live here and can be synced into any AI tool. Defaults to ~/.skill_desktop.",
       "useDefault": "Use default: {{path}}",
       "rescan": "Rescan Library",
       "rescanDesc": "Manually rescan the library directory for changes",
@@ -861,6 +887,7 @@
     "cursor": "Cursor",
     "opencode": "OpenCode",
     "projectConfig": "Project Config",
+    "projectConfigDesc": "Per-project AI config files (CLAUDE.md, .cursor/rules, AGENTS.md). Pick a project folder to scan and edit its tool configs in one place.",
     "globalConfig": "Global Configuration",
     "claudeGlobalDesc": "Global CLAUDE.md file that applies to all projects",
     "claudePlaceholder": "# Claude Code Configuration\n\n## Overview\nDescribe your project...\n\n## Tech Stack\n- Technology 1\n- Technology 2\n\n## Standards\nCoding conventions...",

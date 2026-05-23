@@ -1,8 +1,20 @@
 # Skill Desktop · 产品力盘点与改进计划
 
-> 版本: 1.0
+> 版本: 1.1（路径方案调整）
 > 角色视角: 资深产品经理 + AI 重度用户
-> 截稿日期: 2026-05-21
+> 截稿日期: 2026-05-21（v1.0），2026-05-23（v1.1 修订）
+
+---
+
+## ⚠️ v1.1 状态更新（2026-05-23）
+
+经过用户使用反馈与产品评审，**默认 library 路径已从 `~/.agents/skills/` 改为 `~/.skill_desktop/`**：
+
+- Skill Desktop 拥有并维护 `~/.skill_desktop/` 作为唯一的中央存储位置
+- 各 AI 工具的目录（`~/.claude/skills/`、`~/.cursor/skills/`、`~/.codex/skills/`、`~/.gemini/skills/`、`~/.agents/skills/` 等）通过软链接从中央库同步
+- 这样做的好处：① 用户清晰知道"我的技能在哪"，② 删除/卸载 AI 工具不会影响技能本体，③ 不会污染任何 AI 工具的目录
+
+下文中所有提到"默认 library 路径是 `~/.agents/skills/`"的段落，请以本块为准。
 
 ---
 
@@ -115,6 +127,7 @@ Appearance · Library · Security · LLM · CLI · About
 #### 🔴 默认 library 路径是 `~/.agents/skills/`，但 Claude Code 用的是 `~/.claude/skills/`
 - 默认目录跟用户日常用的 AI 工具不一致，每次都要"Install to AI Tool"
 - **可以**：检测到用户安装了 Claude Code 就把默认目录设成 `~/.claude/skills/`，让 Library = Claude 的实际目录，0 配置
+- **v1.1 最终方案（已落地）**：放弃"library = 某个 AI 工具目录"的耦合，改为 Skill Desktop 拥有的中央存储 `~/.skill_desktop/`，再通过软链接同步到各 AI 工具目录。Onboarding Step 2 一键完成检测 + 同步配置，0 配置目标依然达成且不绑定单一工具。
 
 #### 🟡 Spaces 概念门槛太高
 - 软链接（symlink）是开发者词
@@ -260,15 +273,16 @@ iOS 官方 App 之所以丝滑，靠的是 **4 件事**：
 |---------|-------------------|
 | 装了 Claude Code 且 `~/.claude/skills/` 存在 | `~/.claude/skills/`（这样 library 就是 Claude 的目录，跳过 install 步骤） |
 | 装了 Cursor 且 `~/.cursor/skills/` 存在 | `~/.cursor/skills/` |
-| 都没装 / 多个都装了 | `~/.agents/skills/`（当前默认，跨工具） |
+| 都没装 / 多个都装了 | `~/.skill_desktop/`（v1.1 起，Skill Desktop 拥有的中央存储） |
 
-**已落地（调整版）**：
+**v1.1 已落地（最终方案）**：
 
-- 保留 `~/.agents/skills/` 作为跨工具的默认 library 路径（Cursor / Codex / Gemini 都自动认这个目录，本身就是"智能默认"）
+- 默认 library path 改为 **`~/.skill_desktop/`**（Skill Desktop 拥有、与任何 AI 工具目录解耦的中央存储）
+- 各 AI 工具目录通过软链接同步：`~/.claude/skills/`、`~/.cursor/skills/`、`~/.codex/skills/`、`~/.gemini/skills/`、`~/.agents/skills/` 等
 - 后端 `AppSettings` 增加 `auto_install_targets: Vec<String>` 字段（向后兼容 `#[serde(default)]`），存储用户偏好的自动装机目标
 - 前端 `AppSettings.autoInstallTargets?: string[]`
 - 首页和 QuickInstallSheet 都通过 `useDetectAiTools` 展示用户系统的真实 AI 工具状态
-- 后续 M3-6 onboarding 会在首启时把检测到的工具自动写入 `autoInstallTargets`
+- Onboarding 首启时把检测到的工具自动写入 `autoInstallTargets`，新技能落到 `~/.skill_desktop/` 后立即软链到这些目标
 
 #### ✅ M1-4 · Skill 卡片显示"装在了哪"
 
@@ -626,7 +640,7 @@ Raycast 式的快速访问。比当前的 search 框强 10 倍。
 |---|---|---|
 | **HomeView Updates Banner**（新） | 用户从 GitHub / URL 导入的 skill 永远不知道有没有新版本 | Library 卡片加一个第三按钮 (Download)，触发 `check_all_skill_updates`，结果做成 Home 顶部 collapsible 卡，按 skill 名/sourceUrl 列出 + "全部更新"；检查结果和 `checkedAt` 写入 Zustand store（`skillUpdates / appliedUpdateHashes`），所以 HomeView / SettingsView 之间共享同一份缓存，切回 Home 仍能看到上次结果 |
 | **后端 `update_skill_from_url`**（新） | `import_skill_from_url` 在目录已存在时直接报错，所有"应用更新"路径在它之上都是坏的 | 新增独立 Tauri 命令 `update_skill_from_url(current_hash, source_url)`：根据 hash 在 library 里定位现有目录、覆盖 SKILL.md、保留原目录名（让 AI 工具上的 symlinks 继续生效）、重新 scan 出新 hash；SkillDetail / HomeView Updates Banner / SettingsView UpdatesPanel 全部迁到 `useUpdateSkillFromUrl` hook |
-| **Onboarding 零工具引导**（新） | 第一次开 App 但本机没装任何 AI CLI 时，Step 2 是死路 | StepTools 在每个 `!exists` 的行渲染"Install" 链接，点击调 `plugin:opener|open_url` 开官方安装指引（Claude Docs / Cursor 下载页 / Codex repo / Gemini CLI repo）；列表下方追加"没工具也没关系：技能仍会落到 `~/.agents/skills/`"的 fallback banner |
+| **Onboarding 零工具引导**（新） | 第一次开 App 但本机没装任何 AI CLI 时，Step 2 是死路 | StepTools 在每个 `!exists` 的行渲染"Install" 链接，点击调 `plugin:opener|open_url` 开官方安装指引（Claude Docs / Cursor 下载页 / Codex repo / Gemini CLI repo）；列表下方追加"没工具也没关系：技能仍会落到 `~/.skill_desktop/`，之后随时同步到任意 AI 工具"的 fallback banner |
 | **? 快捷键速查表**（新） | ⌘K / ⌘1-6 等已经实现但没人发现 | 新增 `<ShortcutsHelp />` 组件挂在 App 根，全局 keydown 拦截 `?`（非输入焦点时）打开 Dialog；按平台显示 `⌘` vs `Ctrl`；Settings 也新加 Shortcuts 类目，按钮链接到同一个 Dialog |
 | **Settings 类目分组**（新） | 6 个原始类目是平铺的，扫不出主次 | sidebar 改为 General / Integrations / System 三段；新增 Updates（独立面板：手动 Check + 上次时间 + 可更新/已是最新/失败三栏）和 Shortcuts 两个类目；总条目 6→8，但视觉密度反而更轻 |
 | **Library 批量装机**（新） | 已有批量删除/隔离/导出，唯独缺批量"装到 AI 工具" | Selection toolbar 新增 "Install to…" 按钮，弹出选 AI 工具的 dialog，逐条 install + toast 汇总（成功 N 个 / 失败 M 个）；只显示 `exists` 的工具，避免装到空目录 |

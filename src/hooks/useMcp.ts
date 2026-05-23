@@ -62,10 +62,10 @@ export function useImportMcpToolAsSkill() {
       inputSchema: Record<string, unknown>;
     }) => {
       return await invoke<Skill>("import_mcp_tool_as_skill", {
-        serverUrl,
-        toolName,
-        toolDescription,
-        inputSchema,
+        server_url: serverUrl,
+        tool_name: toolName,
+        tool_description: toolDescription,
+        input_schema: inputSchema,
       });
     },
     onSuccess: () => {

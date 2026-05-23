@@ -275,8 +275,8 @@ export const SpacesView: React.FC = () => {
                 resetForm();
                 setShowCreateDialog(true);
               }}
-              aria-label={t("spaces.create.title")}
-              title={t("spaces.create.title")}
+              aria-label={t("spaces.createSpace")}
+              title={t("spaces.createSpace")}
             >
               <Plus className="h-4 w-4" aria-hidden="true" />
             </Button>

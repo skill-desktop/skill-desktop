@@ -24,6 +24,7 @@
     "deselectAll": "取消全选",
     "noData": "暂无数据",
     "version": "版本",
+    "revealInFinder": "在 Finder 中显示",
     "connect": "连接",
     "preview": "预览",
     "import": "导入",
@@ -114,7 +115,7 @@
       "libraryLabel": "技能库目录",
       "pathPlaceholder": "/绝对路径/技能目录",
       "pickFolder": "选择文件夹",
-      "crossToolHint": "跨工具标准 —— Cursor、Codex、Gemini 都会自动发现这里的技能。",
+      "crossToolHint": "Skill Desktop 默认存储目录 —— 技能在这里集中管理，再「同步」到 Claude、Cursor、Codex、Gemini 等工具的目录。",
       "philosophyHint": "技能本质就是文件。我们用 SQLite 做索引，但文件系统永远是唯一的事实来源 —— 文件归你所有，你可以随意备份、版本化、迁移。"
     },
     "step2": {
@@ -124,7 +125,7 @@
       "installCli": "安装",
       "noneInstalledTitle": "本机暂未检测到任何 AI 工具",
       "noneInstalledHint": "点击工具旁的「安装」按钮打开官方安装指引，装完回到这里我们会自动识别。",
-      "crossToolFallback": "也可以跳过 —— 技能会装到 ~/.agents/skills/，任何遵循 Agent Skills 标准的工具都能读到。"
+      "crossToolFallback": "也可以跳过 —— 技能依然会存到 ~/.skill_desktop/，之后可以随时同步到任意 AI 工具的目录。"
     },
     "step3": {
       "title": "试试一个示例技能",
@@ -296,6 +297,12 @@
     "category": {
       "default": "未分类"
     },
+    "tree": {
+      "expandAll": "展开全部目录",
+      "collapseAll": "折叠全部目录",
+      "expand": "展开目录",
+      "collapse": "折叠目录"
+    },
     "export": {
       "title": "导出技能",
       "description": "将 {{count}} 个技能导出到文件",
@@ -379,6 +386,7 @@
       "install": "安装",
       "installTitle": "安装到 AI 工具",
       "installedCount": "已安装 ({{count}})",
+      "manage": "管理",
       "runInSandbox": "在沙盒运行",
       "openInSandbox": "打开完整沙盒视图"
     },
@@ -470,10 +478,28 @@
   },
   "installSkill": {
     "title": "安装到 AI 工具",
-    "description": "通过软链接将该技能安装到目标 AI 工具的技能目录。工具下次启动时即可发现该技能。",
+    "description": "通过软链接将该技能同步到目标 AI 工具的技能目录。工具下次启动时即可发现该技能。",
     "install": "安装",
     "uninstall": "卸载",
-    "alreadyInLibrary": "该技能已经在你的技能库中"
+    "alreadyInLibrary": "该技能已经在你的技能库中",
+    "installFailedToast": "无法安装到 {{tool}}",
+    "activeInCount_one": "已在 1 个 AI 工具中生效",
+    "activeInCount_other": "已在 {{count}} 个 AI 工具中生效",
+    "notActiveAnywhere": "尚未在任何 AI 工具中生效",
+    "bulk": {
+      "installAll": "全部安装",
+      "uninstallAll": "全部移除",
+      "installHint_one": "还有 1 个已检测到的工具未安装该技能",
+      "installHint_other": "还有 {{count}} 个已检测到的工具未安装该技能",
+      "nothingToDo": "所有已检测到的工具都已安装该技能",
+      "installed_one": "已安装到 1 个工具",
+      "installed_other": "已安装到 {{count}} 个工具",
+      "uninstalled_one": "已从 1 个工具移除",
+      "uninstalled_other": "已从 {{count}} 个工具移除",
+      "partialFailed_one": "1 个安装失败",
+      "partialFailed_other": "{{count}} 个安装失败",
+      "allFailed": "全部安装失败 —— 请检查权限"
+    }
   },
   "discover": {
     "title": "发现",
@@ -631,7 +657,7 @@
     "library": {
       "title": "技能库设置",
       "directory": "技能库目录",
-      "directoryDesc": "技能文件的存储位置",
+      "directoryDesc": "Skill Desktop 集中存储技能的目录，技能在这里集中管理后再同步到各 AI 工具。默认为 ~/.skill_desktop。",
       "useDefault": "使用默认路径：{{path}}",
       "rescan": "重新扫描",
       "rescanDesc": "手动重新扫描技能库目录的变更",
@@ -861,6 +887,7 @@
     "cursor": "Cursor",
     "opencode": "OpenCode",
     "projectConfig": "项目配置",
+    "projectConfigDesc": "项目级 AI 配置文件（CLAUDE.md、.cursor/rules、AGENTS.md）。选一个项目目录后，可在这里集中扫描和编辑各工具的配置。",
     "globalConfig": "全局配置",
     "claudeGlobalDesc": "适用于所有项目的全局 CLAUDE.md 文件",
     "claudePlaceholder": "# Claude Code 配置\n\n## 概述\n描述你的项目...\n\n## 技术栈\n- 技术 1\n- 技术 2\n\n## 规范\n编码规范...",

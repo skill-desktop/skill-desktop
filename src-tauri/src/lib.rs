@@ -37,12 +37,17 @@ pub fn run() {
             // Initialize database
             let db = Database::new(&app_data_dir).expect("Failed to initialize database");
 
-            // Load library path from database, or fall back to the cross-tool standard.
+            // Load library path from database, or fall back to a Skill Desktop-owned directory.
             //
-            // Default: ~/.agents/skills/ (the Agent Skills cross-client convention as of 2026).
-            // This directory is auto-discovered by Cursor, OpenAI Codex CLI, Gemini CLI, etc.,
-            // so making it the default means skills managed here are immediately visible to
-            // other tools without any extra "install" step.
+            // Default: ~/.skill_desktop/ — a dedicated, fixed storage location for skills
+            // managed by Skill Desktop. We deliberately do NOT default to ~/.agents/skills/
+            // (the cross-tool standard) because that would make Skill Desktop's library
+            // indistinguishable from skills the user manages by hand from other tools.
+            //
+            // Instead, Skill Desktop owns ~/.skill_desktop/ and acts as the source of truth.
+            // Users can then "sync"/install individual skills into ~/.agents/skills/,
+            // ~/.claude/skills/, ~/.cursor/skills/, etc. via the existing install_skill_to_tool
+            // command.
             //
             // If $HOME is unavailable (very unusual on desktop), we fall back to the sandboxed
             // app data directory so the app stays functional.
@@ -50,7 +55,7 @@ pub fn run() {
 
             let library_path = library_path.or_else(|| {
                 let default_path = dirs::home_dir()
-                    .map(|h| h.join(".agents").join("skills"))
+                    .map(|h| h.join(".skill_desktop"))
                     .unwrap_or_else(|| app_data_dir.join("data").join("skills"));
 
                 if let Err(e) = std::fs::create_dir_all(&default_path) {

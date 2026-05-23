@@ -60,14 +60,23 @@ Building AI agents is exciting, but managing their skills (tools/capabilities) i
 
 ## Features
 
-### Library Manager
-Your central hub for all skills. Automatically scans directories, indexes metadata, and keeps everything in sync.
+### Library Manager — One central library
+All your skills live in a single, fixed location (`~/.skill_desktop/` by default) that Skill Desktop owns and curates.
 
-- **Auto-discovery** - Point to a folder, we handle the rest
+- **Multi-level directory tree** - Organize skills with nested folders, expand/collapse, right-click to reveal in Finder
+- **Auto-discovery** - Point to the folder, we index everything
 - **Real-time sync** - File changes are detected instantly
 - **Smart search** - Find skills by name, tags, or permissions
 - **Full Agent Skills support** - SKILL.md with scripts, references, and assets
 - **Risk analysis** - Automatic code scanning for potential security risks
+
+### AI Tool Sync — One library, every AI agent
+Sync any skill from your central library into the directories your AI tools actually read from.
+
+- **Auto-detect installed tools** - Claude Code, Cursor, Codex, Gemini CLI, OpenCode, Windsurf, and the cross-tool `~/.agents/skills/` standard
+- **Per-skill, per-tool control** - Install / uninstall a skill into each tool independently with status badges
+- **Symlinks, not copies** - One source of truth in `~/.skill_desktop/`; tools see live symlinks
+- **Bulk install / remove** - Push a skill to every active tool, or pull it back, with one click
 
 ### Skill Creator
 Create new skills with a guided wizard following the Agent Skills standard.
@@ -82,15 +91,20 @@ Create isolated environments for different projects or agents. Each space has it
 
 - **One-click switching** - Jump between contexts instantly
 - **Symlink magic** - Skills are linked, not copied
-- **Export configs** - Generate `claude_desktop_config.json` and MCP configs
+- **Per-space visibility** - Show only the skills relevant to a project
 
 ### Skill Hub
 Discover and import skills from the community.
 
-- **URL import** - Paste a link, preview the code, import with confidence
+- **URL / local import** - Paste a link, drop a folder/zip, preview and import with confidence
 - **GitHub integration** - Import directly from repositories (including [anthropics/skills](https://github.com/anthropics/skills))
-- **MCP Registry** - Browse and import from Glama, MCP.so, MCPServers.org, and Smithery
+- **MCP Registry** - Browse and import from Glama, MCP.so, MCPServers.org, and Smithery — convert MCP tools into skills
 - **Security first** - Review permissions and risk analysis before importing
+
+### Onboarding & UX
+- **First-run wizard** - Picks `~/.skill_desktop/`, detects your AI tools, offers links for any that aren't installed yet
+- **⌘K command palette + ⌘1-6 view switching** - Press `?` anywhere for the shortcuts cheat sheet
+- **Internationalized** - English & 简体中文
 
 ### Security Built-in
 Every skill declares its permissions. You're always in control.
@@ -132,11 +146,11 @@ chmod +x Skill-Desktop.AppImage
 
 ## Quick Start
 
-1. **Set your Library path** - Choose where your skills live
-2. **Create a Skill** - Use the wizard to create your first skill
-3. **Create a Space** - Name it after your project or agent
-4. **Toggle skills** - Enable/disable skills for each space
-5. **Export config** - Generate configs for Claude, GPT, or custom agents
+1. **Open the app** - Skill Desktop creates `~/.skill_desktop/` as your central library on first run
+2. **Create or import a skill** - Use the wizard, paste a URL, drop a folder, or browse the Skill Hub
+3. **Install into your AI tools** - Pick the tools detected on your machine (Claude Code / Cursor / Codex / Gemini CLI / OpenCode / Windsurf) and sync with one click
+4. **Create a Space** (optional) - Curate which skills are visible per project / agent
+5. **Edit a skill once, it updates everywhere** - Files live in `~/.skill_desktop/`; symlinks keep every AI tool in sync
 
 ## Agent Skills Standard
 
@@ -147,26 +161,29 @@ Skill Desktop follows the [Agent Skills](https://agentskills.io) specification c
 Skills are organized as directories containing a `SKILL.md` file and optional resource folders:
 
 ```
-~/SkillLibrary/
+~/.skill_desktop/                  # Skill Desktop's central library (default)
 ├── web-search/
-│   ├── SKILL.md              # Main skill file (required)
-│   ├── LICENSE.txt           # License file (optional)
-│   ├── scripts/              # Executable code (optional)
+│   ├── SKILL.md                   # Main skill file (required)
+│   ├── LICENSE.txt                # License file (optional)
+│   ├── scripts/                   # Executable code (optional)
 │   │   ├── search.py
 │   │   └── parse_results.py
-│   ├── references/           # Documentation (optional)
+│   ├── references/                # Documentation (optional)
 │   │   └── api_docs.md
-│   └── assets/               # Templates, images, etc. (optional)
+│   └── assets/                    # Templates, images, etc. (optional)
 │       └── template.html
-├── code-executor/
-│   ├── SKILL.md
-│   └── scripts/
-│       └── sandbox.py
+├── research/                      # Nested folders are fully supported
+│   ├── deep-research/
+│   │   └── SKILL.md
+│   └── citation-checker/
+│       └── SKILL.md
 └── data-analyzer/
     ├── SKILL.md
     └── references/
         └── schema.md
 ```
+
+From this single source of truth, Skill Desktop creates symlinks into each AI tool's own skill directory (e.g. `~/.claude/skills/`, `~/.cursor/skills/`, `~/.codex/skills/`, `~/.gemini/skills/`, `~/.agents/skills/`).
 
 ### Resource Directories
 
@@ -264,16 +281,19 @@ pnpm tauri build
 
 ## Roadmap
 
-- [x] Core library management
-- [x] Workspace spaces
-- [x] Basic UI framework
-- [x] URL import
+- [x] Core library management with multi-level directory tree
+- [x] Workspace spaces with per-skill visibility
+- [x] First-run onboarding wizard
+- [x] URL / local file / local folder import
 - [x] GitHub integration (with full directory support)
-- [x] MCP Registry support (Glama, MCP.so, MCPServers.org, Smithery)
+- [x] MCP Registry support (Glama, MCP.so, MCPServers.org, Smithery) — import MCP tools as skills
 - [x] Risk analysis
 - [x] Agent Skills standard support (SKILL.md, scripts, references, assets)
 - [x] Skill creation wizard
-- [ ] Sandbox debugger
+- [x] Auto-detection of installed AI tools (Claude Code, Cursor, Codex, Gemini CLI, OpenCode, Windsurf)
+- [x] Per-tool install / uninstall with symlinks
+- [x] ⌘K command palette and global keyboard shortcuts
+- [ ] Sandbox debugger UI
 - [ ] Cloud sync (optional)
 - [ ] VS Code extension
 

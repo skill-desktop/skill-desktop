@@ -56,8 +56,8 @@ export function useGetSkillResourceContent() {
       resourcePath: string;
     }) => {
       return await invoke<string>("get_skill_resource_content", {
-        skillHash,
-        resourcePath,
+        skill_hash: skillHash,
+        resource_path: resourcePath,
       });
     },
   });
@@ -69,7 +69,7 @@ export function useGetSkillResourceContent() {
 export function useOpenSkillDirectory() {
   return useMutation({
     mutationFn: async (skillDir: string) => {
-      await invoke("open_skill_directory", { skillDir });
+      await invoke("open_skill_directory", { skill_dir: skillDir });
     },
   });
 }

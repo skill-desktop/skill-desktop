@@ -56,8 +56,13 @@ export const ContextMenuTrigger: React.FC<ContextMenuTriggerProps> = ({
 }) => {
   const { setOpen, setPosition } = React.useContext(ContextMenuContext);
 
+  // Stop propagation so a nested ContextMenu (e.g. a SkillCard inside a list
+  // that also wraps in ContextMenu) doesn't ALSO fire the parent's handler.
+  // Without this, both menus would open at the same coords and the visible
+  // one would jitter / appear in the wrong place depending on z-index.
   const handleContextMenu = (e: React.MouseEvent) => {
     e.preventDefault();
+    e.stopPropagation();
     setPosition({ x: e.clientX, y: e.clientY });
     setOpen(true);
   };
@@ -78,7 +83,7 @@ export const ContextMenuContent: React.FC<ContextMenuContentProps> = ({
   const { open, setOpen, position } = React.useContext(ContextMenuContext);
   const menuRef = React.useRef<HTMLDivElement>(null);
 
-  // Close menu when clicking outside
+  // Close menu when clicking outside / scrolling / pressing Esc.
   React.useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
@@ -92,41 +97,66 @@ export const ContextMenuContent: React.FC<ContextMenuContentProps> = ({
       }
     };
 
+    // Scrolling underneath the menu invalidates its anchor (the right-click
+    // location moves with the content), so closing is safer than letting the
+    // menu float over the now-wrong row.
+    const handleScroll = () => setOpen(false);
+
     if (open) {
       document.addEventListener("mousedown", handleClickOutside);
       document.addEventListener("keydown", handleEscape);
+      window.addEventListener("scroll", handleScroll, true);
+      window.addEventListener("resize", handleScroll, true);
     }
 
     return () => {
       document.removeEventListener("mousedown", handleClickOutside);
       document.removeEventListener("keydown", handleEscape);
+      window.removeEventListener("scroll", handleScroll, true);
+      window.removeEventListener("resize", handleScroll, true);
     };
   }, [open, setOpen]);
 
-  // Adjust position to stay within viewport
+  // Compute final position synchronously before paint so the menu never
+  // flashes at (0,0) or yesterday's position on first render. We start with
+  // the raw click coordinates (correct ~99% of the time) and use
+  // useLayoutEffect to clamp into the viewport once the menu has measured
+  // itself; the clamp runs before the browser paints the next frame.
   const [adjustedPosition, setAdjustedPosition] = React.useState(position);
 
-  React.useEffect(() => {
-    if (open && menuRef.current) {
-      const rect = menuRef.current.getBoundingClientRect();
-      const viewportWidth = window.innerWidth;
-      const viewportHeight = window.innerHeight;
+  React.useLayoutEffect(() => {
+    if (!open) return;
+    // Reset to raw click coordinates on every open so a stale clamped value
+    // from a previous open (different anchor, different scroll) isn't reused.
+    setAdjustedPosition(position);
+  }, [open, position]);
 
-      let x = position.x;
-      let y = position.y;
+  React.useLayoutEffect(() => {
+    if (!open || !menuRef.current) return;
+    const rect = menuRef.current.getBoundingClientRect();
+    const viewportWidth = window.innerWidth;
+    const viewportHeight = window.innerHeight;
+    const PADDING = 8;
 
-      // Adjust horizontal position
-      if (x + rect.width > viewportWidth) {
-        x = viewportWidth - rect.width - 8;
-      }
+    let x = position.x;
+    let y = position.y;
 
-      // Adjust vertical position
-      if (y + rect.height > viewportHeight) {
-        y = viewportHeight - rect.height - 8;
-      }
+    // Flip horizontal: prefer keeping the click as the menu's left edge,
+    // but slide left when we'd overflow the viewport.
+    if (x + rect.width + PADDING > viewportWidth) {
+      x = Math.max(PADDING, viewportWidth - rect.width - PADDING);
+    }
+    // Flip vertical: same idea, slide up if needed.
+    if (y + rect.height + PADDING > viewportHeight) {
+      y = Math.max(PADDING, viewportHeight - rect.height - PADDING);
+    }
 
+    if (x !== adjustedPosition.x || y !== adjustedPosition.y) {
       setAdjustedPosition({ x, y });
     }
+    // We deliberately don't depend on `adjustedPosition` to avoid feedback
+    // loops; the comparison above already short-circuits no-op writes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, position]);
 
   if (!open) return null;
@@ -134,6 +164,7 @@ export const ContextMenuContent: React.FC<ContextMenuContentProps> = ({
   return (
     <div
       ref={menuRef}
+      role="menu"
       className={cn(
         "fixed z-50 min-w-[180px] rounded-md border border-border-default bg-bg-elevated p-1 shadow-lg animate-in fade-in-0 zoom-in-95",
         className

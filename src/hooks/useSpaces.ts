@@ -117,9 +117,9 @@ export function useSyncSpace() {
       enabledSkills: string[];
     }) => {
       return await invoke<SyncResult>("sync_space", {
-        libraryPath,
-        activePath,
-        enabledSkills,
+        library_path: libraryPath,
+        active_path: activePath,
+        enabled_skills: enabledSkills,
       });
     },
   });

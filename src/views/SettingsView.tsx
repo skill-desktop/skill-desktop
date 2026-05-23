@@ -245,7 +245,7 @@ export const SettingsView: React.FC = () => {
                     value={libraryPath}
                     onChange={(e) => handlePathChange(e.target.value)}
                     onBlur={handlePathBlur}
-                    placeholder={defaultPaths?.skillLibraryPath || "~/SkillLibrary"}
+                    placeholder={defaultPaths?.skillLibraryPath || "~/.skill_desktop"}
                     className="w-80"
                   />
                   <Button

@@ -21,6 +21,7 @@ import { useUpdateSkillFromUrl } from "@/hooks/useImport";
 import { Button, ScrollArea, ConfirmDialog } from "@/components/ui";
 import { FileEditorDialog } from "@/components/editor/FileEditorDialog";
 import { InstallSkillDialog } from "./InstallSkillDialog";
+import { SkillInstallBadges } from "./SkillInstallBadges";
 import type { Skill } from "@/types";
 import { TabButton, OverviewTab, SecurityTab, RunTab } from "./detail";
 
@@ -271,6 +272,32 @@ export const SkillDetail: React.FC<SkillDetailProps> = ({ skill }) => {
             <Button size="sm" variant="secondary" onClick={() => setShowUpdateDialog(true)}>
               {t("skillDetail.actions.update")}
             </Button>
+          </div>
+        )}
+
+        {/* Install management quick-summary: a thin strip above the actions
+            so the user can see "where is this active?" without opening the
+            full install dialog. Clicking still opens the dialog for full
+            control. Keeps the primary management surface visible. */}
+        {skill.skillId && (
+          <div className="border-t border-border-default px-4 pb-2 pt-3">
+            <div className="mb-1.5 flex items-center justify-between gap-2">
+              <span className="text-[10px] font-medium uppercase tracking-wide text-text-muted">
+                {installations.length > 0
+                  ? t("installSkill.activeInCount", {
+                      count: installations.length,
+                    })
+                  : t("installSkill.notActiveAnywhere")}
+              </span>
+              <button
+                type="button"
+                onClick={() => setInstallDialogOpen(true)}
+                className="text-[10px] font-medium text-accent-blue hover:underline"
+              >
+                {t("skillDetail.actions.manage", "Manage")}
+              </button>
+            </div>
+            <SkillInstallBadges skillId={skill.skillId} stopPropagation={false} />
           </div>
         )}
 
